@@ -1,0 +1,86 @@
+Katanga (maybe release name is Screen3d) is the virtual 3D screen.
+
+Any given 3D game running on NVidia or SBS will take the bits and put them into
+the screen Quad in the Unity environment.
+
+The performance inside the injected game must be as fast as possible to avoid
+CPU hits that can be very costly.  
+The performance inside the Unity display needs to be fast at least 90Hz, to 
+avoid any VR lag.  This can be simple scene, and will be on different CPU cores.
+Sync problems will not exist, because we'll copy bits from the game to IPC, which
+will then be put to the Quad. Since the headset only draws every 1/90th second,
+there should be no tearing, because it will always fetch the newest image.
+
+
+The Katanga project is multi-component.
+
+1) The Unity app itself, which draw in the VR headset.
+2) The UnityNativePlugin, which is native C code called from Unity.
+3) The destination Deviare plugin, which will be injected into the game.
+
+The Unity app is x64 only, because there is no point in a x32 version, since VR 
+requires x64.  The Deviare plugin will be x32 and x64 depending upon the game.
+
+DX9 and DX11 and OpenGL should all be supported with the Deviare Plugin.
+
+
+Trying to decide whether to use Deviare2 itself, or to use the in-proc version only.
+Not completely clear what would be best, and Deviare2 is fairly confusing and
+poorly documented.  Lots of funny pieces that are not clear, like their Agent, and
+active plugins. Plugins can be hook specific and native.
+
+The code for the Unity project itself must include a C++ chunk, because we need
+to call the OpenVR code, which is native C++.  Maybe this is handled by the Unity
+plugin code, as we enable VR and it activates, but we still need access to the 
+buffer for the quad/screen.
+
+We don't need to hook remotely, hooking from inside the running game is OK.  And we
+really only need the Present() call.  There also does not seem to be a particularly
+good callback mechanism. They have OnFunctionCalled, but that is before we finish
+copying the backbuffer, and we need a more direct IPC of some form.
+
+Probably we need to use memory mapped file as the IPC, so that the backbuffer copy to
+the Unity app is fast.  We can also use that for notification of new data.
+
+So, all in all, doesn't seem worth using Deviare over in-proc, but maybe.
+
+
+Back with more thoughts.  Given that the Quad we are drawing into is managed by Unity
+it seems to push toward using Deviare2 directly, not in-proc.  Unity is all C#, and 
+it is harder to do in native plugin.
+
+So, for starting at least, current plan is to not use native plugin, and do all the 
+work in C#, including Deviare, and hooking the Present call.
+
+The actual code for the game itself will be a Deviare native plugin in C++, that will
+do the work of fetching the backbuffer and copying it for the Unity app to use.  That
+code needs to be as fast as possible, to avoid impacting the game's CPU use.  
+
+
+Starting down this path, ran into some weird Unity problems.  Was getting a missing file
+error for the use of Nektra.Deviare2.dll, missing a stdole file that was 1.1 version.  
+Not sure I understood all that, because the file exists in the right spots on Win10, but
+was not being seen.  Making a copy from the interop files in Program Files(x86) and
+dropping that into the Unity root worked to solve that error.  Doesn't seem releated to
+Nektra, seems related to Unity.
+
+Using the Nektra.Deviare2.dll from the 2.8.3 binary release.  I was able to build my own
+nektra libs and changed params from XP support, but seems to be unnecessary to do all that.
+
+Also required- regsrvr32 DeviareCOM64.dll.  Unity runs in x64 now, and the creation of
+the NktSpyMgr was crashing with a COM exception because it was not registered.  This is 
+possibly problematic, because we'll need this on target systems.
+
+With those in place, the Unity C# code calling to NktSpyMgr actually works.
+
+Right now it's setup for VS2017, can move back to VS2013 if that seems better.  Right at 
+the moment, I'm going to keep it this way, because the Unity->VS debugging is already
+setup and working for breakpoints.
+
+
+Deviare CTest is a good example of similar behavior.  Uses the built in Agent, not needing
+the custom plugin until performance is needed. Patches all hooks, works in VS, including
+debug through their code.
+
+Requires several pieces that were not obvious.  Both Deviaredb and db64.  DeviareCom64.dll 
+because it's a 64 bit app.  dvagent.dll for x32 apps, dvagent64.dll for x64.
