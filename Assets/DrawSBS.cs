@@ -20,10 +20,9 @@ public class DrawSBS : MonoBehaviour
         int hresult;
         object continueevent;
         string drawSBS_directory = Environment.CurrentDirectory;
-        //string nativeDLLName = Environment.CurrentDirectory + @"\NativePlugin.dll";
+        string nativeDLLName = Environment.CurrentDirectory + @"\Debug\NativePlugin.dll";
         string game = @"G:\Games\The Ball\Binaries\Win32\theball.exe";
 
-        //        noiseTex = new Texture2D(width, height, TextureFormat.ARGB32, false);
         _spyMgr = new NktSpyMgr();
         hresult = _spyMgr.Initialize();
         if (hresult != 0)
@@ -48,6 +47,15 @@ public class DrawSBS : MonoBehaviour
             if (_gameProcess == null)
                 throw new Exception("Game launch failed.");
 
+            // Load the NativePlugin for the C++ side.  The NativePlugin must be in this app folder.
+            // The Agent supports the use of Deviare in the CustomDLL, but does not respond to hooks.
+
+            print("Load NativePlugin... " + nativeDLLName);
+            _spyMgr.LoadAgent(_gameProcess);
+            int result = _spyMgr.LoadCustomDll(_gameProcess, nativeDLLName, true, true);
+            if (result < 0)
+                throw new Exception("Could not load NativePlugin DLL.");
+            
             // Hook the primary DX9 creation call of Direct3DCreate9, which is a direct export of 
             // the d3d9 DLL.  All DX9 games must call this interface.
             // We set this to flgOnlyPostCall, because we want to use the IDirect3D9 object it returns.
@@ -60,7 +68,7 @@ public class DrawSBS : MonoBehaviour
             // Make sure the CustomHandler in the NativePlugin at OnFunctionCall gets called when this 
             // object is created. At that point, the native code will take over.
 
-//            d3dHook.AddCustomHandler(nativeDLLName, 0, "");
+            d3dHook.AddCustomHandler(nativeDLLName, 0, "");
 
             // Finally attach and activate the hook in the still suspended game process.
 
