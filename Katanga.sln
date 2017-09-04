@@ -7,52 +7,20 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Katanga.CSharp", "Katanga.C
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "NativePlugin", "NativePlugin\NativePlugin.vcxproj", "{4E087F78-9ADB-4B15-BD41-461EF6D322CC}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Dependencies", "Dependencies", "{E5AFB560-B64A-49DB-AECA-64B72DE42302}"
-	ProjectSection(SolutionItems) = preProject
-		Assets\Dependencies\deviare32.db = Assets\Dependencies\deviare32.db
-		Assets\Dependencies\deviare64.db = Assets\Dependencies\deviare64.db
-		Assets\Dependencies\DeviareCOM.dll = Assets\Dependencies\DeviareCOM.dll
-		Assets\Dependencies\DeviareCOM.pdb = Assets\Dependencies\DeviareCOM.pdb
-		Assets\Dependencies\DeviareCOM64.dll = Assets\Dependencies\DeviareCOM64.dll
-		Assets\Dependencies\DeviareCOM64.pdb = Assets\Dependencies\DeviareCOM64.pdb
-		Assets\Dependencies\DvAgent.dll = Assets\Dependencies\DvAgent.dll
-		Assets\Dependencies\DvAgent.pdb = Assets\Dependencies\DvAgent.pdb
-		Assets\Dependencies\DvAgent64.dll = Assets\Dependencies\DvAgent64.dll
-		Assets\Dependencies\DvAgent64.pdb = Assets\Dependencies\DvAgent64.pdb
-		Assets\Dependencies\Nektra.Deviare2.dll = Assets\Dependencies\Nektra.Deviare2.dll
-		Assets\Dependencies\stdole.dll = Assets\Dependencies\stdole.dll
-	EndProjectSection
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
-		Debug|Mixed Platforms = Debug|Mixed Platforms
-		Debug|Win32 = Debug|Win32
 		Release|Any CPU = Release|Any CPU
-		Release|Mixed Platforms = Release|Mixed Platforms
-		Release|Win32 = Release|Win32
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{A97416F0-6066-2CF5-9C95-522700A4872E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{A97416F0-6066-2CF5-9C95-522700A4872E}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{A97416F0-6066-2CF5-9C95-522700A4872E}.Debug|Mixed Platforms.ActiveCfg = Debug|Any CPU
-		{A97416F0-6066-2CF5-9C95-522700A4872E}.Debug|Mixed Platforms.Build.0 = Debug|Any CPU
-		{A97416F0-6066-2CF5-9C95-522700A4872E}.Debug|Win32.ActiveCfg = Debug|Any CPU
 		{A97416F0-6066-2CF5-9C95-522700A4872E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A97416F0-6066-2CF5-9C95-522700A4872E}.Release|Any CPU.Build.0 = Release|Any CPU
-		{A97416F0-6066-2CF5-9C95-522700A4872E}.Release|Mixed Platforms.ActiveCfg = Release|Any CPU
-		{A97416F0-6066-2CF5-9C95-522700A4872E}.Release|Mixed Platforms.Build.0 = Release|Any CPU
-		{A97416F0-6066-2CF5-9C95-522700A4872E}.Release|Win32.ActiveCfg = Release|Any CPU
 		{4E087F78-9ADB-4B15-BD41-461EF6D322CC}.Debug|Any CPU.ActiveCfg = Debug|Win32
-		{4E087F78-9ADB-4B15-BD41-461EF6D322CC}.Debug|Mixed Platforms.ActiveCfg = Debug|Win32
-		{4E087F78-9ADB-4B15-BD41-461EF6D322CC}.Debug|Mixed Platforms.Build.0 = Debug|Win32
-		{4E087F78-9ADB-4B15-BD41-461EF6D322CC}.Debug|Win32.ActiveCfg = Debug|Win32
-		{4E087F78-9ADB-4B15-BD41-461EF6D322CC}.Debug|Win32.Build.0 = Debug|Win32
+		{4E087F78-9ADB-4B15-BD41-461EF6D322CC}.Debug|Any CPU.Build.0 = Debug|Win32
 		{4E087F78-9ADB-4B15-BD41-461EF6D322CC}.Release|Any CPU.ActiveCfg = Release|Win32
-		{4E087F78-9ADB-4B15-BD41-461EF6D322CC}.Release|Mixed Platforms.ActiveCfg = Release|Win32
-		{4E087F78-9ADB-4B15-BD41-461EF6D322CC}.Release|Mixed Platforms.Build.0 = Release|Win32
-		{4E087F78-9ADB-4B15-BD41-461EF6D322CC}.Release|Win32.ActiveCfg = Release|Win32
-		{4E087F78-9ADB-4B15-BD41-461EF6D322CC}.Release|Win32.Build.0 = Release|Win32
+		{4E087F78-9ADB-4B15-BD41-461EF6D322CC}.Release|Any CPU.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

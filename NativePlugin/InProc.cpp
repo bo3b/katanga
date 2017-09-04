@@ -31,6 +31,8 @@
 
 #include <stdlib.h>
 
+#include <wchar.h>
+
 
 // This is a bit weird.  By setting the CINTERFACE before including d3d9.h, we get access
 // to the C style interface, which includes direct access to the vTable for the objects.
@@ -53,7 +55,7 @@
 // is immediately available.
 CNktHookLib nktInProc;
 
-bool gShowWireFrame = false;
+IDirect3DSurface9* gGameSurface = (IDirect3DSurface9*)-1;
 
 
 // --------------------------------------------------------------------------------------------------
@@ -63,52 +65,11 @@ bool gShowWireFrame = false;
 //	Insert=WireFrame
 //	Delete=Normal
 
-void WINAPI ShowWireFrame(void)
+IDirect3DSurface9* WINAPI GetGameSurface(int* in)
 {
-	::OutputDebugString(L"NativePlugin::ShowWireFrame called\n");
-
-	gShowWireFrame = true;
-}
-
-void WINAPI ShowWalls(void)
-{
-	::OutputDebugString(L"NativePlugin::ShowWalls called\n");
-
-	gShowWireFrame = false;
-}
-
-
-//-----------------------------------------------------------
-// Interface to implement the hook for IDirect3DDevice9->SetRenderState
-
-// This declaration serves a dual purpose of defining the interface routine as required by
-// DX9, and also is the storage for the original call, returned by nktInProc.Hook
-
-SIZE_T hook_id_SetRenderState;
-STDMETHOD_(HRESULT, pOrigSetRenderState)(IDirect3DDevice9* This,
-	/* [in] */ D3DRENDERSTATETYPE State,
-	/* [in] */ DWORD              Value
-	) = nullptr;
-
-// The SetRenderState can be called for innumerable reasons.  If we are being called
-// for a D3DRS_FILLMODE, we will set the parameter based on the current state.
-// Otherwise we will call through to the original.
-
-// This has the effect of changing the drawing mode to wireframe for a given
-// game.  It does not work very well however.  Most games will be blocked
-// by a full screen quad when showing wireframes.
-
-STDMETHODIMP_(HRESULT) Hooked_SetRenderState(IDirect3DDevice9* This,
-	D3DRENDERSTATETYPE State, DWORD Value)
-{
-//	::OutputDebugStringA("NativePlugin::Hooked_SetRenderState called\n");  // called very often
-
-	if (State == D3DRS_FILLMODE)
-		Value = gShowWireFrame ? D3DFILL_WIREFRAME : D3DFILL_SOLID;
-
-	HRESULT hr = pOrigSetRenderState(This, State, Value);
-
-	return hr;
+	::OutputDebugString(L"NativePlugin::GetGameSurface called\n");
+	
+	return gGameSurface;
 }
 
 
@@ -130,15 +91,25 @@ STDMETHOD_(HRESULT, pOrigPresent)(IDirect3DDevice9* This,
 // This is it. The one we are often after.  This is the hook for the DX9 Present call
 // which the game will call for every frame.  
 
-// This is not used in the sample, but shows how it's possible to hook Present.
 
 STDMETHODIMP_(HRESULT) Hooked_Present(IDirect3DDevice9* This,
 	CONST RECT* pSourceRect, CONST RECT* pDestRect, HWND hDestWindowOverride, CONST RGNDATA* pDirtyRegion)
 {
+	HRESULT hr;
 //	::OutputDebugStringA("NativePlugin::Hooked_Present called\n");	// Called too often to log
 
-	HRESULT hr = pOrigPresent(This, pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
+	// Let's get the backbuffer for the game.
+	IDirect3DSurface9* backBuffer;
+	hr = This->lpVtbl->GetBackBuffer(This, 0, 0, D3DBACKBUFFER_TYPE_MONO, &backBuffer);
+	if (SUCCEEDED(hr) && gGameSurface > 0)
+	{
+		// And copy to our storage surface/RenderTarget.
+		hr = This->lpVtbl->StretchRect(This, backBuffer, NULL, gGameSurface, NULL, D3DTEXF_NONE);
+		if (FAILED(hr))
+			::OutputDebugString(L"Bad StretchRect.");
+	}
 
+	hr = pOrigPresent(This, pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
 	return hr;
 }
 
@@ -166,10 +137,16 @@ STDMETHODIMP_(HRESULT) Hooked_CreateDevice(IDirect3D9* This,
 	UINT Adapter, D3DDEVTYPE DeviceType, HWND hFocusWindow, DWORD BehaviorFlags, D3DPRESENT_PARAMETERS* pPresentationParameters,
 	IDirect3DDevice9** ppReturnedDeviceInterface)
 {
-	::OutputDebugStringA("NativePlugin::Hooked_CreateDevice called\n");
+	wchar_t info[512];
+
+	::OutputDebugString(L"NativePlugin::Hooked_CreateDevice called\n");
+	wsprintf(info, L"  Width: %d, Height: %d, Format: %d\n"
+		, pPresentationParameters->BackBufferWidth, pPresentationParameters->BackBufferHeight, pPresentationParameters->BackBufferFormat);
+	::OutputDebugString(info);
 
 	HRESULT hr = pOrigCreateDevice(This, Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters,
 		ppReturnedDeviceInterface);
+
 
 	if (pOrigPresent == nullptr && SUCCEEDED(hr) && ppReturnedDeviceInterface != nullptr)
 	{
@@ -183,12 +160,11 @@ STDMETHODIMP_(HRESULT) Hooked_CreateDevice(IDirect3D9* This,
 		if (FAILED(dwOsErr))
 			::OutputDebugStringA("Failed to hook IDirect3DDevice9::Present\n");
 
-		// And the SetRenderState call.
-		dwOsErr = nktInProc.Hook(&hook_id_SetRenderState, (void**)&pOrigSetRenderState,
-			game_Device->lpVtbl->SetRenderState, Hooked_SetRenderState, 0);
-
-		if (FAILED(dwOsErr))
-			::OutputDebugStringA("Failed to hook IDirect3DDevice9::SetRenderState\n");
+		// Now that we have a proper Device from the game, let's also make a 
+		// DX9 Surface, so that we can snapshot the game output.
+		// Maybe make this shared. TODO.
+		game_Device->lpVtbl->CreateRenderTarget(game_Device, pPresentationParameters->BackBufferWidth, pPresentationParameters->BackBufferHeight,
+			pPresentationParameters->BackBufferFormat, D3DMULTISAMPLE_NONE, 0, false, &gGameSurface, nullptr);
 	}
 
 	return hr;
