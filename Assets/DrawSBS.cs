@@ -149,8 +149,13 @@ public class DrawSBS : MonoBehaviour
     {
      //   ModifyTexturePixels();
         System.Int32 pGameScreen;
-        object parm = new System.Int32();
+        System.Int32 native = (int)_noiseTex.GetNativeTexturePtr();
+        object parm = native;
         pGameScreen = _spyMgr.CallCustomApi(_gameProcess, _nativeDLLName, "GetGameSurface", ref parm, true);
-        print(pGameScreen.ToString("X"));
+
+        if (pGameScreen != 0)
+        {
+            _noiseTex.UpdateExternalTexture((IntPtr)pGameScreen);
+        }
     }
 }

@@ -55,20 +55,19 @@
 // is immediately available.
 CNktHookLib nktInProc;
 
-IDirect3DSurface9* gGameSurface = (IDirect3DSurface9*)-1;
+IDirect3DSurface9* gGameSurface = nullptr;
 
 
 // --------------------------------------------------------------------------------------------------
 
-// Custom routines for this NativePlugin.dll, that the master app can call to enable or disable
-// the wireframe mode.  These will be called in response to user input from the master app.
-//	Insert=WireFrame
-//	Delete=Normal
+// Custom routines for this NativePlugin.dll, that the master app can call.
+// The Input is the IDirect3DBaseTexture9 for the main screen.
 
 IDirect3DSurface9* WINAPI GetGameSurface(int* in)
 {
-	::OutputDebugString(L"NativePlugin::GetGameSurface called\n");
+//	::OutputDebugString(L"NativePlugin::GetGameSurface called\n");
 	
+
 	return gGameSurface;
 }
 
