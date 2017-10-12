@@ -71,13 +71,19 @@ VOID WINAPI OnHookRemoved(__in INktHookInfo *lpHookInfo, __in DWORD dwChainIndex
 }
 
 
-// This is the primary call we are interested in.  It will be called after CreateDevice
+// This is the primary call we are interested in.  It will be called before CreateDevice
 // is called by the game.  We can then fetch the returned IDirect3D9 object, and
 // use that to hook the next level.
 // 
 // We can use the Deviare side to hook this function, because Direct3DCreate9 is
 // a direct export from the d3d9 DLL, and is also directly supported in the 
 // Deviare DB.
+//
+// We are going to actually call the Direct3DCreate9Ex instead however, so that we
+// can get the Ex interface.  We need the Ex objects in order to share surfaces
+// outside of the game Device.
+//
+// We will return the Ex interface created, and do SkipCall on the original.
 
 // Original API:
 //	IDirect3D9* Direct3DCreate9(
@@ -89,7 +95,8 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 {
 	BSTR name;
 	INktParam* nktResult;
-	IDirect3D9* pDX9 = nullptr;
+	IDirect3D9Ex* pD3DEx = nullptr;
+	HRESULT hr;
 
 	lpHookInfo->get_FunctionName(&name);
 
@@ -99,12 +106,28 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 
 	// We only expect this to be called for D3D9.DLL!Direct3DCreate9. We want to daisy chain
 	// through the call sequence to ultimately get the Present routine.
-	//
-	// The result of the Direct3DCreate9 function is the IDirect3D9 object, which you can think
+	// 
+	// However, because we want a Direct3DCreate9Ex interface instead of the normal one, we will 
+	// go ahead and call it directly.  This might bypass hooks on the original Direct3DCreate9.
+
+	hr = Direct3DCreate9Ex(D3D_SDK_VERSION, &pD3DEx);
+	if (FAILED(hr))
+		throw std::exception("Failed Direct3DCreate9Ex");
+
+	// The result of the Direct3DCreate9Ex function is the IDirect3D9Ex object, which you can think
 	// of as DX9 itself. 
+	//
+	// We want to skip the original call to Direct3DCreate9, because we want to just
+	// return this IDirect3D9Ex object.  This will tell Nektra to skip it.
+
+	lpHookCallInfoPlugin->SkipCall();
+
+	// However, we still need a proper return result from this call, so we set the 
+	// Nektra Result to be our IDirect3D9Ex object.  This will ultimately return to
+	// game, and be used as its IDirect3D9.
 
 	lpHookCallInfoPlugin->Result(&nktResult);
-	nktResult->get_PointerVal((long*)(&pDX9));
+	nktResult->put_PointerVal((long)pD3DEx);
 
 	// At this point, we are going to switch from using Deviare style calls
 	// to In-Proc style calls, because the routines we need to hook are not
@@ -112,7 +135,7 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 	// and then rebuilding it, but In-Proc works alongside Deviare so this
 	// approach is simpler.
 
-	HookCreateDevice(pDX9);
+	HookCreateDeviceEx(pD3DEx);
 
 	return S_OK;
 }
