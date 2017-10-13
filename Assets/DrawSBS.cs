@@ -51,7 +51,9 @@ public class DrawSBS : MonoBehaviour
         hresult = _spyMgr.Initialize();
         if (hresult != 0)
             throw new Exception("Deviare initialization error.");
-
+#if DEBUG
+        _spyMgr.SettingOverride("SpyMgrDebugLevelMask", 0xCF8);
+#endif
         print("Successful SpyMgr Init");
 
 
@@ -81,11 +83,11 @@ public class DrawSBS : MonoBehaviour
                 throw new Exception("Could not load NativePlugin DLL.");
 
             // Hook the primary DX9 creation call of Direct3DCreate9, which is a direct export of 
-            // the d3d9 DLL.  All DX9 games must call this interface.
-            // We set this to flgOnlyPostCall, because we want to use the IDirect3D9 object it returns.
+            // the d3d9 DLL.  All DX9 games must call this interface, or the Direct3DCreate9Ex.
+            // We set this to flgOnlyPreCall, because we want to always create the IDirect3D9Ex object.
 
             print("Hook the D3D9.DLL!Direct3DCreate9...");
-            NktHook d3dHook = _spyMgr.CreateHook("D3D9.DLL!Direct3DCreate9", (int)eNktHookFlags.flgOnlyPostCall);
+            NktHook d3dHook = _spyMgr.CreateHook("D3D9.DLL!Direct3DCreate9", (int)eNktHookFlags.flgOnlyPreCall);
             if (d3dHook == null)
                 throw new Exception("Failed to hook D3D9.DLL!Direct3DCreate9");
 

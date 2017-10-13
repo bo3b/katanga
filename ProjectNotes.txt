@@ -84,3 +84,26 @@ debug through their code.
 
 Requires several pieces that were not obvious.  Both Deviaredb and db64.  DeviareCom64.dll 
 because it's a 64 bit app.  dvagent.dll for x32 apps, dvagent64.dll for x64.
+
+10-9-17
+Mostly working in a basic format.  All hooking is working into game.  
+
+App to built in Unity needs to be DX11 target and x64 only.  Oculus Rift requires that, 
+so there is no point in making any conversions to other APIs.  
+
+Basic strategy will be to create our game snapshot texture as a DX9EX Texture2D, because
+that can share with DX11 easily, and also with DX9 easily. Works both way, so DX9 game
+works, DX11 game works.  Destination is a DX11 Texture2D in Unity.
+
+Testing a bare minimum Unity project seemed to reqired 10% of the GTX 980 GPU, when in 
+medium quality mode.  On High quality, it was 22%.  There is some complexity in terms of
+vsync and driver defaults, so best bet will be to profile it when ready.
+
+Sticking with the DX9 hooking for now, because it's already working, and needs to be done
+in any case.  DX11 is more familiar, but requires DXGI::Present hook instead.  However,
+the GameSurface will be a DX9EX variant, in order to be shareable.
+
+The destination copy texture must be a RenderTarget, because of driver restrictions. It
+cannot be a simple surface.  Also, for sharing, it needs to be a RenderTarget because the
+backbuffer is always a RenderTarget and they must match in order to share.
+https://msdn.microsoft.com/en-us/library/windows/desktop/bb174471(v=vs.85).aspx

@@ -51,12 +51,14 @@
 
 
 //-----------------------------------------------------------
+
 // This is automatically instantiated by C++, so the hooking library
 // is immediately available.
 CNktHookLib nktInProc;
 
+// The surface that we copy the current game frame into. It is shared.
 IDirect3DSurface9* gGameSurface = nullptr;
-
+HANDLE gGameSurfaceShare = nullptr;
 
 // --------------------------------------------------------------------------------------------------
 
@@ -79,7 +81,7 @@ IDirect3DSurface9* WINAPI GetGameSurface(int* in)
 // DX9, and also is the storage for the original call, returned by nktInProc.Hook
 
 SIZE_T hook_id_Present;
-STDMETHOD_(HRESULT, pOrigPresent)(IDirect3DDevice9* This,
+STDMETHOD_(HRESULT, pOrigPresent)(IDirect3DDevice9Ex* This,
 	/* [in] */ const RECT    *pSourceRect,
 	/* [in] */ const RECT    *pDestRect,
 	/* [in] */       HWND    hDestWindowOverride,
@@ -91,7 +93,7 @@ STDMETHOD_(HRESULT, pOrigPresent)(IDirect3DDevice9* This,
 // which the game will call for every frame.  
 
 
-STDMETHODIMP_(HRESULT) Hooked_Present(IDirect3DDevice9* This,
+STDMETHODIMP_(HRESULT) Hooked_Present(IDirect3DDevice9Ex* This,
 	CONST RECT* pSourceRect, CONST RECT* pDestRect, HWND hDestWindowOverride, CONST RGNDATA* pDirtyRegion)
 {
 	HRESULT hr;
@@ -102,7 +104,7 @@ STDMETHODIMP_(HRESULT) Hooked_Present(IDirect3DDevice9* This,
 	hr = This->lpVtbl->GetBackBuffer(This, 0, 0, D3DBACKBUFFER_TYPE_MONO, &backBuffer);
 	if (SUCCEEDED(hr) && gGameSurface > 0)
 	{
-		// And copy to our storage surface/RenderTarget.
+		// And copy to our storage surface.
 		hr = This->lpVtbl->StretchRect(This, backBuffer, NULL, gGameSurface, NULL, D3DTEXF_NONE);
 		if (FAILED(hr))
 			::OutputDebugString(L"Bad StretchRect.");
@@ -131,6 +133,12 @@ STDMETHOD_(HRESULT, pOrigCreateDevice)(IDirect3D9* This,
 
 // The actual Hooked routine for CreateDevice, called whenever the game
 // makes a IDirect3D9->CreateDevice call.
+//
+// However, because we always need to have a shared surface from the game
+// backbuffer, this device must actually be created as a IDirect3DDevice9Ex.
+// That allows us to create a shared surface, still on the GPU.  IDirect3DDevice9
+// objects can only share through system memory, which is too slow.
+// This should be OK, because the game should not know or care that it went Ex.
 
 STDMETHODIMP_(HRESULT) Hooked_CreateDevice(IDirect3D9* This,
 	UINT Adapter, D3DDEVTYPE DeviceType, HWND hFocusWindow, DWORD BehaviorFlags, D3DPRESENT_PARAMETERS* pPresentationParameters,
@@ -145,25 +153,31 @@ STDMETHODIMP_(HRESULT) Hooked_CreateDevice(IDirect3D9* This,
 
 	HRESULT hr = pOrigCreateDevice(This, Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters,
 		ppReturnedDeviceInterface);
+	//HRESULT hr = This->lpVtbl->CreateDeviceEx(This, Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters, NULL,
+	//	ppReturnedDeviceInterface);
 
 
 	if (pOrigPresent == nullptr && SUCCEEDED(hr) && ppReturnedDeviceInterface != nullptr)
 	{
-		DWORD dwOsErr;
-		IDirect3DDevice9* game_Device = *ppReturnedDeviceInterface;
+		//DWORD dwOsErr;
+		//IDirect3DDevice9Ex* game_Device = *ppReturnedDeviceInterface;
 
-		// Using the DX9 Device, we can now hook the Present call.
-		dwOsErr = nktInProc.Hook(&hook_id_Present, (void**)&pOrigPresent,
-			game_Device->lpVtbl->Present, Hooked_Present, 0);
+		//// Using the DX9 Device, we can now hook the Present call.
+		//dwOsErr = nktInProc.Hook(&hook_id_Present, (void**)&pOrigPresent,
+		//	game_Device->lpVtbl->Present, Hooked_Present, 0);
 
-		if (FAILED(dwOsErr))
-			::OutputDebugStringA("Failed to hook IDirect3DDevice9::Present\n");
+		//if (FAILED(dwOsErr))
+		//	::OutputDebugStringA("Failed to hook IDirect3DDevice9::Present\n");
 
-		// Now that we have a proper Device from the game, let's also make a 
-		// DX9 Surface, so that we can snapshot the game output.
-		// Maybe make this shared. TODO.
-		game_Device->lpVtbl->CreateRenderTarget(game_Device, pPresentationParameters->BackBufferWidth, pPresentationParameters->BackBufferHeight,
-			pPresentationParameters->BackBufferFormat, D3DMULTISAMPLE_NONE, 0, false, &gGameSurface, nullptr);
+		//// Now that we have a proper Device from the game, let's also make a 
+		//// DX9 Surface, so that we can snapshot the game output.  This surface needs to
+		//// use the Shared parameter, so that we can share it to another Device.  Because
+		//// these are all DX9Ex objects, the share will work.
+
+		//game_Device->lpVtbl->CreateRenderTargetEx(game_Device, pPresentationParameters->BackBufferWidth, pPresentationParameters->BackBufferHeight,
+		//	pPresentationParameters->BackBufferFormat, D3DMULTISAMPLE_NONE, 0, false, 
+		//	&gGameSurface, &gGameSurfaceShare, 
+		//	D3DUSAGE_NONSECURE | D3DUSAGE_RENDERTARGET);
 	}
 
 	return hr;
@@ -184,12 +198,42 @@ STDMETHODIMP_(HRESULT) Hooked_CreateDevice(IDirect3D9* This,
 // daisy-chain to IDirect3DDevice9::Present.
 // 
 
+void HookCreateDeviceEx(IDirect3D9Ex* pDX9Ex)
+{
+	// This can be called multiple times by a game, so let's be sure to
+	// only hook once.
+	if (pOrigCreateDevice == nullptr && pDX9Ex != nullptr)
+	{
+#ifdef _DEBUG 
+		nktInProc.SetEnableDebugOutput(TRUE);
+#endif
+		// If we are here, we want to now hook the IDirect3D9::CreateDevice
+		// routine, as that will be the next thing the game does, and we
+		// need access to the Direct3DDevice9.
+		// This can't be done directly, because this is a vtable based API
+		// call, not an export from a DLL, so we need to directly hook the 
+		// address of the CreateDevice function. This is also why we are 
+		// using In-Proc here.  Since we are using the CINTERFACE, we can 
+		// just directly access the address.
+
+		//DWORD dwOsErr = nktInProc.Hook(&hook_id_CreateDevice, (void**)&pOrigCreateDevice,
+		//	pDX9Ex->lpVtbl->CreateDevice, Hooked_CreateDevice, 0);
+
+		//if (FAILED(dwOsErr))
+		//	::OutputDebugStringA("Failed to hook IDirect3D9::CreateDevice\n");
+	}
+}
+
+
 void HookCreateDevice(IDirect3D9* pDX9)
 {
 	// This can be called multiple times by a game, so let's be sure to
 	// only hook once.
 	if (pOrigCreateDevice == nullptr && pDX9 != nullptr)
 	{
+#ifdef _DEBUG 
+		nktInProc.SetEnableDebugOutput(TRUE);
+#endif
 		// If we are here, we want to now hook the IDirect3D9::CreateDevice
 		// routine, as that will be the next thing the game does, and we
 		// need access to the Direct3DDevice9.
@@ -206,5 +250,3 @@ void HookCreateDevice(IDirect3D9* pDX9)
 			::OutputDebugStringA("Failed to hook IDirect3D9::CreateDevice\n");
 	}
 }
-
-

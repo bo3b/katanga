@@ -24,6 +24,10 @@
 
 #include <d3d9.h>
 
+#include <exception>
+
+
+void HookCreateDeviceEx(IDirect3D9Ex* pDX9Ex);
 
 void HookCreateDevice(IDirect3D9* pDX9);
 

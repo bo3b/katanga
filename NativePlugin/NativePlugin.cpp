@@ -96,9 +96,12 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 	BSTR name;
 	INktParam* nktResult;
 	IDirect3D9Ex* pD3DEx = nullptr;
+	IDirect3D9* pD3D = nullptr;
 	HRESULT hr;
 
-	lpHookInfo->get_FunctionName(&name);
+	hr = lpHookInfo->get_FunctionName(&name);
+	if (FAILED(hr))
+		throw std::exception("Failed GetFunctionName");
 
 	::OutputDebugString(L"NativePlugin::OnFunctionCall called for ");
 	::OutputDebugString(name);
@@ -110,24 +113,10 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 	// However, because we want a Direct3DCreate9Ex interface instead of the normal one, we will 
 	// go ahead and call it directly.  This might bypass hooks on the original Direct3DCreate9.
 
-	hr = Direct3DCreate9Ex(D3D_SDK_VERSION, &pD3DEx);
-	if (FAILED(hr))
-		throw std::exception("Failed Direct3DCreate9Ex");
-
-	// The result of the Direct3DCreate9Ex function is the IDirect3D9Ex object, which you can think
-	// of as DX9 itself. 
-	//
-	// We want to skip the original call to Direct3DCreate9, because we want to just
-	// return this IDirect3D9Ex object.  This will tell Nektra to skip it.
-
-	lpHookCallInfoPlugin->SkipCall();
-
-	// However, we still need a proper return result from this call, so we set the 
-	// Nektra Result to be our IDirect3D9Ex object.  This will ultimately return to
-	// game, and be used as its IDirect3D9.
-
-	lpHookCallInfoPlugin->Result(&nktResult);
-	nktResult->put_PointerVal((long)pD3DEx);
+	//hr = Direct3DCreate9Ex(D3D_SDK_VERSION, &pD3DEx);
+	//if (FAILED(hr))
+	//	throw std::exception("Failed Direct3DCreate9Ex");
+	pD3D = Direct3DCreate9(D3D_SDK_VERSION);
 
 	// At this point, we are going to switch from using Deviare style calls
 	// to In-Proc style calls, because the routines we need to hook are not
@@ -135,7 +124,29 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 	// and then rebuilding it, but In-Proc works alongside Deviare so this
 	// approach is simpler.
 
-	HookCreateDeviceEx(pD3DEx);
+//	HookCreateDeviceEx(pD3DEx);
+	HookCreateDevice(pD3D);
+
+	// The result of the Direct3DCreate9Ex function is the IDirect3D9Ex object, which you can think
+	// of as DX9 itself. 
+	//
+	// We want to skip the original call to Direct3DCreate9, because we want to just
+	// return this IDirect3D9Ex object.  This will tell Nektra to skip it.
+
+	hr = lpHookCallInfoPlugin->SkipCall();
+	if (FAILED(hr))
+		throw std::exception("Failed SkipCall");
+
+	// However, we still need a proper return result from this call, so we set the 
+	// Nektra Result to be our IDirect3D9Ex object.  This will ultimately return to
+	// game, and be used as its IDirect3D9.
+
+	hr = lpHookCallInfoPlugin->Result(&nktResult);
+	if (FAILED(hr))
+		throw std::exception("Failed Get NktResult");
+	hr = nktResult->put_PointerVal((long)pD3D);
+	if (FAILED(hr))
+		throw std::exception("Failed put pointer");
 
 	return S_OK;
 }

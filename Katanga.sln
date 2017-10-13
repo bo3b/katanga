@@ -1,8 +1,6 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2013
-VisualStudioVersion = 12.0.40629.0
-MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Katanga.CSharp", "Katanga.CSharp.csproj", "{A97416F0-6066-2CF5-9C95-522700A4872E}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "NativePlugin", "NativePlugin\NativePlugin.vcxproj", "{4E087F78-9ADB-4B15-BD41-461EF6D322CC}"
@@ -17,10 +15,10 @@ Global
 		{A97416F0-6066-2CF5-9C95-522700A4872E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A97416F0-6066-2CF5-9C95-522700A4872E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A97416F0-6066-2CF5-9C95-522700A4872E}.Release|Any CPU.Build.0 = Release|Any CPU
-		{4E087F78-9ADB-4B15-BD41-461EF6D322CC}.Debug|Any CPU.ActiveCfg = Debug|Win32
-		{4E087F78-9ADB-4B15-BD41-461EF6D322CC}.Debug|Any CPU.Build.0 = Debug|Win32
-		{4E087F78-9ADB-4B15-BD41-461EF6D322CC}.Release|Any CPU.ActiveCfg = Release|Win32
-		{4E087F78-9ADB-4B15-BD41-461EF6D322CC}.Release|Any CPU.Build.0 = Release|Win32
+		{4E087F78-9ADB-4B15-BD41-461EF6D322CC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4E087F78-9ADB-4B15-BD41-461EF6D322CC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4E087F78-9ADB-4B15-BD41-461EF6D322CC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4E087F78-9ADB-4B15-BD41-461EF6D322CC}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
