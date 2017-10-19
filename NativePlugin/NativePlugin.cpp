@@ -6,6 +6,8 @@
 // and are direct exports from a DLL.  It's not well suited for vtable
 // based calls like those used by DX9.
 
+#define D3D_DEBUG_INFO
+
 #include "NativePlugin.h"
 
 // We need the Deviare interface though, to be able to provide the OnLoad,
@@ -81,7 +83,9 @@ VOID WINAPI OnHookRemoved(__in INktHookInfo *lpHookInfo, __in DWORD dwChainIndex
 //
 // We are going to actually call the Direct3DCreate9Ex instead however, so that we
 // can get the Ex interface.  We need the Ex objects in order to share surfaces
-// outside of the game Device.
+// outside of the game Device.  This was a long uphill struggle to understand
+// exactly what it takes.  There is no way to share surfaces with just DX9 itself,
+// it must be DX9Ex.
 //
 // We will return the Ex interface created, and do SkipCall on the original.
 
@@ -95,8 +99,7 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 {
 	BSTR name;
 	INktParam* nktResult;
-	IDirect3D9Ex* pD3DEx = nullptr;
-	IDirect3D9* pD3D = nullptr;
+	IDirect3D9Ex* pDX9Ex = nullptr;
 	HRESULT hr;
 
 	hr = lpHookInfo->get_FunctionName(&name);
@@ -113,10 +116,25 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 	// However, because we want a Direct3DCreate9Ex interface instead of the normal one, we will 
 	// go ahead and call it directly.  This might bypass hooks on the original Direct3DCreate9.
 
-	//hr = Direct3DCreate9Ex(D3D_SDK_VERSION, &pD3DEx);
-	//if (FAILED(hr))
-	//	throw std::exception("Failed Direct3DCreate9Ex");
-	pD3D = Direct3DCreate9(D3D_SDK_VERSION);
+	hr = Direct3DCreate9Ex(D3D_SDK_VERSION, &pDX9Ex);
+	if (FAILED(hr))
+		throw std::exception("Failed Direct3DCreate9Ex");
+
+	IDirect3DDevice9Ex* pDevice9Ex = nullptr;
+	HWND dummyHWND = CreateWindowA("STATIC", "dummy", NULL, 0, 0, 100, 100, NULL, NULL, NULL, NULL);
+	D3DPRESENT_PARAMETERS d3dpp = { 0 };
+	d3dpp.Windowed = TRUE;
+	d3dpp.BackBufferHeight = 1;
+	d3dpp.BackBufferWidth = 1;
+	d3dpp.SwapEffect = D3DSWAPEFFECT_DISCARD;
+	d3dpp.BackBufferFormat = D3DFMT_A8R8G8B8;
+
+	hr = pDX9Ex->CreateDeviceEx(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, dummyHWND,
+		D3DCREATE_HARDWARE_VERTEXPROCESSING | D3DCREATE_MULTITHREADED | D3DCREATE_FPU_PRESERVE,
+		&d3dpp, NULL, &pDevice9Ex);
+
+	if (FAILED(hr))
+		::OutputDebugStringA("Fail to create DeviceEx\n");
 
 	// At this point, we are going to switch from using Deviare style calls
 	// to In-Proc style calls, because the routines we need to hook are not
@@ -124,11 +142,10 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 	// and then rebuilding it, but In-Proc works alongside Deviare so this
 	// approach is simpler.
 
-//	HookCreateDeviceEx(pD3DEx);
-	HookCreateDevice(pD3D);
+	HookCreateDevice(pDX9Ex);
 
-	// The result of the Direct3DCreate9Ex function is the IDirect3D9Ex object, which you can think
-	// of as DX9 itself. 
+	// The result of the Direct3DCreate9Ex function is the IDirect3D9Ex object, which you 
+	// can think of as DX9 itself. 
 	//
 	// We want to skip the original call to Direct3DCreate9, because we want to just
 	// return this IDirect3D9Ex object.  This will tell Nektra to skip it.
@@ -139,12 +156,12 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 
 	// However, we still need a proper return result from this call, so we set the 
 	// Nektra Result to be our IDirect3D9Ex object.  This will ultimately return to
-	// game, and be used as its IDirect3D9.
+	// game, and be used as its IDirect3D9, even though it is IDirect3D9Ex.
 
 	hr = lpHookCallInfoPlugin->Result(&nktResult);
 	if (FAILED(hr))
 		throw std::exception("Failed Get NktResult");
-	hr = nktResult->put_PointerVal((long)pD3D);
+	hr = nktResult->put_PointerVal((long)pDX9Ex);
 	if (FAILED(hr))
 		throw std::exception("Failed put pointer");
 

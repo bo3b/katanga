@@ -85,6 +85,7 @@ debug through their code.
 Requires several pieces that were not obvious.  Both Deviaredb and db64.  DeviareCom64.dll 
 because it's a 64 bit app.  dvagent.dll for x32 apps, dvagent64.dll for x64.
 
+
 10-9-17
 Mostly working in a basic format.  All hooking is working into game.  
 
@@ -107,3 +108,22 @@ The destination copy texture must be a RenderTarget, because of driver restricti
 cannot be a simple surface.  Also, for sharing, it needs to be a RenderTarget because the
 backbuffer is always a RenderTarget and they must match in order to share.
 https://msdn.microsoft.com/en-us/library/windows/desktop/bb174471(v=vs.85).aspx
+
+
+10-17-17
+OK, turns out that the MSDN docs half-lie and it is not possible to use surface
+sharing on any DX9 device.  Only DX9Ex devices will work.  Confirmation here:
+https://www.gamedev.net/forums/topic/638495-shared-resources-eg-textures-between-devicesthreads/
+And, also confirmed using the DX9 debug layer on Win7 setup.  When trying to use any
+variant of DX9 and a surface return handle, it would put up the error:
+Direct3D9: (ERROR) :Device is not capable of sharing resource. CreateTexture fails.
+
+Using the sample program, I confirmed that using the DX9Ex path works without any
+error or notice using Debug layer.  Can also use CreateRenderTarget, no Ex, but that
+seems of little value.  The errors looked like a bad parameter to CreateRenderTarget,
+but in fact it was incorrect device.
+
+This also points out a really important conclusion.  The DX9 and DX9Ex objects are 
+not in fact the same.  Coercing from an Ex object will work, because it's a superset,
+but going from DX9 to DX9Ex does not work, because the fundamental object is different.
+Also confirmed by using QueryInterface, and getting E-NOINTERFACE.

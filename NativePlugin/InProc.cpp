@@ -33,6 +33,8 @@
 
 #include <wchar.h>
 
+#include <exception>
+
 
 // This is a bit weird.  By setting the CINTERFACE before including d3d9.h, we get access
 // to the C style interface, which includes direct access to the vTable for the objects.
@@ -41,6 +43,8 @@
 //
 // This can only be included here where it's used to fetch those routine addresses, because
 // it will make other C++ units fail to compile, like NativePlugin.cpp.
+
+#define D3D_DEBUG_INFO
 
 #define CINTERFACE
 #include <d3d9.h>
@@ -115,6 +119,50 @@ STDMETHODIMP_(HRESULT) Hooked_Present(IDirect3DDevice9Ex* This,
 }
 
 //-----------------------------------------------------------
+// Interface to implement the hook for IDirect3D9->CreateTexture
+
+// This declaration serves a dual purpose of defining the interface routine as required by
+// DX9, and also is the storage for the original call, returned by nktInProc.Hook
+
+SIZE_T hook_id_CreateTexture;
+STDMETHOD_(HRESULT, pOrigCreateTexture)(IDirect3D9* This,
+	/* [in] */          UINT              Width,
+	/* [in] */          UINT              Height,
+	/* [in] */          UINT              Levels,
+	/* [in] */          DWORD             Usage,
+	/* [in] */          D3DFORMAT         Format,
+	/* [in] */          D3DPOOL           Pool,
+	/* [out, retval] */ IDirect3DTexture9 **ppTexture,
+	/* [in] */          HANDLE            *pSharedHandle
+	) = nullptr;
+
+
+// The actual Hooked routine for CreateTexture, called whenever the game
+// makes a IDirect3D9->CreateTexture call.
+//
+
+STDMETHODIMP_(HRESULT) Hooked_CreateTexture(IDirect3D9* This,
+	UINT Width, UINT Height, UINT Levels, DWORD Usage, D3DFORMAT Format, D3DPOOL Pool, 
+	IDirect3DTexture9** ppTexture, HANDLE* pSharedHandle)
+{
+//	wchar_t info[512];
+
+	::OutputDebugString(L"NativePlugin::Hooked_CreateTexture called\n");
+	
+	// Once we make it here, we can be certain that the This factory is 
+	// actually an IDirect3D9Ex, but passed back to the game as IDirect3D9.
+	// 
+	// We are forcing the pool to be Default, as the game might request 
+	// Managed, which is not valid on Device9Ex.
+
+	Pool = D3DPOOL_DEFAULT;
+	HRESULT hr = pOrigCreateTexture(This, Width, Height, Levels, Usage, Format, Pool, ppTexture, pSharedHandle);
+
+	return hr;
+}
+
+
+//-----------------------------------------------------------
 // Interface to implement the hook for IDirect3D9->CreateDevice
 
 // This declaration serves a dual purpose of defining the interface routine as required by
@@ -147,37 +195,47 @@ STDMETHODIMP_(HRESULT) Hooked_CreateDevice(IDirect3D9* This,
 	wchar_t info[512];
 
 	::OutputDebugString(L"NativePlugin::Hooked_CreateDevice called\n");
-	wsprintf(info, L"  Width: %d, Height: %d, Format: %d\n"
-		, pPresentationParameters->BackBufferWidth, pPresentationParameters->BackBufferHeight, pPresentationParameters->BackBufferFormat);
-	::OutputDebugString(info);
+	if (pPresentationParameters)
+	{
+		wsprintf(info, L"  Width: %d, Height: %d, Format: %d\n"
+			, pPresentationParameters->BackBufferWidth, pPresentationParameters->BackBufferHeight, pPresentationParameters->BackBufferFormat);
+		::OutputDebugString(info);
+	}
 
-	HRESULT hr = pOrigCreateDevice(This, Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters,
-		ppReturnedDeviceInterface);
-	//HRESULT hr = This->lpVtbl->CreateDeviceEx(This, Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters, NULL,
-	//	ppReturnedDeviceInterface);
+	// Once we make it here, we can be certain that the This factory is 
+	// actually an IDirect3D9Ex, but passed back to the game as IDirect3D9.
+
+	IDirect3D9Ex* pDX9Ex = (IDirect3D9Ex*)This;
+	IDirect3DDevice9Ex* pDevice9Ex = nullptr;
+	HRESULT hr = pDX9Ex->lpVtbl->CreateDeviceEx(pDX9Ex, Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters, NULL,
+		&pDevice9Ex);
+
+	if (ppReturnedDeviceInterface)
+		*ppReturnedDeviceInterface = (IDirect3DDevice9*)pDevice9Ex;
 
 
 	if (pOrigPresent == nullptr && SUCCEEDED(hr) && ppReturnedDeviceInterface != nullptr)
 	{
-		//DWORD dwOsErr;
-		//IDirect3DDevice9Ex* game_Device = *ppReturnedDeviceInterface;
+		DWORD dwOsErr;
 
-		//// Using the DX9 Device, we can now hook the Present call.
-		//dwOsErr = nktInProc.Hook(&hook_id_Present, (void**)&pOrigPresent,
-		//	game_Device->lpVtbl->Present, Hooked_Present, 0);
+		// Using the DX9 Device, we can now hook the Present call.
+		dwOsErr = nktInProc.Hook(&hook_id_Present, (void**)&pOrigPresent,
+			pDevice9Ex->lpVtbl->Present, Hooked_Present, 0);
 
-		//if (FAILED(dwOsErr))
-		//	::OutputDebugStringA("Failed to hook IDirect3DDevice9::Present\n");
+		if (FAILED(dwOsErr))
+			::OutputDebugStringA("Failed to hook IDirect3DDevice9::Present\n");
 
-		//// Now that we have a proper Device from the game, let's also make a 
-		//// DX9 Surface, so that we can snapshot the game output.  This surface needs to
-		//// use the Shared parameter, so that we can share it to another Device.  Because
-		//// these are all DX9Ex objects, the share will work.
 
-		//game_Device->lpVtbl->CreateRenderTargetEx(game_Device, pPresentationParameters->BackBufferWidth, pPresentationParameters->BackBufferHeight,
-		//	pPresentationParameters->BackBufferFormat, D3DMULTISAMPLE_NONE, 0, false, 
-		//	&gGameSurface, &gGameSurfaceShare, 
-		//	D3DUSAGE_NONSECURE | D3DUSAGE_RENDERTARGET);
+		// Now that we have a proper Ex Device from the game, let's also make a 
+		// DX9 Surface, so that we can snapshot the game output.  This surface needs to
+		// use the Shared parameter, so that we can share it to another Device.  Because
+		// these are all DX9Ex objects, the share will work.
+
+		hr = pDevice9Ex->lpVtbl->CreateRenderTarget(pDevice9Ex, pPresentationParameters->BackBufferWidth, pPresentationParameters->BackBufferHeight,
+			pPresentationParameters->BackBufferFormat, D3DMULTISAMPLE_NONE, 0, false,
+			&gGameSurface, &gGameSurfaceShare);
+		if (FAILED(hr))
+			::OutputDebugStringA("Fail to create shared RenderTarget\n");
 	}
 
 	return hr;
@@ -196,9 +254,14 @@ STDMETHODIMP_(HRESULT) Hooked_CreateDevice(IDirect3D9* This,
 //
 // This hook call is called from the Deviare side, to continue the 
 // daisy-chain to IDirect3DDevice9::Present.
+//
+// It's also worth noting that we convert the key objects into Ex
+// versions, because we need to share our copy of the game backbuffer.
+// We need to hook the CreateDevice, not CreateDeviceEx, because the
+// game is nearly certain to be calling CreateDevice.
 // 
 
-void HookCreateDeviceEx(IDirect3D9Ex* pDX9Ex)
+void HookCreateDevice(IDirect3D9Ex* pDX9Ex)
 {
 	// This can be called multiple times by a game, so let's be sure to
 	// only hook once.
@@ -207,33 +270,38 @@ void HookCreateDeviceEx(IDirect3D9Ex* pDX9Ex)
 #ifdef _DEBUG 
 		nktInProc.SetEnableDebugOutput(TRUE);
 #endif
-		// If we are here, we want to now hook the IDirect3D9::CreateDevice
-		// routine, as that will be the next thing the game does, and we
-		// need access to the Direct3DDevice9.
-		// This can't be done directly, because this is a vtable based API
-		// call, not an export from a DLL, so we need to directly hook the 
-		// address of the CreateDevice function. This is also why we are 
-		// using In-Proc here.  Since we are using the CINTERFACE, we can 
-		// just directly access the address.
+		HRESULT hr;
 
-		//DWORD dwOsErr = nktInProc.Hook(&hook_id_CreateDevice, (void**)&pOrigCreateDevice,
-		//	pDX9Ex->lpVtbl->CreateDevice, Hooked_CreateDevice, 0);
+		//D3DDISPLAYMODEEX pMode = { 0 };
+		//pMode.Size = sizeof(D3DDISPLAYMODEEX);
+		//pMode.Format = D3DFMT_A8R8G8B8;
+		//pMode.Height = 720;
+		//pMode.Width = 1280;
+		//pMode.RefreshRate = 60;
+		//pMode.ScanLineOrdering = D3DSCANLINEORDERING_PROGRESSIVE;
+		//hr = pDX9Ex->lpVtbl->GetAdapterDisplayModeEx(pDX9Ex, D3DADAPTER_DEFAULT, &pMode, nullptr);
 
-		//if (FAILED(dwOsErr))
-		//	::OutputDebugStringA("Failed to hook IDirect3D9::CreateDevice\n");
-	}
-}
+		hr = Direct3DCreate9Ex(D3D_SDK_VERSION, &pDX9Ex);
+		if (FAILED(hr))
+			throw std::exception("Failed Direct3DCreate9Ex");
 
+		// Create a device so we can hook before anything else happens.
+		IDirect3DDevice9Ex* pDevice9Ex = nullptr;
+		HWND dummyHWND = CreateWindowA("STATIC", "dummy", NULL, 0, 0, 100, 100, NULL, NULL, NULL, NULL);
+		D3DPRESENT_PARAMETERS d3dpp = { 0 };
+		d3dpp.Windowed = TRUE;
+		d3dpp.BackBufferHeight = 1;
+		d3dpp.BackBufferWidth = 1;
+		d3dpp.SwapEffect = D3DSWAPEFFECT_DISCARD;
+		d3dpp.BackBufferFormat = D3DFMT_A8R8G8B8;
 
-void HookCreateDevice(IDirect3D9* pDX9)
-{
-	// This can be called multiple times by a game, so let's be sure to
-	// only hook once.
-	if (pOrigCreateDevice == nullptr && pDX9 != nullptr)
-	{
-#ifdef _DEBUG 
-		nktInProc.SetEnableDebugOutput(TRUE);
-#endif
+		hr = pDX9Ex->lpVtbl->CreateDeviceEx(pDX9Ex, D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, dummyHWND,
+			D3DCREATE_HARDWARE_VERTEXPROCESSING | D3DCREATE_MULTITHREADED | D3DCREATE_FPU_PRESERVE,
+			&d3dpp, NULL, &pDevice9Ex);
+
+		if (FAILED(hr))
+			::OutputDebugStringA("Fail to create DeviceEx\n");
+
 		// If we are here, we want to now hook the IDirect3D9::CreateDevice
 		// routine, as that will be the next thing the game does, and we
 		// need access to the Direct3DDevice9.
@@ -244,9 +312,19 @@ void HookCreateDevice(IDirect3D9* pDX9)
 		// just directly access the address.
 
 		DWORD dwOsErr = nktInProc.Hook(&hook_id_CreateDevice, (void**)&pOrigCreateDevice,
-			pDX9->lpVtbl->CreateDevice, Hooked_CreateDevice, 0);
+			pDX9Ex->lpVtbl->CreateDevice, Hooked_CreateDevice, 0);
 
 		if (FAILED(dwOsErr))
 			::OutputDebugStringA("Failed to hook IDirect3D9::CreateDevice\n");
+
+		// CreateTexture hook
+
+		//dwOsErr = nktInProc.Hook(&hook_id_CreateTexture, (void**)&pOrigCreateTexture,
+		//	pDevice9Ex->lpVtbl->CreateTexture, Hooked_CreateTexture, 0);
+
+		//if (FAILED(dwOsErr))
+		//	::OutputDebugStringA("Failed to hook IDirect3D9::CreateTexture\n");
 	}
 }
+
+

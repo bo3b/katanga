@@ -27,8 +27,6 @@
 #include <exception>
 
 
-void HookCreateDeviceEx(IDirect3D9Ex* pDX9Ex);
-
-void HookCreateDevice(IDirect3D9* pDX9);
+void HookCreateDevice(IDirect3D9Ex* pDX9Ex);
 
 

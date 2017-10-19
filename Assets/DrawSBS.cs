@@ -45,7 +45,7 @@ public class DrawSBS : MonoBehaviour
         object continueevent;
         string drawSBS_directory = Environment.CurrentDirectory;
         _nativeDLLName = Environment.CurrentDirectory + @"\Debug\NativePlugin.dll";
-        string game = @"G:\Games\The Ball\Binaries\Win32\theball.exe";
+        string game = @"C:\Users\bo3b\Documents\Visual Studio Projects\DirectXSamples\Textures\Debug\Textures.exe";
 
         _spyMgr = new NktSpyMgr();
         hresult = _spyMgr.Initialize();
@@ -150,14 +150,14 @@ public class DrawSBS : MonoBehaviour
     void Update()
     {
      //   ModifyTexturePixels();
-        System.Int32 pGameScreen;
-        System.Int32 native = (int)_noiseTex.GetNativeTexturePtr();
-        object parm = native;
-        pGameScreen = _spyMgr.CallCustomApi(_gameProcess, _nativeDLLName, "GetGameSurface", ref parm, true);
+        //System.Int32 pGameScreen;
+        //System.Int32 native = (int)_noiseTex.GetNativeTexturePtr();
+        //object parm = native;
+        //pGameScreen = _spyMgr.CallCustomApi(_gameProcess, _nativeDLLName, "GetGameSurface", ref parm, true);
 
-        if (pGameScreen != 0)
-        {
-            _noiseTex.UpdateExternalTexture((IntPtr)pGameScreen);
-        }
+        //if (pGameScreen != 0)
+        //{
+        //    _noiseTex.UpdateExternalTexture((IntPtr)pGameScreen);
+        //}
     }
 }
