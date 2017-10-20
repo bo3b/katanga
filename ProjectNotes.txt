@@ -127,3 +127,11 @@ This also points out a really important conclusion.  The DX9 and DX9Ex objects a
 not in fact the same.  Coercing from an Ex object will work, because it's a superset,
 but going from DX9 to DX9Ex does not work, because the fundamental object is different.
 Also confirmed by using QueryInterface, and getting E-NOINTERFACE.
+
+
+10-19-17
+Finally figured out what the crash was about.  Fuck! I say.  Fucking Microsoft has a
+bad dxd9.h header file, been bad for over 5 years.  The dx9Ex interface is missing a
+routine name in the IDirect3D9Ex interface section, of RegisterSoftwareDevice. That 
+makes the C interface for IDirect3D9Ex, off by one.  So it calls the wrong routine.
+Like GetAdapterMonitor instead of CreateDeviceEx. Fuck! Cost me two weeks on this one.

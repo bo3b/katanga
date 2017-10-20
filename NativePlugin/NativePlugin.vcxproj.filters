@@ -3,6 +3,7 @@
   <ItemGroup>
     <ClCompile Include="NativePlugin.cpp" />
     <ClCompile Include="InProc.cpp" />
+    <ClCompile Include="Addresses.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="NativePlugin.h" />

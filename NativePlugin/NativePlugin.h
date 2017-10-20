@@ -22,6 +22,10 @@
 
 #include <stdlib.h>
 
+#ifdef _DEBUG
+	#define D3D_DEBUG_INFO
+#endif
+
 #include <d3d9.h>
 
 #include <exception>
@@ -29,4 +33,11 @@
 
 void HookCreateDevice(IDirect3D9Ex* pDX9Ex);
 
+
+// These need to be declared as extern "C" so that the names are not mangled.
+// They are coming from the straight C compilation unit.
+
+extern "C" LPVOID lpvtbl_CreateDevice(IDirect3D9* pDX9);
+
+extern "C" LPVOID lpvtbl_Present(IDirect3DDevice9* pDX9Device);
 

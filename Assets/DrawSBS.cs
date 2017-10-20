@@ -45,7 +45,7 @@ public class DrawSBS : MonoBehaviour
         object continueevent;
         string drawSBS_directory = Environment.CurrentDirectory;
         _nativeDLLName = Environment.CurrentDirectory + @"\Debug\NativePlugin.dll";
-        string game = @"C:\Users\bo3b\Documents\Visual Studio Projects\DirectXSamples\Textures\Debug\Textures.exe";
+        string game = @"G:\Games\The Ball\Binaries\Win32\theball.exe";
 
         _spyMgr = new NktSpyMgr();
         hresult = _spyMgr.Initialize();

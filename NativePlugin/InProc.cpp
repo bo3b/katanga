@@ -10,46 +10,50 @@
 // standalone compilation unit to avoid conflicting with normal d3d9 use.
 
 //-----------------------------------------------------------
+//-----------------------------------------------------------
 
 // Exclude rarely-used stuff from Windows headers, and use a header
 // set that will be workable upon our base target OS of Win7.
 
-#define WINVER 0x0500
-#define _WIN32_WINNT 0x0500
-#define _WIN32_WINDOWS 0x0410
-#define _WIN32_IE 0x0700
-#define WIN32_LEAN_AND_MEAN
-
-// Including SDKDDKVer.h defines the highest available Windows platform.
-
-// If you wish to build your application for a previous Windows platform, include WinSDKVer.h and
-// set the _WIN32_WINNT macro to the platform you wish to support before including SDKDDKVer.h.
-
-#include <SDKDDKVer.h>
-
-#include <windows.h>
-
-#include <stdlib.h>
-
-#include <wchar.h>
-
-#include <exception>
-
-
-// This is a bit weird.  By setting the CINTERFACE before including d3d9.h, we get access
-// to the C style interface, which includes direct access to the vTable for the objects.
-// That makes it possible to just reference the lpVtbl->CreateDevice, instead of having
-// magic constants, and multiple casts to fetch the address of the CreateDevice routine.
+//#define WINVER 0x0500
+//#define _WIN32_WINNT 0x0500
+//#define _WIN32_WINDOWS 0x0410
+//#define _WIN32_IE 0x0700
+//#define WIN32_LEAN_AND_MEAN
 //
-// This can only be included here where it's used to fetch those routine addresses, because
-// it will make other C++ units fail to compile, like NativePlugin.cpp.
+//// Including SDKDDKVer.h defines the highest available Windows platform.
+//
+//// If you wish to build your application for a previous Windows platform, include WinSDKVer.h and
+//// set the _WIN32_WINNT macro to the platform you wish to support before including SDKDDKVer.h.
+//
+//#include <SDKDDKVer.h>
+//
+//#include <windows.h>
+//
+//#include <stdlib.h>
+//
+//#include <wchar.h>
+//
+//#include <exception>
+//
+//
+//// This is a bit weird.  By setting the CINTERFACE before including d3d9.h, we get access
+//// to the C style interface, which includes direct access to the vTable for the objects.
+//// That makes it possible to just reference the lpVtbl->CreateDevice, instead of having
+//// magic constants, and multiple casts to fetch the address of the CreateDevice routine.
+////
+//// This can only be included here where it's used to fetch those routine addresses, because
+//// it will make other C++ units fail to compile, like NativePlugin.cpp.
+//
+//#include <combaseapi.h>
+//
+//#define D3D_DEBUG_INFO
+//
+//#define CINTERFACE
+//#include <d3d9.h>
+//#undef CINTERFACE
 
-#define D3D_DEBUG_INFO
-
-#define CINTERFACE
-#include <d3d9.h>
-#undef CINTERFACE
-
+#include "NativePlugin.h"
 
 #include "NktHookLib.h"
 
@@ -78,14 +82,14 @@ IDirect3DSurface9* WINAPI GetGameSurface(int* in)
 }
 
 
+
 //-----------------------------------------------------------
 // Interface to implement the hook for IDirect3DDevice9->Present
 
 // This declaration serves a dual purpose of defining the interface routine as required by
 // DX9, and also is the storage for the original call, returned by nktInProc.Hook
 
-SIZE_T hook_id_Present;
-STDMETHOD_(HRESULT, pOrigPresent)(IDirect3DDevice9Ex* This,
+HRESULT (__stdcall *pOrigPresent)(IDirect3DDevice9Ex* This,
 	/* [in] */ const RECT    *pSourceRect,
 	/* [in] */ const RECT    *pDestRect,
 	/* [in] */       HWND    hDestWindowOverride,
@@ -96,20 +100,22 @@ STDMETHOD_(HRESULT, pOrigPresent)(IDirect3DDevice9Ex* This,
 // This is it. The one we are often after.  This is the hook for the DX9 Present call
 // which the game will call for every frame.  
 
-
-STDMETHODIMP_(HRESULT) Hooked_Present(IDirect3DDevice9Ex* This,
-	CONST RECT* pSourceRect, CONST RECT* pDestRect, HWND hDestWindowOverride, CONST RGNDATA* pDirtyRegion)
+HRESULT __stdcall Hooked_Present(IDirect3DDevice9Ex* This,
+	/* [in] */ const RECT    *pSourceRect,
+	/* [in] */ const RECT    *pDestRect,
+	/* [in] */       HWND    hDestWindowOverride,
+	/* [in] */ const RGNDATA *pDirtyRegion)
 {
 	HRESULT hr;
-//	::OutputDebugStringA("NativePlugin::Hooked_Present called\n");	// Called too often to log
+	//	::OutputDebugStringA("NativePlugin::Hooked_Present called\n");	// Called too often to log
 
 	// Let's get the backbuffer for the game.
 	IDirect3DSurface9* backBuffer;
-	hr = This->lpVtbl->GetBackBuffer(This, 0, 0, D3DBACKBUFFER_TYPE_MONO, &backBuffer);
+	hr = This->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &backBuffer);
 	if (SUCCEEDED(hr) && gGameSurface > 0)
 	{
 		// And copy to our storage surface.
-		hr = This->lpVtbl->StretchRect(This, backBuffer, NULL, gGameSurface, NULL, D3DTEXF_NONE);
+		hr = This->StretchRect(backBuffer, NULL, gGameSurface, NULL, D3DTEXF_NONE);
 		if (FAILED(hr))
 			::OutputDebugString(L"Bad StretchRect.");
 	}
@@ -119,57 +125,12 @@ STDMETHODIMP_(HRESULT) Hooked_Present(IDirect3DDevice9Ex* This,
 }
 
 //-----------------------------------------------------------
-// Interface to implement the hook for IDirect3D9->CreateTexture
-
-// This declaration serves a dual purpose of defining the interface routine as required by
-// DX9, and also is the storage for the original call, returned by nktInProc.Hook
-
-SIZE_T hook_id_CreateTexture;
-STDMETHOD_(HRESULT, pOrigCreateTexture)(IDirect3D9* This,
-	/* [in] */          UINT              Width,
-	/* [in] */          UINT              Height,
-	/* [in] */          UINT              Levels,
-	/* [in] */          DWORD             Usage,
-	/* [in] */          D3DFORMAT         Format,
-	/* [in] */          D3DPOOL           Pool,
-	/* [out, retval] */ IDirect3DTexture9 **ppTexture,
-	/* [in] */          HANDLE            *pSharedHandle
-	) = nullptr;
-
-
-// The actual Hooked routine for CreateTexture, called whenever the game
-// makes a IDirect3D9->CreateTexture call.
-//
-
-STDMETHODIMP_(HRESULT) Hooked_CreateTexture(IDirect3D9* This,
-	UINT Width, UINT Height, UINT Levels, DWORD Usage, D3DFORMAT Format, D3DPOOL Pool, 
-	IDirect3DTexture9** ppTexture, HANDLE* pSharedHandle)
-{
-//	wchar_t info[512];
-
-	::OutputDebugString(L"NativePlugin::Hooked_CreateTexture called\n");
-	
-	// Once we make it here, we can be certain that the This factory is 
-	// actually an IDirect3D9Ex, but passed back to the game as IDirect3D9.
-	// 
-	// We are forcing the pool to be Default, as the game might request 
-	// Managed, which is not valid on Device9Ex.
-
-	Pool = D3DPOOL_DEFAULT;
-	HRESULT hr = pOrigCreateTexture(This, Width, Height, Levels, Usage, Format, Pool, ppTexture, pSharedHandle);
-
-	return hr;
-}
-
-
-//-----------------------------------------------------------
 // Interface to implement the hook for IDirect3D9->CreateDevice
 
 // This declaration serves a dual purpose of defining the interface routine as required by
 // DX9, and also is the storage for the original call, returned by nktInProc.Hook
 
-SIZE_T hook_id_CreateDevice;
-STDMETHOD_(HRESULT, pOrigCreateDevice)(IDirect3D9* This,
+HRESULT(__stdcall *pOrigCreateDevice)(IDirect3D9* This,
 	/* [in] */          UINT                  Adapter,
 	/* [in] */          D3DDEVTYPE            DeviceType,
 	/* [in] */          HWND                  hFocusWindow,
@@ -188,9 +149,13 @@ STDMETHOD_(HRESULT, pOrigCreateDevice)(IDirect3D9* This,
 // objects can only share through system memory, which is too slow.
 // This should be OK, because the game should not know or care that it went Ex.
 
-STDMETHODIMP_(HRESULT) Hooked_CreateDevice(IDirect3D9* This,
-	UINT Adapter, D3DDEVTYPE DeviceType, HWND hFocusWindow, DWORD BehaviorFlags, D3DPRESENT_PARAMETERS* pPresentationParameters,
-	IDirect3DDevice9** ppReturnedDeviceInterface)
+HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
+	/* [in] */          UINT                  Adapter,
+	/* [in] */          D3DDEVTYPE            DeviceType,
+	/* [in] */          HWND                  hFocusWindow,
+	/* [in] */          DWORD                 BehaviorFlags,
+	/* [in, out] */     D3DPRESENT_PARAMETERS *pPresentationParameters,
+	/* [out, retval] */ IDirect3DDevice9      **ppReturnedDeviceInterface)
 {
 	wchar_t info[512];
 
@@ -207,20 +172,20 @@ STDMETHODIMP_(HRESULT) Hooked_CreateDevice(IDirect3D9* This,
 
 	IDirect3D9Ex* pDX9Ex = (IDirect3D9Ex*)This;
 	IDirect3DDevice9Ex* pDevice9Ex = nullptr;
-	HRESULT hr = pDX9Ex->lpVtbl->CreateDeviceEx(pDX9Ex, Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters, NULL,
+	HRESULT hr = pDX9Ex->CreateDeviceEx(Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters, NULL,
 		&pDevice9Ex);
 
 	if (ppReturnedDeviceInterface)
 		*ppReturnedDeviceInterface = (IDirect3DDevice9*)pDevice9Ex;
 
 
+	// Using that fresh DX9 Device, we can now hook the Present call.
+
 	if (pOrigPresent == nullptr && SUCCEEDED(hr) && ppReturnedDeviceInterface != nullptr)
 	{
-		DWORD dwOsErr;
-
-		// Using the DX9 Device, we can now hook the Present call.
-		dwOsErr = nktInProc.Hook(&hook_id_Present, (void**)&pOrigPresent,
-			pDevice9Ex->lpVtbl->Present, Hooked_Present, 0);
+		SIZE_T hook_id;
+		DWORD dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigPresent,
+			lpvtbl_Present(pDevice9Ex), Hooked_Present, 0);
 
 		if (FAILED(dwOsErr))
 			::OutputDebugStringA("Failed to hook IDirect3DDevice9::Present\n");
@@ -231,12 +196,15 @@ STDMETHODIMP_(HRESULT) Hooked_CreateDevice(IDirect3D9* This,
 		// use the Shared parameter, so that we can share it to another Device.  Because
 		// these are all DX9Ex objects, the share will work.
 
-		hr = pDevice9Ex->lpVtbl->CreateRenderTarget(pDevice9Ex, pPresentationParameters->BackBufferWidth, pPresentationParameters->BackBufferHeight,
+		hr = pDevice9Ex->CreateRenderTarget(pPresentationParameters->BackBufferWidth, pPresentationParameters->BackBufferHeight,
 			pPresentationParameters->BackBufferFormat, D3DMULTISAMPLE_NONE, 0, false,
 			&gGameSurface, &gGameSurfaceShare);
 		if (FAILED(hr))
 			::OutputDebugStringA("Fail to create shared RenderTarget\n");
 	}
+
+	// We are returning the IDirect3DDevice9Ex object, because the Device the game
+	// is going to use needs to be Ex type, so we can share from it's backbuffer.
 
 	return hr;
 }
@@ -270,37 +238,6 @@ void HookCreateDevice(IDirect3D9Ex* pDX9Ex)
 #ifdef _DEBUG 
 		nktInProc.SetEnableDebugOutput(TRUE);
 #endif
-		HRESULT hr;
-
-		//D3DDISPLAYMODEEX pMode = { 0 };
-		//pMode.Size = sizeof(D3DDISPLAYMODEEX);
-		//pMode.Format = D3DFMT_A8R8G8B8;
-		//pMode.Height = 720;
-		//pMode.Width = 1280;
-		//pMode.RefreshRate = 60;
-		//pMode.ScanLineOrdering = D3DSCANLINEORDERING_PROGRESSIVE;
-		//hr = pDX9Ex->lpVtbl->GetAdapterDisplayModeEx(pDX9Ex, D3DADAPTER_DEFAULT, &pMode, nullptr);
-
-		hr = Direct3DCreate9Ex(D3D_SDK_VERSION, &pDX9Ex);
-		if (FAILED(hr))
-			throw std::exception("Failed Direct3DCreate9Ex");
-
-		// Create a device so we can hook before anything else happens.
-		IDirect3DDevice9Ex* pDevice9Ex = nullptr;
-		HWND dummyHWND = CreateWindowA("STATIC", "dummy", NULL, 0, 0, 100, 100, NULL, NULL, NULL, NULL);
-		D3DPRESENT_PARAMETERS d3dpp = { 0 };
-		d3dpp.Windowed = TRUE;
-		d3dpp.BackBufferHeight = 1;
-		d3dpp.BackBufferWidth = 1;
-		d3dpp.SwapEffect = D3DSWAPEFFECT_DISCARD;
-		d3dpp.BackBufferFormat = D3DFMT_A8R8G8B8;
-
-		hr = pDX9Ex->lpVtbl->CreateDeviceEx(pDX9Ex, D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, dummyHWND,
-			D3DCREATE_HARDWARE_VERTEXPROCESSING | D3DCREATE_MULTITHREADED | D3DCREATE_FPU_PRESERVE,
-			&d3dpp, NULL, &pDevice9Ex);
-
-		if (FAILED(hr))
-			::OutputDebugStringA("Fail to create DeviceEx\n");
 
 		// If we are here, we want to now hook the IDirect3D9::CreateDevice
 		// routine, as that will be the next thing the game does, and we
@@ -311,19 +248,12 @@ void HookCreateDevice(IDirect3D9Ex* pDX9Ex)
 		// using In-Proc here.  Since we are using the CINTERFACE, we can 
 		// just directly access the address.
 
-		DWORD dwOsErr = nktInProc.Hook(&hook_id_CreateDevice, (void**)&pOrigCreateDevice,
-			pDX9Ex->lpVtbl->CreateDevice, Hooked_CreateDevice, 0);
+		SIZE_T hook_id;
+		DWORD dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigCreateDevice,
+			lpvtbl_CreateDevice(pDX9Ex), Hooked_CreateDevice, 0);
 
 		if (FAILED(dwOsErr))
 			::OutputDebugStringA("Failed to hook IDirect3D9::CreateDevice\n");
-
-		// CreateTexture hook
-
-		//dwOsErr = nktInProc.Hook(&hook_id_CreateTexture, (void**)&pOrigCreateTexture,
-		//	pDevice9Ex->lpVtbl->CreateTexture, Hooked_CreateTexture, 0);
-
-		//if (FAILED(dwOsErr))
-		//	::OutputDebugStringA("Failed to hook IDirect3D9::CreateTexture\n");
 	}
 }
 

@@ -6,8 +6,6 @@
 // and are direct exports from a DLL.  It's not well suited for vtable
 // based calls like those used by DX9.
 
-#define D3D_DEBUG_INFO
-
 #include "NativePlugin.h"
 
 // We need the Deviare interface though, to be able to provide the OnLoad,
@@ -119,22 +117,6 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 	hr = Direct3DCreate9Ex(D3D_SDK_VERSION, &pDX9Ex);
 	if (FAILED(hr))
 		throw std::exception("Failed Direct3DCreate9Ex");
-
-	IDirect3DDevice9Ex* pDevice9Ex = nullptr;
-	HWND dummyHWND = CreateWindowA("STATIC", "dummy", NULL, 0, 0, 100, 100, NULL, NULL, NULL, NULL);
-	D3DPRESENT_PARAMETERS d3dpp = { 0 };
-	d3dpp.Windowed = TRUE;
-	d3dpp.BackBufferHeight = 1;
-	d3dpp.BackBufferWidth = 1;
-	d3dpp.SwapEffect = D3DSWAPEFFECT_DISCARD;
-	d3dpp.BackBufferFormat = D3DFMT_A8R8G8B8;
-
-	hr = pDX9Ex->CreateDeviceEx(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, dummyHWND,
-		D3DCREATE_HARDWARE_VERTEXPROCESSING | D3DCREATE_MULTITHREADED | D3DCREATE_FPU_PRESERVE,
-		&d3dpp, NULL, &pDevice9Ex);
-
-	if (FAILED(hr))
-		::OutputDebugStringA("Fail to create DeviceEx\n");
 
 	// At this point, we are going to switch from using Deviare style calls
 	// to In-Proc style calls, because the routines we need to hook are not
