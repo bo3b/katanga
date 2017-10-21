@@ -1,4 +1,4 @@
-Katanga (maybe release name is Screen3d) is the virtual 3D screen.
+Katanga (maybe release name is Screen3d, Scr33d) is the virtual 3D screen.
 
 Any given 3D game running on NVidia or SBS will take the bits and put them into
 the screen Quad in the Unity environment.
@@ -135,3 +135,24 @@ bad dxd9.h header file, been bad for over 5 years.  The dx9Ex interface is missi
 routine name in the IDirect3D9Ex interface section, of RegisterSoftwareDevice. That 
 makes the C interface for IDirect3D9Ex, off by one.  So it calls the wrong routine.
 Like GetAdapterMonitor instead of CreateDeviceEx. Fuck! Cost me two weeks on this one.
+
+
+10-20-17
+Experimenting with Console app, which just does CreateDX9, then CreateDevice, to see
+what all needs to be an Ex object.  When CreateDeviceEx is used, we end up getting
+a debug layer break in CreateTexture that the pool cannot be managed. Which leads
+down a path of tweaking parameters.
+However, when trying this to create a shared surface:
+	hr = pDev9->CreateRenderTarget(1280, 720, D3DFMT_A8R8G8B8, D3DMULTISAMPLE_NONE, 0, false,
+		&gGameSurface, &gGameSurfaceShare);
+we get error:
+Direct3D9: (ERROR) :Device is not capable of sharing resource. CreateRenderTarget/CreateDepthStencil fails.
+
+Clearly the runtime requires an IDirect3DDevice9Ex.
+And, since you cannot create a IDirect3DDevice9Ex with a DX9 factory, that means the 
+top level CreateD39 must be Ex as well.  
+
+And, in test app, if I do StretchRect from dev9 to dev9Ex, I get:
+Direct3D9: (ERROR) :DstSurface was not allocated with this Device. StretchRect fails.
+Which clearly indicates that we cannot go cross-device.  If the source object is the
+dev9Ex, then it just crashes, debug layer is probably lame for Ex.

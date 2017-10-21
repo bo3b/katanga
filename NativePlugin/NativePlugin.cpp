@@ -114,9 +114,10 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 	// However, because we want a Direct3DCreate9Ex interface instead of the normal one, we will 
 	// go ahead and call it directly.  This might bypass hooks on the original Direct3DCreate9.
 
-	hr = Direct3DCreate9Ex(D3D_SDK_VERSION, &pDX9Ex);
-	if (FAILED(hr))
-		throw std::exception("Failed Direct3DCreate9Ex");
+//	hr = Direct3DCreate9Ex(D3D_SDK_VERSION, &pDX9Ex);
+	//if (FAILED(hr))
+	//	throw std::exception("Failed Direct3DCreate9Ex");
+	IDirect3D9* pDX9 = Direct3DCreate9(D3D_SDK_VERSION);
 
 	// At this point, we are going to switch from using Deviare style calls
 	// to In-Proc style calls, because the routines we need to hook are not
@@ -124,7 +125,7 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 	// and then rebuilding it, but In-Proc works alongside Deviare so this
 	// approach is simpler.
 
-	HookCreateDevice(pDX9Ex);
+	HookCreateDevice(pDX9);
 
 	// The result of the Direct3DCreate9Ex function is the IDirect3D9Ex object, which you 
 	// can think of as DX9 itself. 
@@ -143,7 +144,7 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 	hr = lpHookCallInfoPlugin->Result(&nktResult);
 	if (FAILED(hr))
 		throw std::exception("Failed Get NktResult");
-	hr = nktResult->put_PointerVal((long)pDX9Ex);
+	hr = nktResult->put_PointerVal((long)pDX9);
 	if (FAILED(hr))
 		throw std::exception("Failed put pointer");
 

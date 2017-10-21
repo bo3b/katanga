@@ -125,6 +125,54 @@ HRESULT __stdcall Hooked_Present(IDirect3DDevice9Ex* This,
 }
 
 //-----------------------------------------------------------
+// Interface to implement the hook for IDirect3DDevice9->CreateTexture
+
+// This declaration serves a dual purpose of defining the interface routine as required by
+// DX9, and also is the storage for the original call, returned by nktInProc.Hook
+
+HRESULT(__stdcall *pOrigCreateTexture)(IDirect3DDevice9* This,
+	/* [in] */          UINT              Width,
+	/* [in] */          UINT              Height,
+	/* [in] */          UINT              Levels,
+	/* [in] */          DWORD             Usage,
+	/* [in] */          D3DFORMAT         Format,
+	/* [in] */          D3DPOOL           Pool,
+	/* [out, retval] */ IDirect3DTexture9 **ppTexture,
+	/* [in] */          HANDLE            *pSharedHandle
+	) = nullptr;
+
+
+// We need to implement a hook on CreateTexture, because the game
+// will create this after we return the IDirect3DDevice9Ex Device,
+// and the debug layer crashes with:
+// Direct3D9: (ERROR) : D3DPOOL_MANAGED is not valid with IDirect3DDevice9Ex
+// Then:
+// Direct3D9: (ERROR) :Lock is not supported for textures allocated with POOL_DEFAULT unless they are marked D3DUSAGE_DYNAMIC.
+
+HRESULT __stdcall Hooked_CreateTexture(IDirect3DDevice9* This,
+	/* [in] */          UINT              Width,
+	/* [in] */          UINT              Height,
+	/* [in] */          UINT              Levels,
+	/* [in] */          DWORD             Usage,
+	/* [in] */          D3DFORMAT         Format,
+	/* [in] */          D3DPOOL           Pool,
+	/* [out, retval] */ IDirect3DTexture9 **ppTexture,
+	/* [in] */          HANDLE            *pSharedHandle)
+{
+	::OutputDebugString(L"NativePlugin::Hooked_CreateTexture called\n");
+
+	// Force Pool to always be default.
+	//Pool = D3DPOOL_DEFAULT;
+
+	HRESULT hr = pOrigCreateTexture(This, Width, Height, Levels, Usage, Format, Pool,
+		ppTexture, pSharedHandle);
+	if (FAILED(hr))
+		::OutputDebugStringA("Failed to call pOrigCreateTexture\n");
+
+	return hr;
+}
+
+//-----------------------------------------------------------
 // Interface to implement the hook for IDirect3D9->CreateDevice
 
 // This declaration serves a dual purpose of defining the interface routine as required by
@@ -169,26 +217,39 @@ HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 
 	// Once we make it here, we can be certain that the This factory is 
 	// actually an IDirect3D9Ex, but passed back to the game as IDirect3D9.
+	// Create factory and Device here. Return just device.
 
-	IDirect3D9Ex* pDX9Ex = (IDirect3D9Ex*)This;
+	IDirect3D9Ex* pDX9Ex;
+	HRESULT hr = Direct3DCreate9Ex(D3D_SDK_VERSION, &pDX9Ex);
+	if (FAILED(hr))
+		::OutputDebugStringA("Failed to create dx9ex factory\n");
 	IDirect3DDevice9Ex* pDevice9Ex = nullptr;
-	HRESULT hr = pDX9Ex->CreateDeviceEx(Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters, NULL,
+	hr = pDX9Ex->CreateDeviceEx(Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters, NULL,
 		&pDevice9Ex);
+	if (FAILED(hr))
+		::OutputDebugStringA("Failed to create IDirect3DDevice9Ex\n");
+
+//	HRESULT hr = pOrigCreateDevice(This, Adapter,DeviceType,hFocusWindow,BehaviorFlags,pPresentationParameters,ppReturnedDeviceInterface);
 
 	if (ppReturnedDeviceInterface)
 		*ppReturnedDeviceInterface = (IDirect3DDevice9*)pDevice9Ex;
 
-
-	// Using that fresh DX9 Device, we can now hook the Present call.
+	// Using that fresh DX9 Device, we can now hook the Present and CreateTexture calls.
 
 	if (pOrigPresent == nullptr && SUCCEEDED(hr) && ppReturnedDeviceInterface != nullptr)
 	{
 		SIZE_T hook_id;
-		DWORD dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigPresent,
+		DWORD dwOsErr;
+		
+		dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigPresent,
 			lpvtbl_Present(pDevice9Ex), Hooked_Present, 0);
-
 		if (FAILED(dwOsErr))
 			::OutputDebugStringA("Failed to hook IDirect3DDevice9::Present\n");
+
+		dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigCreateTexture,
+			lpvtbl_CreateTexture(pDevice9Ex), Hooked_CreateTexture, 0);
+		if (FAILED(dwOsErr))
+			::OutputDebugStringA("Failed to hook IDirect3DDevice9::CreateTexture\n");
 
 
 		// Now that we have a proper Ex Device from the game, let's also make a 
@@ -196,7 +257,7 @@ HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 		// use the Shared parameter, so that we can share it to another Device.  Because
 		// these are all DX9Ex objects, the share will work.
 
-		hr = pDevice9Ex->CreateRenderTarget(pPresentationParameters->BackBufferWidth, pPresentationParameters->BackBufferHeight,
+		HRESULT hr = pDevice9Ex->CreateRenderTarget(pPresentationParameters->BackBufferWidth, pPresentationParameters->BackBufferHeight,
 			pPresentationParameters->BackBufferFormat, D3DMULTISAMPLE_NONE, 0, false,
 			&gGameSurface, &gGameSurfaceShare);
 		if (FAILED(hr))
@@ -229,7 +290,7 @@ HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 // game is nearly certain to be calling CreateDevice.
 // 
 
-void HookCreateDevice(IDirect3D9Ex* pDX9Ex)
+void HookCreateDevice(IDirect3D9* pDX9Ex)
 {
 	// This can be called multiple times by a game, so let's be sure to
 	// only hook once.

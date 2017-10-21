@@ -31,7 +31,7 @@
 #include <exception>
 
 
-void HookCreateDevice(IDirect3D9Ex* pDX9Ex);
+void HookCreateDevice(IDirect3D9* pDX9Ex);
 
 
 // These need to be declared as extern "C" so that the names are not mangled.
@@ -41,3 +41,4 @@ extern "C" LPVOID lpvtbl_CreateDevice(IDirect3D9* pDX9);
 
 extern "C" LPVOID lpvtbl_Present(IDirect3DDevice9* pDX9Device);
 
+extern "C" LPVOID lpvtbl_CreateTexture(IDirect3DDevice9* pDX9Device);
