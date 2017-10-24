@@ -156,3 +156,25 @@ And, in test app, if I do StretchRect from dev9 to dev9Ex, I get:
 Direct3D9: (ERROR) :DstSurface was not allocated with this Device. StretchRect fails.
 Which clearly indicates that we cannot go cross-device.  If the source object is the
 dev9Ex, then it just crashes, debug layer is probably lame for Ex.
+
+
+10-24-17
+Getting closer.  With it not successfully creating and copying into a shared surface,
+we now need to display this in Unity app.  The access to the surface there is not
+terrific, and we also need to have it switch from DX9 to DX11 for the Unity display,
+so the plan is to create a C++ unit for Unity side, and use their plugin model to
+get access to C++ in this app as well.  Mostly this just needs to use the HANDLE to
+the shared surface, and copy the bits into the in-Unity TV screen. 
+Some questions about what needs to be write-only for performance, and how to sync
+the copies, but let's get it limping first.
+
+At present using the simple DX9 test app of Textures, because when I launch TheBall,
+it fires some debug layer problems like CreateTexture needing to use only defaultpool.
+Probably will need to hook and patch up some of these since we are putting the game
+into an DX9Ex runtime, which changes some usage.
+
+Restructering the project folder layout, because we need to have the next piece of
+the UnityNativePlugin for C++ access.  Also, this layout was never right, Unity
+rebuilds the .sln file for their piece at every open, so it's better if it's by 
+itself and used as a subproject to a main project.   Doing this piecemeal to avoid
+breaking the repo.
