@@ -5,6 +5,8 @@ VisualStudioVersion = 12.0.40629.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UnityScreenApp.CSharp", "UnityScreenApp\UnityScreenApp.CSharp.csproj", "{E668F449-3D0D-3DB0-2403-C765ECC89631}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DeviarePlugin", "DeviarePlugin\DeviarePlugin.vcxproj", "{4E087F78-9ADB-4B15-BD41-461EF6D322CC}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -25,6 +27,16 @@ Global
 		{E668F449-3D0D-3DB0-2403-C765ECC89631}.Release|Mixed Platforms.ActiveCfg = Release|Any CPU
 		{E668F449-3D0D-3DB0-2403-C765ECC89631}.Release|Mixed Platforms.Build.0 = Release|Any CPU
 		{E668F449-3D0D-3DB0-2403-C765ECC89631}.Release|Win32.ActiveCfg = Release|Any CPU
+		{4E087F78-9ADB-4B15-BD41-461EF6D322CC}.Debug|Any CPU.ActiveCfg = Debug|Win32
+		{4E087F78-9ADB-4B15-BD41-461EF6D322CC}.Debug|Mixed Platforms.ActiveCfg = Debug|Win32
+		{4E087F78-9ADB-4B15-BD41-461EF6D322CC}.Debug|Mixed Platforms.Build.0 = Debug|Win32
+		{4E087F78-9ADB-4B15-BD41-461EF6D322CC}.Debug|Win32.ActiveCfg = Debug|Win32
+		{4E087F78-9ADB-4B15-BD41-461EF6D322CC}.Debug|Win32.Build.0 = Debug|Win32
+		{4E087F78-9ADB-4B15-BD41-461EF6D322CC}.Release|Any CPU.ActiveCfg = Release|Win32
+		{4E087F78-9ADB-4B15-BD41-461EF6D322CC}.Release|Mixed Platforms.ActiveCfg = Release|Win32
+		{4E087F78-9ADB-4B15-BD41-461EF6D322CC}.Release|Mixed Platforms.Build.0 = Release|Win32
+		{4E087F78-9ADB-4B15-BD41-461EF6D322CC}.Release|Win32.ActiveCfg = Release|Win32
+		{4E087F78-9ADB-4B15-BD41-461EF6D322CC}.Release|Win32.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
