@@ -6,7 +6,7 @@
 // and are direct exports from a DLL.  It's not well suited for vtable
 // based calls like those used by DX9.
 
-#include "NativePlugin.h"
+#include "DeviarePlugin.h"
 
 // We need the Deviare interface though, to be able to provide the OnLoad,
 // OnFunctionCalled interfaces, and to be able to LoadCustomDLL this DLL from

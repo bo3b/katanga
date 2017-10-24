@@ -8,7 +8,7 @@
 
 //-----------------------------------------------------------
 
-#include "NativePlugin.h"
+#include "DeviarePlugin.h"
 
 #include "NktHookLib.h"
 
