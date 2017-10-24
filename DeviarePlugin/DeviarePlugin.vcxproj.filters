@@ -1,15 +1,15 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClCompile Include="NativePlugin.cpp" />
+    <ClCompile Include="DeviarePlugin.cpp" />
     <ClCompile Include="InProc.cpp" />
     <ClCompile Include="Addresses.c" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="NativePlugin.h" />
+    <ClInclude Include="DeviarePlugin.h" />
     <ClInclude Include="NktHookLib.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="NativePlugin.def" />
+    <None Include="DeviarePlugin.def" />
   </ItemGroup>
 </Project>
