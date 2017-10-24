@@ -5,53 +5,8 @@
 // the DB files, and rebuild the DB if you wanted to use Deviare.
 //
 // All In-Proc use is in this file, all Deviare use is in NativePlugin.
-// 
-// This file uses a special way of including d3d9.h, and is thus a
-// standalone compilation unit to avoid conflicting with normal d3d9 use.
 
 //-----------------------------------------------------------
-//-----------------------------------------------------------
-
-// Exclude rarely-used stuff from Windows headers, and use a header
-// set that will be workable upon our base target OS of Win7.
-
-//#define WINVER 0x0500
-//#define _WIN32_WINNT 0x0500
-//#define _WIN32_WINDOWS 0x0410
-//#define _WIN32_IE 0x0700
-//#define WIN32_LEAN_AND_MEAN
-//
-//// Including SDKDDKVer.h defines the highest available Windows platform.
-//
-//// If you wish to build your application for a previous Windows platform, include WinSDKVer.h and
-//// set the _WIN32_WINNT macro to the platform you wish to support before including SDKDDKVer.h.
-//
-//#include <SDKDDKVer.h>
-//
-//#include <windows.h>
-//
-//#include <stdlib.h>
-//
-//#include <wchar.h>
-//
-//#include <exception>
-//
-//
-//// This is a bit weird.  By setting the CINTERFACE before including d3d9.h, we get access
-//// to the C style interface, which includes direct access to the vTable for the objects.
-//// That makes it possible to just reference the lpVtbl->CreateDevice, instead of having
-//// magic constants, and multiple casts to fetch the address of the CreateDevice routine.
-////
-//// This can only be included here where it's used to fetch those routine addresses, because
-//// it will make other C++ units fail to compile, like NativePlugin.cpp.
-//
-//#include <combaseapi.h>
-//
-//#define D3D_DEBUG_INFO
-//
-//#define CINTERFACE
-//#include <d3d9.h>
-//#undef CINTERFACE
 
 #include "NativePlugin.h"
 
@@ -70,14 +25,14 @@ HANDLE gGameSurfaceShare = nullptr;
 
 // --------------------------------------------------------------------------------------------------
 
-// Custom routines for this NativePlugin.dll, that the master app can call.
+// Custom routines for this NativePlugin.dll, that the master app can call,
+// using Deviare access routines.
 // The Input is the IDirect3DBaseTexture9 for the main screen.
 
 IDirect3DSurface9* WINAPI GetGameSurface(int* in)
 {
-//	::OutputDebugString(L"NativePlugin::GetGameSurface called\n");
-	
-
+	// Needs to be the surface shared with the other app.  
+	// Can't return this rendertarget, it's not the share.
 	return gGameSurface;
 }
 
@@ -97,7 +52,7 @@ HRESULT (__stdcall *pOrigPresent)(IDirect3DDevice9Ex* This,
 	) = nullptr;
 
 
-// This is it. The one we are often after.  This is the hook for the DX9 Present call
+// This is it. The one we are after.  This is the hook for the DX9 Present call
 // which the game will call for every frame.  
 
 HRESULT __stdcall Hooked_Present(IDirect3DDevice9Ex* This,
@@ -107,14 +62,12 @@ HRESULT __stdcall Hooked_Present(IDirect3DDevice9Ex* This,
 	/* [in] */ const RGNDATA *pDirtyRegion)
 {
 	HRESULT hr;
-	//	::OutputDebugStringA("NativePlugin::Hooked_Present called\n");	// Called too often to log
-
-	// Let's get the backbuffer for the game.
 	IDirect3DSurface9* backBuffer;
+
 	hr = This->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &backBuffer);
 	if (SUCCEEDED(hr) && gGameSurface > 0)
 	{
-		// And copy to our storage surface.
+		// Copy current frame from backbuffer to our shared storage surface.
 		hr = This->StretchRect(backBuffer, NULL, gGameSurface, NULL, D3DTEXF_NONE);
 		if (FAILED(hr))
 			::OutputDebugString(L"Bad StretchRect.");

@@ -23,8 +23,8 @@ public class DrawSBS : MonoBehaviour
         // Set point filtering just so we can see the pixels clearly
         _noiseTex.filterMode = FilterMode.Point;
 
-        
-        // Call Apply() so it's actually uploaded to the GPU
+
+        // Sierpinksky triangles for a default view.
         for (int y = 0; y < _noiseTex.height; y++)
         {
             for (int x = 0; x < _noiseTex.width; x++)
@@ -33,6 +33,7 @@ public class DrawSBS : MonoBehaviour
                 _noiseTex.SetPixel(x, y, color);
             }
         }
+        // Call Apply() so it's actually uploaded to the GPU
         _noiseTex.Apply();
 
         // Set texture onto our material
@@ -150,14 +151,14 @@ public class DrawSBS : MonoBehaviour
     void Update()
     {
      //   ModifyTexturePixels();
-        //System.Int32 pGameScreen;
-        //System.Int32 native = (int)_noiseTex.GetNativeTexturePtr();
-        //object parm = native;
-        //pGameScreen = _spyMgr.CallCustomApi(_gameProcess, _nativeDLLName, "GetGameSurface", ref parm, true);
+        System.Int32 pGameScreen;
+        System.Int32 native = (int)_noiseTex.GetNativeTexturePtr();
+        object parm = native;
+        pGameScreen = _spyMgr.CallCustomApi(_gameProcess, _nativeDLLName, "GetGameSurface", ref parm, true);
 
-        //if (pGameScreen != 0)
-        //{
-        //    _noiseTex.UpdateExternalTexture((IntPtr)pGameScreen);
-        //}
+        if (pGameScreen != 0)
+        {
+            _noiseTex.UpdateExternalTexture((IntPtr)pGameScreen);
+        }
     }
 }
