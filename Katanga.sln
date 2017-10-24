@@ -7,11 +7,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Katanga.CSharp", "Katanga.C
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "NativePlugin", "NativePlugin\NativePlugin.vcxproj", "{4E087F78-9ADB-4B15-BD41-461EF6D322CC}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{57A21045-91BB-4BAC-904E-1366ED4BC3DB}"
-	ProjectSection(SolutionItems) = preProject
-		ProjectNotes.txt = ProjectNotes.txt
-	EndProjectSection
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
