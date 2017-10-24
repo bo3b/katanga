@@ -13,9 +13,9 @@
 # ----[ Visual Studio / MonoDevelop generated ]------- #
 ExportedObj/
 .consulo/
-*.csproj
+#*.csproj
 *.unityproj
-*.sln
+#*.sln
 *.suo
 *.tmp
 *.user
