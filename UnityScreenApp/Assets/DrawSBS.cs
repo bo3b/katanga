@@ -45,7 +45,8 @@ public class DrawSBS : MonoBehaviour
         int hresult;
         object continueevent;
         string drawSBS_directory = Environment.CurrentDirectory;
-        _nativeDLLName = Environment.CurrentDirectory + @"\Debug\NativePlugin.dll";
+        print("root directory: " + drawSBS_directory);
+        _nativeDLLName = Environment.CurrentDirectory + @"\Assets\Plugins\x86\DeviarePlugin.dll";
         string game = @"C:\Users\bo3b\Documents\Visual Studio Projects\DirectXSamples\Textures\Debug\textures.exe";
 
         _spyMgr = new NktSpyMgr();
@@ -150,7 +151,7 @@ public class DrawSBS : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-     //   ModifyTexturePixels();
+        //   ModifyTexturePixels();
         System.Int32 pGameScreen;
         System.Int32 native = (int)_noiseTex.GetNativeTexturePtr();
         object parm = native;
