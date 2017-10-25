@@ -9,6 +9,10 @@
 **/[Bb]uilds/*
 **/UnityGenerated/*
 **/Assets/AssetStoreTools*
+**/Assets/Plugins/*
+
+# Unity3D Crash Reports
+sysinfo.txt
 
 # ----[ Visual Studio / MonoDevelop generated ]------- #
 ExportedObj/
@@ -30,8 +34,8 @@ ExportedObj/
 *.opensdf
 *.VC.db
 
-# Unity3D Crash Reports
-sysinfo.txt
+**/x64/*
+**/x86/*
 
 # -------------[ OS generated ]------------------------ #
 .DS_Store
