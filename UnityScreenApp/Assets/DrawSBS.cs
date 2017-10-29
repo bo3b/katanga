@@ -20,8 +20,6 @@ public class DrawSBS : MonoBehaviour
     [DllImport("UnityNativePlugin")]
     private static extern void SetTextureFromUnity(System.IntPtr texture, int w, int h);
     [DllImport("UnityNativePlugin")]
-    private static extern void SetMeshBuffersFromUnity(IntPtr vertexBuffer, int vertexCount, IntPtr sourceVertices, IntPtr sourceNormals, IntPtr sourceUVs);
-    [DllImport("UnityNativePlugin")]
     private static extern IntPtr GetRenderEventFunc();
 
 
@@ -29,7 +27,6 @@ public class DrawSBS : MonoBehaviour
     IEnumerator Start()
     {
         CreateTextureAndPassToPlugin();
-        SendMeshBuffersToPlugin();
         yield return StartCoroutine("CallPluginAtEndOfFrames");
 
         // Create a texture
@@ -176,34 +173,6 @@ public class DrawSBS : MonoBehaviour
 
         // Pass texture pointer to the plugin
         SetTextureFromUnity(tex.GetNativeTexturePtr(), tex.width, tex.height);
-    }
-
-    private void SendMeshBuffersToPlugin()
-    {
-        var filter = GetComponent<MeshFilter>();
-        var mesh = filter.mesh;
-        // The plugin will want to modify the vertex buffer -- on many platforms
-        // for that to work we have to mark mesh as "dynamic" (which makes the buffers CPU writable --
-        // by default they are immutable and only GPU-readable).
-        mesh.MarkDynamic();
-
-        // However, mesh being dynamic also means that the CPU on most platforms can not
-        // read from the vertex buffer. Our plugin also wants original mesh data,
-        // so let's pass it as pointers to regular C# arrays.
-        // This bit shows how to pass array pointers to native plugins without doing an expensive
-        // copy: you have to get a GCHandle, and get raw address of that.
-        var vertices = mesh.vertices;
-        var normals = mesh.normals;
-        var uvs = mesh.uv;
-        GCHandle gcVertices = GCHandle.Alloc(vertices, GCHandleType.Pinned);
-        GCHandle gcNormals = GCHandle.Alloc(normals, GCHandleType.Pinned);
-        GCHandle gcUV = GCHandle.Alloc(uvs, GCHandleType.Pinned);
-
-        SetMeshBuffersFromUnity(mesh.GetNativeVertexBufferPtr(0), mesh.vertexCount, gcVertices.AddrOfPinnedObject(), gcNormals.AddrOfPinnedObject(), gcUV.AddrOfPinnedObject());
-
-        gcVertices.Free();
-        gcNormals.Free();
-        gcUV.Free();
     }
 
 
