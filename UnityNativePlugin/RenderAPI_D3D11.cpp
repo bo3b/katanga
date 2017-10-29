@@ -20,13 +20,8 @@ public:
 
 	virtual bool GetUsesReverseZ() { return (int)m_Device->GetFeatureLevel() >= (int)D3D_FEATURE_LEVEL_10_0; }
 
-	virtual void DrawSimpleTriangles(const float worldMatrix[16], int triangleCount, const void* verticesFloat3Byte4);
-
 	virtual void* BeginModifyTexture(void* textureHandle, int textureWidth, int textureHeight, int* outRowPitch);
 	virtual void EndModifyTexture(void* textureHandle, int textureWidth, int textureHeight, int rowPitch, void* dataPtr);
-
-	virtual void* BeginModifyVertexBuffer(void* bufferHandle, size_t* outBufferSize);
-	virtual void EndModifyVertexBuffer(void* bufferHandle);
 
 private:
 	void CreateResources();
@@ -209,39 +204,6 @@ void RenderAPI_D3D11::ReleaseResources()
 }
 
 
-void RenderAPI_D3D11::DrawSimpleTriangles(const float worldMatrix[16], int triangleCount, const void* verticesFloat3Byte4)
-{
-	ID3D11DeviceContext* ctx = NULL;
-	m_Device->GetImmediateContext(&ctx);
-
-	// Set basic render state
-	ctx->OMSetDepthStencilState(m_DepthState, 0);
-	ctx->RSSetState(m_RasterState);
-	ctx->OMSetBlendState(m_BlendState, NULL, 0xFFFFFFFF);
-
-	// Update constant buffer - just the world matrix in our case
-	ctx->UpdateSubresource(m_CB, 0, NULL, worldMatrix, 64, 0);
-
-	// Set shaders
-	ctx->VSSetConstantBuffers(0, 1, &m_CB);
-	ctx->VSSetShader(m_VertexShader, NULL, 0);
-	ctx->PSSetShader(m_PixelShader, NULL, 0);
-
-	// Update vertex buffer
-	const int kVertexSize = 12 + 4;
-	ctx->UpdateSubresource(m_VB, 0, NULL, verticesFloat3Byte4, triangleCount * 3 * kVertexSize, 0);
-
-	// set input assembler data and draw
-	ctx->IASetInputLayout(m_InputLayout);
-	ctx->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	UINT stride = kVertexSize;
-	UINT offset = 0;
-	ctx->IASetVertexBuffers(0, 1, &m_VB, &stride, &offset);
-	ctx->Draw(triangleCount * 3, 0);
-
-	ctx->Release();
-}
-
 
 void* RenderAPI_D3D11::BeginModifyTexture(void* textureHandle, int textureWidth, int textureHeight, int* outRowPitch)
 {
@@ -267,33 +229,5 @@ void RenderAPI_D3D11::EndModifyTexture(void* textureHandle, int textureWidth, in
 }
 
 
-void* RenderAPI_D3D11::BeginModifyVertexBuffer(void* bufferHandle, size_t* outBufferSize)
-{
-	ID3D11Buffer* d3dbuf = (ID3D11Buffer*)bufferHandle;
-	assert(d3dbuf);
-	D3D11_BUFFER_DESC desc;
-	d3dbuf->GetDesc(&desc);
-	*outBufferSize = desc.ByteWidth;
-
-	ID3D11DeviceContext* ctx = NULL;
-	m_Device->GetImmediateContext(&ctx);
-	D3D11_MAPPED_SUBRESOURCE mapped;
-	ctx->Map(d3dbuf, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
-	ctx->Release();
-
-	return mapped.pData;
-}
-
-
-void RenderAPI_D3D11::EndModifyVertexBuffer(void* bufferHandle)
-{
-	ID3D11Buffer* d3dbuf = (ID3D11Buffer*)bufferHandle;
-	assert(d3dbuf);
-
-	ID3D11DeviceContext* ctx = NULL;
-	m_Device->GetImmediateContext(&ctx);
-	ctx->Unmap(d3dbuf, 0);
-	ctx->Release();
-}
 
 #endif // #if SUPPORT_D3D11

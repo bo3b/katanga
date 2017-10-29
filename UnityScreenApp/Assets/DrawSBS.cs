@@ -228,15 +228,18 @@ public class DrawSBS : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        //   ModifyTexturePixels();
-        System.Int32 pGameScreen;
-        System.Int32 native = (int)_noiseTex.GetNativeTexturePtr();
-        object parm = native;
-        pGameScreen = _spyMgr.CallCustomApi(_gameProcess, _nativeDLLName, "GetGameSurface", ref parm, true);
+        SetTimeFromUnity(Time.timeSinceLevelLoad);
+        GL.IssuePluginEvent(GetRenderEventFunc(), 1);
 
-        if (pGameScreen != 0)
-        {
-            _noiseTex.UpdateExternalTexture((IntPtr)pGameScreen);
-        }
+        //   ModifyTexturePixels();
+        //System.Int32 pGameScreen;
+        //System.Int32 native = (int)_noiseTex.GetNativeTexturePtr();
+        //object parm = native;
+//        pGameScreen = _spyMgr.CallCustomApi(_gameProcess, _nativeDLLName, "GetGameSurface", ref parm, true);
+
+        //if (pGameScreen != 0)
+        //{
+        //    _noiseTex.UpdateExternalTexture((IntPtr)pGameScreen);
+        //}
     }
 }
