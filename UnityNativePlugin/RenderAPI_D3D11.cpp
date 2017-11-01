@@ -23,6 +23,8 @@ public:
 	virtual void* BeginModifyTexture(void* textureHandle, int textureWidth, int textureHeight, int* outRowPitch);
 	virtual void EndModifyTexture(void* textureHandle, int textureWidth, int textureHeight, int rowPitch, void* dataPtr);
 
+	virtual void CreateSharedSurface(HANDLE shared);
+
 private:
 	void CreateResources();
 	void ReleaseResources();
@@ -37,6 +39,8 @@ private:
 	ID3D11RasterizerState* m_RasterState;
 	ID3D11BlendState* m_BlendState;
 	ID3D11DepthStencilState* m_DepthState;
+
+	ID3D11Texture2D* m_SharedSurface;	// Same as DX9Ex surface
 };
 
 
@@ -108,6 +112,7 @@ RenderAPI_D3D11::RenderAPI_D3D11()
 	, m_RasterState(NULL)
 	, m_BlendState(NULL)
 	, m_DepthState(NULL)
+	, m_SharedSurface(NULL)
 {
 }
 
@@ -201,6 +206,7 @@ void RenderAPI_D3D11::ReleaseResources()
 	SAFE_RELEASE(m_RasterState);
 	SAFE_RELEASE(m_BlendState);
 	SAFE_RELEASE(m_DepthState);
+	SAFE_RELEASE(m_SharedSurface);
 }
 
 
@@ -229,5 +235,32 @@ void RenderAPI_D3D11::EndModifyTexture(void* textureHandle, int textureWidth, in
 }
 
 
+// Get the shared surface specified by the input HANDLE.  This will be from 
+// the game side, in DX9Ex. This technique is specified in the documentation:
+// https://msdn.microsoft.com/en-us/library/windows/desktop/ff476531(v=vs.85).aspx
+// https://msdn.microsoft.com/en-us/library/windows/desktop/ee913554(v=vs.85).aspx
+
+void RenderAPI_D3D11::CreateSharedSurface(HANDLE shared)
+{
+	HRESULT hr;
+	ID3D11Resource* resource;
+	ID3D11Texture2D* texture;
+
+	hr = m_Device->OpenSharedResource(shared, __uuidof(ID3D11Resource), (void**)(&resource));
+	if (FAILED(hr))
+		__debugbreak();
+
+	hr = resource->QueryInterface(__uuidof(ID3D11Texture2D), (void**)(&texture));
+	if (FAILED(hr))
+		__debugbreak();
+	
+	resource->Release();
+
+	// now use pTex2D_11 with pDevice11  
+	// This is theoretically the exact same surface in the video card memory,
+	// that DX9Ex is using for the StretchRect destination.
+
+	m_SharedSurface = texture;
+}
 
 #endif // #if SUPPORT_D3D11

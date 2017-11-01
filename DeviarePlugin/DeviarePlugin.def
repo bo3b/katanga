@@ -4,4 +4,4 @@ EXPORTS
   OnHookAdded    @3
   OnHookRemoved  @4
   OnFunctionCall @5
-  GetGameSurface  @101
+  GetSharedHandle  @101

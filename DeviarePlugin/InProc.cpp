@@ -21,19 +21,22 @@ CNktHookLib nktInProc;
 
 // The surface that we copy the current game frame into. It is shared.
 IDirect3DSurface9* gGameSurface = nullptr;
-HANDLE gGameSurfaceShare = nullptr;
+HANDLE gGameSharedHandle = nullptr;
 
 // --------------------------------------------------------------------------------------------------
 
-// Custom routines for this NativePlugin.dll, that the master app can call,
+// Custom routines for this DeviarePlugin.dll, that the master app can call,
 // using Deviare access routines.
-// The Input is the IDirect3DBaseTexture9 for the main screen.
 
-IDirect3DSurface9* WINAPI GetGameSurface(int* in)
+
+// Return the current value of the gGameSurfaceShare.  This is the HANDLE
+// that is necessary to share from DX9Ex here to DX11 in the VR app.
+
+HANDLE WINAPI GetSharedHandle(int* in)
 {
-	// Needs to be the surface shared with the other app.  
-	// Can't return this rendertarget, it's not the share.
-	return gGameSurface;
+	::OutputDebugString(L"GetSharedHandle::");
+
+	return gGameSharedHandle;
 }
 
 
@@ -212,7 +215,7 @@ HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 
 		HRESULT hr = pDevice9Ex->CreateRenderTarget(pPresentationParameters->BackBufferWidth, pPresentationParameters->BackBufferHeight,
 			pPresentationParameters->BackBufferFormat, D3DMULTISAMPLE_NONE, 0, false,
-			&gGameSurface, &gGameSurfaceShare);
+			&gGameSurface, &gGameSharedHandle);
 		if (FAILED(hr))
 			::OutputDebugStringA("Fail to create shared RenderTarget\n");
 	}

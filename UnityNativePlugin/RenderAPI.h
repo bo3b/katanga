@@ -4,6 +4,8 @@
 
 #include <stddef.h>
 
+#include <Windows.h>
+
 struct IUnityInterfaces;
 
 
@@ -34,6 +36,8 @@ public:
 	// End modifying texture data.
 	virtual void EndModifyTexture(void* textureHandle, int textureWidth, int textureHeight, int rowPitch, void* dataPtr) = 0;
 
+	// These are generic APIs, not DX specific.
+	virtual void CreateSharedSurface(HANDLE shared) = 0;
 };
 
 

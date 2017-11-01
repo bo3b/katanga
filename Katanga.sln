@@ -6,6 +6,7 @@ MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UnityScreenApp.CSharp", "UnityScreenApp\UnityScreenApp.CSharp.csproj", "{E668F449-3D0D-3DB0-2403-C765ECC89631}"
 	ProjectSection(ProjectDependencies) = postProject
 		{4E087F78-9ADB-4B15-BD41-461EF6D322CC} = {4E087F78-9ADB-4B15-BD41-461EF6D322CC}
+		{EF494AEA-0F2F-4214-80F2-9198B2DA8A88} = {EF494AEA-0F2F-4214-80F2-9198B2DA8A88}
 	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DeviarePlugin", "DeviarePlugin\DeviarePlugin.vcxproj", "{4E087F78-9ADB-4B15-BD41-461EF6D322CC}"

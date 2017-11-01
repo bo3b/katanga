@@ -10,3 +10,4 @@ EXPORTS
    SetTextureFromUnity
    SetMeshBuffersFromUnity
    GetRenderEventFunc
+   SetSharedHandle

@@ -13,7 +13,8 @@ public class DrawSBS : MonoBehaviour
     static NktSpyMgr _spyMgr;
     static NktProcess _gameProcess;
     string _nativeDLLName;
-    public Texture2D _noiseTex;
+    static System.Int32 _gameSharedHandle = 0;
+    static Texture2D _tex;
 
     [DllImport("UnityNativePlugin")]
 	private static extern void SetTimeFromUnity(float t);
@@ -21,37 +22,38 @@ public class DrawSBS : MonoBehaviour
     private static extern void SetTextureFromUnity(System.IntPtr texture, int w, int h);
     [DllImport("UnityNativePlugin")]
     private static extern IntPtr GetRenderEventFunc();
+    [DllImport("UnityNativePlugin")]
+    private static extern void SetSharedHandle(int sharedHandle);
 
 
-    // Use this for initialization
     IEnumerator Start()
     {
-        CreateTextureAndPassToPlugin();
-        yield return StartCoroutine("CallPluginAtEndOfFrames");
-
         // Create a texture
-        _noiseTex = new Texture2D(512, 512, TextureFormat.RGBA32, false);
+        _tex = new Texture2D(512, 512, TextureFormat.RGBA32, false);
         // Set point filtering just so we can see the pixels clearly
-        _noiseTex.filterMode = FilterMode.Point;
+        _tex.filterMode = FilterMode.Point;
+        // Call Apply() so it's actually uploaded to the GPU
+        _tex.Apply();
 
+        // Set texture onto our material
+        GetComponent<Renderer>().material.mainTexture = _tex;
 
-        // Sierpinksky triangles for a default view.
-        for (int y = 0; y < _noiseTex.height; y++)
+        // Pass texture pointer to the native plugin
+        SetTextureFromUnity(_tex.GetNativeTexturePtr(), _tex.width, _tex.height);
+
+        
+        // Sierpinksky triangles for a default view, shows if other updates fail.
+        for (int y = 0; y < _tex.height; y++)
         {
-            for (int x = 0; x < _noiseTex.width; x++)
+            for (int x = 0; x < _tex.width; x++)
             {
                 Color color = ((x & y) != 0 ? Color.white : Color.grey);
-                _noiseTex.SetPixel(x, y, color);
+                _tex.SetPixel(x, y, color);
             }
         }
         // Call Apply() so it's actually uploaded to the GPU
-        _noiseTex.Apply();
+        _tex.Apply();
 
-        // Set texture onto our material
-        Renderer render = GetComponent<Renderer>();
-        render.material.mainTexture = _noiseTex;
-
-        print("applied tex");
 
         int hresult;
         object continueevent;
@@ -121,60 +123,54 @@ public class DrawSBS : MonoBehaviour
             print("Continue game launch...");
             _spyMgr.ResumeProcess(_gameProcess, continueevent);
         }
-
-        print("Restoring Working Directory to: " + drawSBS_directory);
         Directory.SetCurrentDirectory(drawSBS_directory);
+
+        print("Restored Working Directory to: " + drawSBS_directory);
+
+
+        // We've gotten everything launched, hooked, and setup.  Now we need to wait for the
+        // game to call through to CreateDevice, so that we can create the shared surface.
+        // Let's yield until that happens.
+
+        yield return StartCoroutine("WaitForSharedSurface");
     }
 
 
+    // This will just wait until the CreateDevice has been called in DeviarePlugin,
+    // and thus we have created a shared surface for copying game bits into.
+    // This is asynchronous because it's in the game world, and we don't know when
+    // it will happen.
+    //
+    // Once the GetSharedSurface returns with non-null, we are ready to continue
+    // with the VR side of showing those bits.
 
-    void ModifyTexturePixels()
+    private IEnumerator WaitForSharedSurface()
     {
-        int width = _noiseTex.width;
-        int height = _noiseTex.height;
-
-        float t = Time.timeSinceLevelLoad * 4.0f;
-        Color col = new Color();
-
-        for (int y = 0; y < height; ++y)
+        while (_gameSharedHandle == 0)
         {
-            for (int x = 0; x < width; ++x)
-            {
-                // Simple "plasma effect": several combined sine waves
-                float vv = (float)(
-                    (127.0f + (127.0f * Math.Sin(x / 7.0f + t))) +
-                    (127.0f + (127.0f * Math.Sin(y / 5.0f - t))) +
-                    (127.0f + (127.0f * Math.Sin((x + y) / 6.0f - t))) +
-                    (127.0f + (127.0f * Math.Sin(Math.Sqrt((x * x + y * y)) / 4.0f - t)))
-                    ) / 4 / 256;
+            // Check-in every 200ms.
+            yield return new WaitForSecondsRealtime(0.2f);
 
-                // Write the texture pixel
-                col[0] = vv;
-                col[1] = vv;
-                col[2] = vv;
-                col[3] = vv;
-                _noiseTex.SetPixel(x, y, col);
-            }
+            print("... WaitForSharedSurface");
+
+            // ToDo: To work, we need to pass in a parameter? 
+            // This will call to DeviarePlugin native routine to fetch current gGameSurfaceShare HANDLE.
+            System.Int32 native = (int)_tex.GetNativeTexturePtr();
+            object parm = native;
+            _gameSharedHandle = _spyMgr.CallCustomApi(_gameProcess, _nativeDLLName, "GetSharedHandle", ref parm, true);
         }
-        _noiseTex.Apply();
+
+        // We finally have a valid gGameSurfaceShare as a DX11 HANDLE.  We can thus finish up
+        // the init.
+        SetSharedHandle(_gameSharedHandle);
+        
+        // And allow the final update loop to start.
+        StartCoroutine("CallPluginAtEndOfFrames");
     }
 
-    private void CreateTextureAndPassToPlugin()
-    {
-        // Create a texture
-        Texture2D tex = new Texture2D(256, 256, TextureFormat.ARGB32, false);
-        // Set point filtering just so we can see the pixels clearly
-        tex.filterMode = FilterMode.Point;
-        // Call Apply() so it's actually uploaded to the GPU
-        tex.Apply();
 
-        // Set texture onto our material
-        GetComponent<Renderer>().material.mainTexture = tex;
-
-        // Pass texture pointer to the plugin
-        SetTextureFromUnity(tex.GetNativeTexturePtr(), tex.width, tex.height);
-    }
-
+    // Infinite loop of fetching the bits from the shared surface, and drawing them into
+    // this VR apps texture, so that Unity will display them.
 
     private IEnumerator CallPluginAtEndOfFrames()
     {
@@ -194,21 +190,22 @@ public class DrawSBS : MonoBehaviour
         }
     }
     
-    // Update is called once per frame
-    void Update()
-    {
-        SetTimeFromUnity(Time.timeSinceLevelLoad);
-        GL.IssuePluginEvent(GetRenderEventFunc(), 1);
+//    // Update is called once per frame
+//    // Update is much slower than coroutines.  Unless it's required for VR, skip it.
+//    void Update()
+//    {
+//        //SetTimeFromUnity(Time.timeSinceLevelLoad);
+//        //GL.IssuePluginEvent(GetRenderEventFunc(), 1);
 
-        //   ModifyTexturePixels();
-        //System.Int32 pGameScreen;
-        //System.Int32 native = (int)_noiseTex.GetNativeTexturePtr();
-        //object parm = native;
-//        pGameScreen = _spyMgr.CallCustomApi(_gameProcess, _nativeDLLName, "GetGameSurface", ref parm, true);
+//        //   ModifyTexturePixels();
+//        //System.Int32 pGameScreen;
+//        //System.Int32 native = (int)_noiseTex.GetNativeTexturePtr();
+//        //object parm = native;
+////        pGameScreen = _spyMgr.CallCustomApi(_gameProcess, _nativeDLLName, "GetGameSurface", ref parm, true);
 
-        //if (pGameScreen != 0)
-        //{
-        //    _noiseTex.UpdateExternalTexture((IntPtr)pGameScreen);
-        //}
-    }
+//        //if (pGameScreen != 0)
+//        //{
+//        //    _noiseTex.UpdateExternalTexture((IntPtr)pGameScreen);
+//        //}
+//    }
 }

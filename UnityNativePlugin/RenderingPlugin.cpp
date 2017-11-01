@@ -3,6 +3,7 @@
 #include "PlatformBase.h"
 #include "RenderAPI.h"
 
+#include <windows.h>
 #include <assert.h>
 #include <math.h>
 #include <vector>
@@ -24,7 +25,7 @@ extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API SetTimeFromUnity (flo
 // SetTextureFromUnity, an example function we export which is called by one of the scripts.
 
 static void* g_TextureHandle = NULL;
-static int   g_TextureWidth  = 0;
+static int   g_TextureWidth = 0;
 static int   g_TextureHeight = 0;
 
 extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API SetTextureFromUnity(void* textureHandle, int w, int h)
@@ -35,6 +36,13 @@ extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API SetTextureFromUnity(v
 	g_TextureHandle = textureHandle;
 	g_TextureWidth = w;
 	g_TextureHeight = h;
+
+	//do
+	//{
+	//	Sleep(250);
+	//} while (!IsDebuggerPresent());
+	//__debugbreak();
+
 }
 
 
@@ -99,6 +107,20 @@ static void UNITY_INTERFACE_API OnGraphicsDeviceEvent(UnityGfxDeviceEventType ev
 
 
 
+// --------------------------------------------------------------------------
+// SetSharedHandle: 
+// Receive the gGameSurfaceShare HANDLE from DX9Ex so we can setup our DX11
+// side of the share.  Once we receive this handle, there is no reason to save it,
+// because this is notification that we should notify the DX11 plugin that
+// it should create and save the shared texture reference.
+
+extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API SetSharedHandle(HANDLE sharedHandle)
+{
+	s_CurrentAPI->CreateSharedSurface(sharedHandle);
+}
+
+
+
 static void ModifyTexturePixels()
 {
 	void* textureHandle = g_TextureHandle;
@@ -158,7 +180,6 @@ static void UNITY_INTERFACE_API OnRenderEvent(int eventID)
 	// Unknown / unsupported graphics device type? Do nothing
 	if (s_CurrentAPI == NULL)
 		return;
-
 
 	ModifyTexturePixels();
 }
