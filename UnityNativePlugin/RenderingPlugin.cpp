@@ -8,6 +8,7 @@
 #include <math.h>
 #include <vector>
 
+#include <d3d11.h>
 
 // --------------------------------------------------------------------------
 // SetTimeFromUnity, an example function we export which is called by one of the scripts.
@@ -114,9 +115,9 @@ static void UNITY_INTERFACE_API OnGraphicsDeviceEvent(UnityGfxDeviceEventType ev
 // because this is notification that we should notify the DX11 plugin that
 // it should create and save the shared texture reference.
 
-extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API SetSharedHandle(HANDLE sharedHandle)
+extern "C" UNITY_INTERFACE_EXPORT ID3D11ShaderResourceView* UNITY_INTERFACE_API CreateSharedTexture(HANDLE sharedHandle)
 {
-	s_CurrentAPI->CreateSharedSurface(sharedHandle);
+	return s_CurrentAPI->CreateSharedSurface(sharedHandle);
 }
 
 

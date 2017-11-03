@@ -14,7 +14,7 @@ public class DrawSBS : MonoBehaviour
     static NktProcess _gameProcess;
     string _nativeDLLName;
     static System.Int32 _gameSharedHandle = 0;
-    static Texture2D _tex;
+    //static Texture2D _tex;
 
     [DllImport("UnityNativePlugin")]
 	private static extern void SetTimeFromUnity(float t);
@@ -23,36 +23,35 @@ public class DrawSBS : MonoBehaviour
     [DllImport("UnityNativePlugin")]
     private static extern IntPtr GetRenderEventFunc();
     [DllImport("UnityNativePlugin")]
-    private static extern void SetSharedHandle(int sharedHandle);
+    private static extern IntPtr CreateSharedTexture(int sharedHandle);
 
 
-    IEnumerator Start()
+    void Start()
     {
-        // Create a texture
-        _tex = new Texture2D(512, 512, TextureFormat.RGBA32, false);
-        // Set point filtering just so we can see the pixels clearly
-        _tex.filterMode = FilterMode.Point;
-        // Call Apply() so it's actually uploaded to the GPU
-        _tex.Apply();
+        //_tex = new Texture2D(512, 512, TextureFormat.RGBA32, false);
+        //// Set point filtering just so we can see the pixels clearly
+        //_tex.filterMode = FilterMode.Point;
+        //// Call Apply() so it's actually uploaded to the GPU
+        //_tex.Apply();
 
-        // Set texture onto our material
-        GetComponent<Renderer>().material.mainTexture = _tex;
+        //// Set texture onto our material
+        //GetComponent<Renderer>().material.mainTexture = _tex;
 
-        // Pass texture pointer to the native plugin
-        SetTextureFromUnity(_tex.GetNativeTexturePtr(), _tex.width, _tex.height);
+        //// Pass texture pointer to the native plugin
+        //SetTextureFromUnity(_tex.GetNativeTexturePtr(), _tex.width, _tex.height);
 
         
-        // Sierpinksky triangles for a default view, shows if other updates fail.
-        for (int y = 0; y < _tex.height; y++)
-        {
-            for (int x = 0; x < _tex.width; x++)
-            {
-                Color color = ((x & y) != 0 ? Color.white : Color.grey);
-                _tex.SetPixel(x, y, color);
-            }
-        }
-        // Call Apply() so it's actually uploaded to the GPU
-        _tex.Apply();
+        //// Sierpinksky triangles for a default view, shows if other updates fail.
+        //for (int y = 0; y < _tex.height; y++)
+        //{
+        //    for (int x = 0; x < _tex.width; x++)
+        //    {
+        //        Color color = ((x & y) != 0 ? Color.white : Color.grey);
+        //        _tex.SetPixel(x, y, color);
+        //    }
+        //}
+        //// Call Apply() so it's actually uploaded to the GPU
+        //_tex.Apply();
 
 
         int hresult;
@@ -132,7 +131,7 @@ public class DrawSBS : MonoBehaviour
         // game to call through to CreateDevice, so that we can create the shared surface.
         // Let's yield until that happens.
 
-        yield return StartCoroutine("WaitForSharedSurface");
+        StartCoroutine("WaitForSharedSurface");
     }
 
 
@@ -155,17 +154,26 @@ public class DrawSBS : MonoBehaviour
 
             // ToDo: To work, we need to pass in a parameter? 
             // This will call to DeviarePlugin native routine to fetch current gGameSurfaceShare HANDLE.
-            System.Int32 native = (int)_tex.GetNativeTexturePtr();
+            System.Int32 native = 0; // (int)_tex.GetNativeTexturePtr();
             object parm = native;
             _gameSharedHandle = _spyMgr.CallCustomApi(_gameProcess, _nativeDLLName, "GetSharedHandle", ref parm, true);
         }
 
+        print("-> Got shared handle: " + _gameSharedHandle);
+
         // We finally have a valid gGameSurfaceShare as a DX11 HANDLE.  We can thus finish up
         // the init.
-        SetSharedHandle(_gameSharedHandle);
-        
+        IntPtr shared = CreateSharedTexture(_gameSharedHandle);
+        print("-> Created shared texture: " + shared);
+
+        Texture2D unity2D = Texture2D.CreateExternalTexture(256, 256, TextureFormat.RGBA32, false, true, shared);
+        print("-> Created unity ExternalTexture: " + unity2D);
+
+        GetComponent<Renderer>().material.mainTexture = unity2D;
+        print("-> Assigned to mainTexture: " + unity2D);
+
         // And allow the final update loop to start.
-        StartCoroutine("CallPluginAtEndOfFrames");
+        //StartCoroutine("CallPluginAtEndOfFrames");
     }
 
 
