@@ -59,7 +59,8 @@ public class DrawSBS : MonoBehaviour
         string drawSBS_directory = Environment.CurrentDirectory;
         print("root directory: " + drawSBS_directory);
         _nativeDLLName = Environment.CurrentDirectory + @"\Assets\Plugins\x86\DeviarePlugin.dll";
-        string game = @"C:\Users\bo3b\Documents\Visual Studio Projects\DirectXSamples\Textures\Debug\textures.exe";
+        string game = @"G:\Games\The Ball\Binaries\Win32\theball.exe";
+//        string game = @"C:\Users\bo3b\Documents\Visual Studio Projects\DirectXSamples\Textures\Debug\textures.exe";
 
         _spyMgr = new NktSpyMgr();
         hresult = _spyMgr.Initialize();
