@@ -54,7 +54,7 @@ HANDLE gGameSharedHandle = nullptr;
 
 HANDLE WINAPI GetSharedHandle(int* in)
 {
-	::OutputDebugString(L"GetSharedHandle::");
+	::OutputDebugString(L"GetSharedHandle::\n");
 
 	return gGameSharedHandle;
 }
@@ -137,7 +137,11 @@ HRESULT __stdcall Hooked_CreateTexture(IDirect3DDevice9* This,
 	/* [out, retval] */ IDirect3DTexture9 **ppTexture,
 	/* [in] */          HANDLE            *pSharedHandle)
 {
-	::OutputDebugString(L"NativePlugin::Hooked_CreateTexture called\n");
+	wchar_t info[512];
+	swprintf_s(info, _countof(info),
+		L"NativePlugin::Hooked_CreateTexture - Levels: %d, Usage: %x, Format: %d, Pool: %d\n",
+		Levels, Usage, Format, Pool);
+	::OutputDebugString(info);
 
 	// Force Managed_Pool to always be default, the only possibility on DX9Ex.
 	// D3DPOOL_SYSTEMMEM is still valid however, and should not be tweaked.
@@ -191,7 +195,11 @@ HRESULT __stdcall Hooked_CreateCubeTexture(IDirect3DDevice9* This,
 	/* [out, retval] */ IDirect3DCubeTexture9 **ppCubeTexture,
 	/* [in] */          HANDLE                *pSharedHandle)
 {
-	::OutputDebugString(L"NativePlugin::Hooked_CreateCubeTexture called\n");
+	wchar_t info[512];
+	swprintf_s(info, _countof(info),
+		L"NativePlugin::Hooked_CreateTexture - Levels: %d, Usage: %x, Format: %d, Pool: %d\n",
+		Levels, Usage, Format, Pool);
+	::OutputDebugString(info);
 
 	// Force Managed_Pool to always be default, the only possibility on DX9Ex.
 	// D3DPOOL_SYSTEMMEM is still valid however, and should not be tweaked.
@@ -246,7 +254,11 @@ HRESULT __stdcall Hooked_CreateVertexBuffer(IDirect3DDevice9* This,
 	/* [out, retval] */ IDirect3DVertexBuffer9 **ppVertexBuffer,
 	/* [in] */          HANDLE                 *pSharedHandle)
 {
-	::OutputDebugString(L"NativePlugin::Hooked_CreateVertexBuffer called\n");
+	wchar_t info[512];
+	swprintf_s(info, _countof(info),
+		L"NativePlugin::Hooked_CreateVertexBuffer -  Usage: %x, Pool: %d\n",
+		Usage, Pool);
+	::OutputDebugString(info);
 
 	// Force Managed_Pool to always be default, the only possibility on DX9Ex.
 	// D3DPOOL_SYSTEMMEM is still valid however, and should not be tweaked.
@@ -293,7 +305,11 @@ HRESULT __stdcall Hooked_CreateIndexBuffer(IDirect3DDevice9* This,
 	/* [out, retval] */ IDirect3DIndexBuffer9 **ppIndexBuffer,
 	/* [in] */          HANDLE                *pSharedHandle)
 {
-	::OutputDebugString(L"NativePlugin::Hooked_CreateIndexBuffer called\n");
+	wchar_t info[512];
+	swprintf_s(info, _countof(info),
+		L"NativePlugin::Hooked_CreateIndexBuffer -  Usage: %x, Format: %d, Pool: %d\n",
+		Usage, Format, Pool);
+	::OutputDebugString(info);
 
 	// Force Managed_Pool to always be default, the only possibility on DX9Ex.
 	// D3DPOOL_SYSTEMMEM is still valid however, and should not be tweaked.
@@ -349,31 +365,36 @@ HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 	::OutputDebugString(L"NativePlugin::Hooked_CreateDevice called\n");
 	if (pPresentationParameters)
 	{
-		wsprintf(info, L"  Width: %d, Height: %d, Format: %d\n"
+		swprintf_s(info, _countof(info), L"  Width: %d, Height: %d, Format: %d\n"
 			, pPresentationParameters->BackBufferWidth, pPresentationParameters->BackBufferHeight, pPresentationParameters->BackBufferFormat);
 		::OutputDebugString(info);
 	}
 
 	// Once we make it here, we can be certain that the This factory is 
 	// actually an IDirect3D9Ex, but passed back to the game as IDirect3D9.
-	// Create factory and Device here. Return just device.
+	// We can upcast the factory so that we can make a IDirect3DDevice9Ex.
 
 	IDirect3D9Ex* pDX9Ex;
-	HRESULT hr = Direct3DCreate9Ex(D3D_SDK_VERSION, &pDX9Ex);
+	HRESULT hr = This->QueryInterface(IID_PPV_ARGS(&pDX9Ex));
 	if (FAILED(hr))
-		::OutputDebugStringA("Failed to create dx9ex factory\n");
+		throw std::exception("Failed to upcast to IDirect3D9Ex factory");
+
+	// This is called out in the debug layer as a potential performance problem, but the
+	// docs suggest adding this will slow things down.  It is unlikely to be actually
+	// necessary, because this is in the running game, and the other threads are actually
+	// in a different process altogether.  
+	// Direct3D9: (WARN) : Device that was created without D3DCREATE_MULTITHREADED is being used by a thread other than the creation thread.
+	// Also- this warning happens in TheBall, when run with only the debug layer. Not our fault.
+	//BehaviorFlags |= D3DCREATE_MULTITHREADED;	// ToDo: not certain this is needed, said to slow things down.
 
 	IDirect3DDevice9Ex* pDevice9Ex = nullptr;
-	BehaviorFlags |= D3DCREATE_MULTITHREADED;	// ToDo: not certain this is needed, said to slow things down.
 	hr = pDX9Ex->CreateDeviceEx(Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters, NULL,
 		&pDevice9Ex);
 	if (FAILED(hr))
-		::OutputDebugStringA("Failed to create IDirect3DDevice9Ex\n");
-
-//	HRESULT hr = pOrigCreateDevice(This, Adapter,DeviceType,hFocusWindow,BehaviorFlags,pPresentationParameters,ppReturnedDeviceInterface);
+		throw std::exception("Failed to create IDirect3DDevice9Ex");
 
 	if (ppReturnedDeviceInterface)
-		*ppReturnedDeviceInterface = (IDirect3DDevice9*)pDevice9Ex;
+		*ppReturnedDeviceInterface = static_cast<IDirect3DDevice9*>(pDevice9Ex);
 
 	// Using that fresh DX9 Device, we can now hook the Present and CreateTexture calls.
 
@@ -413,11 +434,11 @@ HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 		// use the Shared parameter, so that we can share it to another Device.  Because
 		// these are all DX9Ex objects, the share will work.
 
-		HRESULT hr = pDevice9Ex->CreateRenderTarget(pPresentationParameters->BackBufferWidth, pPresentationParameters->BackBufferHeight,
+		HRESULT res = pDevice9Ex->CreateRenderTarget(pPresentationParameters->BackBufferWidth, pPresentationParameters->BackBufferHeight,
 			pPresentationParameters->BackBufferFormat, D3DMULTISAMPLE_NONE, 0, false,
 			&gGameSurface, &gGameSharedHandle);
-		if (FAILED(hr))
-			::OutputDebugStringA("Fail to create shared RenderTarget\n");
+		if (FAILED(res))
+			throw std::exception("Fail to create shared RenderTarget");
 	}
 
 	// We are returning the IDirect3DDevice9Ex object, because the Device the game
@@ -446,7 +467,7 @@ HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 // game is nearly certain to be calling CreateDevice.
 // 
 
-void HookCreateDevice(IDirect3D9* pDX9Ex)
+void HookCreateDevice(IDirect3D9Ex* pDX9Ex)
 {
 	// This can be called multiple times by a game, so let's be sure to
 	// only hook once.
@@ -470,7 +491,7 @@ void HookCreateDevice(IDirect3D9* pDX9Ex)
 			lpvtbl_CreateDevice(pDX9Ex), Hooked_CreateDevice, 0);
 
 		if (FAILED(dwOsErr))
-			::OutputDebugStringA("Failed to hook IDirect3D9::CreateDevice\n");
+			throw std::exception("Failed to hook IDirect3D9::CreateDevice");
 	}
 }
 

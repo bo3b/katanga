@@ -21,6 +21,7 @@
 #include <windows.h>
 
 #include <stdlib.h>
+#include <stdio.h>
 
 #ifdef _DEBUG
 	#define D3D_DEBUG_INFO
@@ -31,7 +32,7 @@
 #include <exception>
 
 
-void HookCreateDevice(IDirect3D9* pDX9Ex);
+void HookCreateDevice(IDirect3D9Ex* pDX9Ex);
 
 
 // These need to be declared as extern "C" so that the names are not mangled.
