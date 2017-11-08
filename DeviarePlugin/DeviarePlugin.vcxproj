@@ -69,26 +69,30 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
     <IncludePath>$(SolutionDir)UnityScreenApp\Assets\Dependencies;$(IncludePath)</IncludePath>
-    <OutDir>$(SolutionDir)UnityScreenApp\Assets\Plugins\$(PlatformShortName)\</OutDir>
+    <OutDir>$(SolutionDir)UnityScreenApp\Assets\Plugins\</OutDir>
     <IntDir>$(PlatformShortName)\</IntDir>
+    <TargetName>$(ProjectName)</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
     <IncludePath>$(SolutionDir)UnityScreenApp\Assets\Dependencies;$(IncludePath)</IncludePath>
-    <OutDir>$(SolutionDir)UnityScreenApp\Assets\Plugins\$(PlatformShortName)\</OutDir>
+    <OutDir>$(SolutionDir)UnityScreenApp\Assets\Plugins\</OutDir>
     <IntDir>$(PlatformShortName)\</IntDir>
+    <TargetName>$(ProjectName)$(PlatformArchitecture)</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
     <IncludePath>$(SolutionDir)UnityScreenApp\Assets\Dependencies;$(IncludePath)</IncludePath>
-    <OutDir>$(SolutionDir)UnityScreenApp\Assets\Plugins\$(PlatformShortName)\</OutDir>
+    <OutDir>$(SolutionDir)UnityScreenApp\Assets\Plugins\</OutDir>
     <IntDir>$(PlatformShortName)\</IntDir>
+    <TargetName>$(ProjectName)</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
     <IncludePath>$(SolutionDir)UnityScreenApp\Assets\Dependencies;$(IncludePath)</IncludePath>
-    <OutDir>$(SolutionDir)UnityScreenApp\Assets\Plugins\$(PlatformShortName)\</OutDir>
+    <OutDir>$(SolutionDir)UnityScreenApp\Assets\Plugins\</OutDir>
     <IntDir>$(PlatformShortName)\</IntDir>
+    <TargetName>$(ProjectName)$(PlatformArchitecture)</TargetName>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>

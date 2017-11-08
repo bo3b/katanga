@@ -16,13 +16,13 @@ public class DrawSBS : MonoBehaviour
     static System.Int32 _gameSharedHandle = 0;
     //static Texture2D _tex;
 
-    [DllImport("UnityNativePlugin")]
+    [DllImport("UnityNativePlugin64")]
 	private static extern void SetTimeFromUnity(float t);
-    [DllImport("UnityNativePlugin")]
+    [DllImport("UnityNativePlugin64")]
     private static extern void SetTextureFromUnity(System.IntPtr texture, int w, int h);
-    [DllImport("UnityNativePlugin")]
+    [DllImport("UnityNativePlugin64")]
     private static extern IntPtr GetRenderEventFunc();
-    [DllImport("UnityNativePlugin")]
+    [DllImport("UnityNativePlugin64")]
     private static extern IntPtr CreateSharedTexture(int sharedHandle);
 
 
@@ -56,9 +56,12 @@ public class DrawSBS : MonoBehaviour
 
         int hresult;
         object continueevent;
+        
         string drawSBS_directory = Environment.CurrentDirectory;
         print("root directory: " + drawSBS_directory);
-        _nativeDLLName = Environment.CurrentDirectory + @"\Assets\Plugins\x86\DeviarePlugin.dll";
+        
+        _nativeDLLName = Application.dataPath + "/Plugins/DeviarePlugin.dll";
+
         string game = @"G:\Games\The Ball\Binaries\Win32\theball.exe";
 //        string game = @"C:\Users\bo3b\Documents\Visual Studio Projects\DirectXSamples\Textures\Debug\textures.exe";
 
@@ -88,6 +91,9 @@ public class DrawSBS : MonoBehaviour
             if (_gameProcess == null)
                 throw new Exception("Game launch failed.");
 
+//            if (!System.Diagnostics.Debugger.IsAttached)
+//System.Diagnostics.Debugger.Break();
+
             // Load the NativePlugin for the C++ side.  The NativePlugin must be in this app folder.
             // The Agent supports the use of Deviare in the CustomDLL, but does not respond to hooks.
 
@@ -110,6 +116,7 @@ public class DrawSBS : MonoBehaviour
             // object is created. At that point, the native code will take over.
 
             d3dHook.AddCustomHandler(_nativeDLLName, 0, "");
+
 
             // Finally attach and activate the hook in the still suspended game process.
 
