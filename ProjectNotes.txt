@@ -178,3 +178,35 @@ the UnityNativePlugin for C++ access.  Also, this layout was never right, Unity
 rebuilds the .sln file for their piece at every open, so it's better if it's by 
 itself and used as a subproject to a main project.   Doing this piecemeal to avoid
 breaking the repo.
+
+
+11-8-17
+Bit of a ballbuster here, with Deviare crashing at launch instead of returning an error. 
+This was happening on a full build, instead of while running in Unity. The problem wound
+up being that the DeviairePlugin DLL path would change from Unity to the compiled app, so
+yeah, thanks Unity for that kick in the nuts too.  There is no /Assets when the app is
+compiled, which is fucking retarded.  
+
+Then there is this crash in Deviare, which happens if the DLL is not found.  This is also
+completely lame.  If it can't find it, it should return an error, not blow up.  If you see
+this crash, it's because of the missing deviare plugin dll.
+
+Crash:
+	>	00000001()	Unknown
+ 	[Frames below may be incorrect and/or missing]	
+ 	DvAgent.dll!TNktArrayList<CNktDvParam *,128,TNktArrayListItemRemove_Release<CNktDvParam *> >::RemoveAllElements() Line 330	C++
+ 	DvAgent.dll!CNktDvHookEngine::Hook(CNktDvHookEngine::tagHOOKINFO * aHookInfo=0x8007007e, unsigned long nCount=1, int bIsInternal=0) Line 494	C++
+ 	DvAgent.dll!CDvAgentMgr::OnEngMsg_AddHook(tagNKT_DV_TMSG_ADDHOOK * lpMsg=0xffe16054, CNktDvTransportBigData * lpConnBigData=0xffe300e0) Line 2522	C++
+ 	DvAgent.dll!CDvAgentMgr::TAC_OnEngineMessage(CNktDvTransportAgent * lpTransport=0x77ad4060, tagNKT_DV_TMSG_COMMON * lpMsg=0xffe16054, unsigned long nMsgSize=1084, CNktDvTransportBigData * lpConnBigData=0xffe300e0) Line 699	C++
+ 	DvAgent.dll!CNktDvTransportAgent::WorkerThreadProc(unsigned long nIndex=5) Line 564	C++
+ 	DvAgent.dll!TNktClassWorkerThread<CNktDvTransportAgent>::ThreadProc() Line 169	C++
+ 	DvAgent.dll!thread_start<unsigned int (__stdcall*)(void *)>(void * const parameter=0xffe0418c) Line 115	C++
+ 	kernel32.dll!@BaseThreadInitThunk@12()	Unknown
+ 	ntdll.dll!___RtlUserThreadStart@8()	Unknown
+ 	ntdll.dll!__RtlUserThreadStart@8()	Unknown
+
+Once all that is straight, and we use the Application.dataPath to get the proper path 
+to the /Assets or /appname_Data folder, then we can properly build the full path to the 
+DeviarePlugin.dll, and pass it to LoadCustomDLL.  Using the forward slashes returned
+from Unity seems to work without any trouble.
+
