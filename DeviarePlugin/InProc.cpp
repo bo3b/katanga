@@ -32,6 +32,8 @@
 
 #include "NktHookLib.h"
 
+#include "nvapi\nvapi.h"
+
 
 //-----------------------------------------------------------
 
@@ -42,6 +44,10 @@ CNktHookLib nktInProc;
 // The surface that we copy the current game frame into. It is shared.
 IDirect3DSurface9* gGameSurface = nullptr;
 HANDLE gGameSharedHandle = nullptr;
+
+// The nvapi stereo handle, to access the reverse blit.
+StereoHandle gNVAPI = nullptr;
+
 
 // --------------------------------------------------------------------------------------------------
 
@@ -90,10 +96,21 @@ HRESULT __stdcall Hooked_Present(IDirect3DDevice9Ex* This,
 	hr = This->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &backBuffer);
 	if (SUCCEEDED(hr) && gGameSurface > 0)
 	{
+		D3DSURFACE_DESC bufferDesc, copyDesc;
+		backBuffer->GetDesc(&bufferDesc);
+		gGameSurface->GetDesc(&copyDesc);
+		RECT srcRect = { 0, 0, bufferDesc.Width, bufferDesc.Height };
+		RECT dstRect = { 0, 0, copyDesc.Width, copyDesc.Height };
+
+		hr = NvAPI_Stereo_ReverseStereoBlitControl(gNVAPI, true);
+
 		// Copy current frame from backbuffer to our shared storage surface.
-		hr = This->StretchRect(backBuffer, NULL, gGameSurface, NULL, D3DTEXF_NONE);
+		hr = This->StretchRect(backBuffer, &srcRect, gGameSurface, &dstRect, D3DTEXF_NONE);
 		if (FAILED(hr))
-			::OutputDebugString(L"Bad StretchRect.");
+			::OutputDebugString(L"Bad StretchRect.\n");
+
+		hr = NvAPI_Stereo_ReverseStereoBlitControl(gNVAPI, false);
+
 	}
 
 	hr = pOrigPresent(This, pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
@@ -434,11 +451,21 @@ HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 		// use the Shared parameter, so that we can share it to another Device.  Because
 		// these are all DX9Ex objects, the share will work.
 
-		HRESULT res = pDevice9Ex->CreateRenderTarget(pPresentationParameters->BackBufferWidth, pPresentationParameters->BackBufferHeight,
-			pPresentationParameters->BackBufferFormat, D3DMULTISAMPLE_NONE, 0, false,
+		UINT width = pPresentationParameters->BackBufferWidth * 2;
+		UINT height = pPresentationParameters->BackBufferHeight;
+		D3DFORMAT format = pPresentationParameters->BackBufferFormat;
+		HRESULT res = pDevice9Ex->CreateRenderTarget(width, height, format, D3DMULTISAMPLE_NONE, 0, false,
 			&gGameSurface, &gGameSharedHandle);
 		if (FAILED(res))
 			throw std::exception("Fail to create shared RenderTarget");
+
+		res = NvAPI_Initialize();
+		if (FAILED(res))
+			throw std::exception("Failed to NvAPI_Initialize\n");
+
+		res = NvAPI_Stereo_CreateHandleFromIUnknown(pDevice9Ex, &gNVAPI);
+		if (FAILED(res))
+			throw std::exception("Failed to NvAPI_Stereo_CreateHandleFromIUnknown\n");
 	}
 
 	// We are returning the IDirect3DDevice9Ex object, because the Device the game

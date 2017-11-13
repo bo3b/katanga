@@ -100,7 +100,7 @@ public class DrawSBS : MonoBehaviour
             print("Load NativePlugin... " + _nativeDLLName);
             _spyMgr.LoadAgent(_gameProcess);
             int result = _spyMgr.LoadCustomDll(_gameProcess, _nativeDLLName, true, true);
-            if (result < 0)
+            if (result != 1)
                 throw new Exception("Could not load NativePlugin DLL.");
 
             // Hook the primary DX9 creation call of Direct3DCreate9, which is a direct export of 
@@ -174,7 +174,7 @@ public class DrawSBS : MonoBehaviour
         IntPtr shared = CreateSharedTexture(_gameSharedHandle);
         print("-> Created shared texture: " + shared);
 
-        Texture2D unity2D = Texture2D.CreateExternalTexture(256, 256, TextureFormat.RGBA32, false, true, shared);
+        Texture2D unity2D = Texture2D.CreateExternalTexture(3200, 900, TextureFormat.ARGB32, false, true, shared);
         print("-> Created unity ExternalTexture: " + unity2D);
 
         GetComponent<Renderer>().material.mainTexture = unity2D;

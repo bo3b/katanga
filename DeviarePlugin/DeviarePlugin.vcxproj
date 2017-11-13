@@ -72,6 +72,7 @@
     <OutDir>$(SolutionDir)UnityScreenApp\Assets\Plugins\</OutDir>
     <IntDir>$(PlatformShortName)\</IntDir>
     <TargetName>$(ProjectName)</TargetName>
+    <LibraryPath>$(ProjectDir)nvapi;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
@@ -79,6 +80,7 @@
     <OutDir>$(SolutionDir)UnityScreenApp\Assets\Plugins\</OutDir>
     <IntDir>$(PlatformShortName)\</IntDir>
     <TargetName>$(ProjectName)$(PlatformArchitecture)</TargetName>
+    <LibraryPath>$(ProjectDir)nvapi;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
@@ -86,6 +88,7 @@
     <OutDir>$(SolutionDir)UnityScreenApp\Assets\Plugins\</OutDir>
     <IntDir>$(PlatformShortName)\</IntDir>
     <TargetName>$(ProjectName)</TargetName>
+    <LibraryPath>$(ProjectDir)nvapi;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
@@ -93,6 +96,7 @@
     <OutDir>$(SolutionDir)UnityScreenApp\Assets\Plugins\</OutDir>
     <IntDir>$(PlatformShortName)\</IntDir>
     <TargetName>$(ProjectName)$(PlatformArchitecture)</TargetName>
+    <LibraryPath>$(ProjectDir)nvapi;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -108,7 +112,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>d3d9.lib;NktHookLib.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>d3d9.lib;NktHookLib.lib;nvapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ModuleDefinitionFile>DeviarePlugin.def</ModuleDefinitionFile>
     </Link>
   </ItemDefinitionGroup>
@@ -128,7 +132,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>d3d9.lib;NktHookLib.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>d3d9.lib;NktHookLib.lib;nvapi64.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ModuleDefinitionFile>DeviarePlugin.def</ModuleDefinitionFile>
     </Link>
   </ItemDefinitionGroup>
@@ -150,7 +154,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalDependencies>d3d9.lib;NktHookLib.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>d3d9.lib;NktHookLib.lib;nvapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ModuleDefinitionFile>DeviarePlugin.def</ModuleDefinitionFile>
     </Link>
   </ItemDefinitionGroup>
@@ -174,13 +178,21 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalDependencies>d3d9.lib;NktHookLib.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>d3d9.lib;NktHookLib.lib;nvapi64.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ModuleDefinitionFile>DeviarePlugin.def</ModuleDefinitionFile>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="DeviarePlugin.h" />
     <ClInclude Include="NktHookLib.h" />
+    <ClInclude Include="nvapi\nvapi.h" />
+    <ClInclude Include="nvapi\nvapi_lite_common.h" />
+    <ClInclude Include="nvapi\nvapi_lite_d3dext.h" />
+    <ClInclude Include="nvapi\nvapi_lite_salend.h" />
+    <ClInclude Include="nvapi\nvapi_lite_salstart.h" />
+    <ClInclude Include="nvapi\nvapi_lite_sli.h" />
+    <ClInclude Include="nvapi\nvapi_lite_stereo.h" />
+    <ClInclude Include="nvapi\nvapi_lite_surround.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Addresses.c" />

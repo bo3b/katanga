@@ -8,6 +8,14 @@
   <ItemGroup>
     <ClInclude Include="DeviarePlugin.h" />
     <ClInclude Include="NktHookLib.h" />
+    <ClInclude Include="nvapi\nvapi.h" />
+    <ClInclude Include="nvapi\nvapi_lite_common.h" />
+    <ClInclude Include="nvapi\nvapi_lite_d3dext.h" />
+    <ClInclude Include="nvapi\nvapi_lite_salend.h" />
+    <ClInclude Include="nvapi\nvapi_lite_salstart.h" />
+    <ClInclude Include="nvapi\nvapi_lite_sli.h" />
+    <ClInclude Include="nvapi\nvapi_lite_stereo.h" />
+    <ClInclude Include="nvapi\nvapi_lite_surround.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="DeviarePlugin.def" />
