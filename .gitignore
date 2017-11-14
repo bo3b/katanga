@@ -10,6 +10,7 @@
 **/UnityGenerated/*
 **/Assets/AssetStoreTools*
 **/Assets/Plugins/*
+/Release/*
 
 # Unity3D Crash Reports
 sysinfo.txt
