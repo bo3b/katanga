@@ -3,6 +3,8 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using UnityEngine;
+using UnityEngine.XR;
+using UnityEngine.UI;
 
 using Nektra.Deviare2;
 using System.IO;
@@ -15,6 +17,7 @@ public class DrawSBS : MonoBehaviour
     string _nativeDLLName;
     static System.Int32 _gameSharedHandle = 0;
     //static Texture2D _tex;
+    TextMesh _rate;
 
     [DllImport("UnityNativePlugin64")]
 	private static extern void SetTimeFromUnity(float t);
@@ -28,6 +31,8 @@ public class DrawSBS : MonoBehaviour
 
     void Start()
     {
+        _rate = GameObject.Find("rate").GetComponent<TextMesh>();
+
         //_tex = new Texture2D(512, 512, TextureFormat.RGBA32, false);
         //// Set point filtering just so we can see the pixels clearly
         //_tex.filterMode = FilterMode.Point;
@@ -180,6 +185,8 @@ public class DrawSBS : MonoBehaviour
         GetComponent<Renderer>().material.mainTexture = unity2D;
         print("-> Assigned to mainTexture: " + unity2D);
 
+        yield return null;
+
         // And allow the final update loop to start.
         //StartCoroutine("CallPluginAtEndOfFrames");
     }
@@ -205,23 +212,29 @@ public class DrawSBS : MonoBehaviour
             GL.IssuePluginEvent(GetRenderEventFunc(), 1);
         }
     }
-    
-//    // Update is called once per frame
-//    // Update is much slower than coroutines.  Unless it's required for VR, skip it.
-//    void Update()
-//    {
-//        //SetTimeFromUnity(Time.timeSinceLevelLoad);
-//        //GL.IssuePluginEvent(GetRenderEventFunc(), 1);
 
-//        //   ModifyTexturePixels();
-//        //System.Int32 pGameScreen;
-//        //System.Int32 native = (int)_noiseTex.GetNativeTexturePtr();
-//        //object parm = native;
-////        pGameScreen = _spyMgr.CallCustomApi(_gameProcess, _nativeDLLName, "GetGameSurface", ref parm, true);
+    // Update is called once per frame
+    // Update is much slower than coroutines.  Unless it's required for VR, skip it.
+    void Update()
+    {
+        float gpuTime;
+        if (XRStats.TryGetGPUTimeLastFrame(out gpuTime))
+            _rate.text = System.String.Format("{0:F1} ms", gpuTime);
 
-//        //if (pGameScreen != 0)
-//        //{
-//        //    _noiseTex.UpdateExternalTexture((IntPtr)pGameScreen);
-//        //}
-//    }
+        
+
+        //SetTimeFromUnity(Time.timeSinceLevelLoad);
+        //GL.IssuePluginEvent(GetRenderEventFunc(), 1);
+
+        //   ModifyTexturePixels();
+        //System.Int32 pGameScreen;
+        //System.Int32 native = (int)_noiseTex.GetNativeTexturePtr();
+        //object parm = native;
+//        pGameScreen = _spyMgr.CallCustomApi(_gameProcess, _nativeDLLName, "GetGameSurface", ref parm, true);
+
+        //if (pGameScreen != 0)
+        //{
+        //    _noiseTex.UpdateExternalTexture((IntPtr)pGameScreen);
+        //}
+    }
 }
