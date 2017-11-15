@@ -67,7 +67,7 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <LinkIncremental>true</LinkIncremental>
+    <LinkIncremental>false</LinkIncremental>
     <IncludePath>$(SolutionDir)UnityScreenApp\Assets\Dependencies;$(IncludePath)</IncludePath>
     <OutDir>$(SolutionDir)UnityScreenApp\Assets\Plugins\</OutDir>
     <IntDir>$(PlatformShortName)\</IntDir>
@@ -75,7 +75,7 @@
     <LibraryPath>$(ProjectDir)nvapi;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <LinkIncremental>true</LinkIncremental>
+    <LinkIncremental>false</LinkIncremental>
     <IncludePath>$(SolutionDir)UnityScreenApp\Assets\Dependencies;$(IncludePath)</IncludePath>
     <OutDir>$(SolutionDir)UnityScreenApp\Assets\Plugins\</OutDir>
     <IntDir>$(PlatformShortName)\</IntDir>
