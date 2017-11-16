@@ -18,6 +18,8 @@ public class DrawSBS : MonoBehaviour
     static System.Int32 _gameSharedHandle = 0;
     //static Texture2D _tex;
     TextMesh _rate;
+    Texture2D _bothEyes;
+    RenderTexture _quadTexture;
 
     [DllImport("UnityNativePlugin64")]
 	private static extern void SetTimeFromUnity(float t);
@@ -174,16 +176,28 @@ public class DrawSBS : MonoBehaviour
 
         print("-> Got shared handle: " + _gameSharedHandle);
 
-        // We finally have a valid gGameSurfaceShare as a DX11 HANDLE.  We can thus finish up
-        // the init.
+        // We finally have a valid gGameSurfaceShare as a DX11 HANDLE.  
+        // We can thus finish up the init.
+
+        // Call into the UnityNativePlugin for DX11 access to create a ShaderResourceView.
+        // You'd expect this to be a IDX11Texture2D, but that's not what Unity wants.
         IntPtr shared = CreateSharedTexture(_gameSharedHandle);
-        print("-> Created shared texture: " + shared);
 
-        Texture2D unity2D = Texture2D.CreateExternalTexture(3200, 900, TextureFormat.ARGB32, false, true, shared);
-        print("-> Created unity ExternalTexture: " + unity2D);
+        // This is the Unity Texture2D, double width texture, with right eye on the left half.
+        // It will always be up to date with latest game image.
+        _bothEyes = Texture2D.CreateExternalTexture(3200, 900, TextureFormat.ARGB32, false, true, shared);
 
-        GetComponent<Renderer>().material.mainTexture = unity2D;
-        print("-> Assigned to mainTexture: " + unity2D);
+        // The texture for the Quad, that will be a RenderTexture, so we can blit into it.
+        // Needs to be double width, and vrUsage set, for Blit to know.
+        //RenderTextureDescriptor vrDesc = UnityEngine.XR.XRSettings.eyeTextureDesc;
+        //vrDesc.width = 1600;
+        //vrDesc.height = 900;
+        //_quadTexture = new RenderTexture(vrDesc);
+        //_quadTexture.Create();
+
+        GetComponent<Renderer>().material.mainTexture = _bothEyes;
+
+        StartCoroutine("UpdateFPS");
 
         yield return null;
 
@@ -213,15 +227,27 @@ public class DrawSBS : MonoBehaviour
         }
     }
 
+    private IEnumerator UpdateFPS()
+    {
+        while (true)
+        {
+            yield return new WaitForSecondsRealtime(0.2f);
+
+            float gpuTime;
+            if (XRStats.TryGetGPUTimeLastFrame(out gpuTime))
+            {
+                // At 90 fps, we want to know the % of a single VR frame we are using.
+            //    gpuTime = gpuTime / ((1f / 90f) * 1000f) * 100f;
+                _rate.text = System.String.Format("{0:F1} ms", gpuTime);
+            }
+        }
+    }
+
     // Update is called once per frame
     // Update is much slower than coroutines.  Unless it's required for VR, skip it.
     void Update()
     {
-        float gpuTime;
-        if (XRStats.TryGetGPUTimeLastFrame(out gpuTime))
-            _rate.text = System.String.Format("{0:F1} ms", gpuTime);
-
-        
+        //Graphics.Blit(_bothEyes, _quadTexture);
 
         //SetTimeFromUnity(Time.timeSinceLevelLoad);
         //GL.IssuePluginEvent(GetRenderEventFunc(), 1);

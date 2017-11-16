@@ -210,3 +210,20 @@ to the /Assets or /appname_Data folder, then we can properly build the full path
 DeviarePlugin.dll, and pass it to LoadCustomDLL.  Using the forward slashes returned
 from Unity seems to work without any trouble.
 
+
+11-15-17
+Performance with OculusVR as the type XR Setting. Headset sensor activated.
+Using NVidia Inspector graph. TheBall splash screen.  Anaglyph 3D Vision.
+ Oculus: 41-45% of GPU
+ OpenVR: 52-55% of GPU
+ None:   24-26% of GPU
+ 
+No game running, no SBS script, simplest scene.
+ Oculus: 13-14% of GPU
+ OpenVR: 20-21% of GPU
+ 
+So, Oculus for SDK is clearly superior for performance.  The Stats part of Unity is misleading,
+because for Oculus it shows full frame rate of 1/90 ms.  For OpenVR, it shows 0.5ms for Unity code. 
+Different ways they handle end of frame.
+It's also notable how much impact this has.  
+For GTX 980, we jump from 25% for the game, to 45% for game+Rift.
