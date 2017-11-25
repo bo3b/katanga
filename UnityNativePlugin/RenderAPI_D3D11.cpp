@@ -9,6 +9,8 @@
 #include <d3d11.h>
 #include "Unity/IUnityGraphicsD3D11.h"
 
+#include <stdio.h>
+
 
 class RenderAPI_D3D11 : public RenderAPI
 {
@@ -246,22 +248,37 @@ ID3D11ShaderResourceView* RenderAPI_D3D11::CreateSharedSurface(HANDLE shared)
 	ID3D11ShaderResourceView* pSRView;
 
 	hr = m_Device->OpenSharedResource(shared, __uuidof(ID3D11Resource), (void**)(&resource));
-	if (FAILED(hr))
-		__debugbreak();
+	{
+		if (FAILED(hr))
+			__debugbreak();
 
-	hr = resource->QueryInterface(__uuidof(ID3D11Texture2D), (void**)(&texture));
-	if (FAILED(hr))
-		__debugbreak();
-	
+		// Even though the input shared surface is a RenderTarget Surface, this
+		// Query for Texture still works.  Not sure if it is good or bad.
+		hr = resource->QueryInterface(__uuidof(ID3D11Texture2D), (void**)(&texture));
+		if (FAILED(hr))
+			__debugbreak();
+
+		D3D11_TEXTURE2D_DESC tdesc;
+		texture->GetDesc(&tdesc);
+		wchar_t info[512];
+		swprintf_s(info, _countof(info),
+			L"RenderAPI_D3D11::CreateSharedSurface - Width: %d, Height: %d, Format: %d\n",
+			tdesc.Width, tdesc.Height, tdesc.Format);
+		::OutputDebugString(info);
+	}
 	resource->Release();
 
-	// now use pTex2D_11 with pDevice11  
+	// now use ID3D11Texture2D with DX11  
 	// This is theoretically the exact same surface in the video card memory,
 	// that DX9Ex is using for the StretchRect destination.
 	//
 	// Now we need to create a ShaderResourceView using this, because that
 	// is what Unity requires for its CreateExternalTexture.
-
+	// ToDo: Need to pass format and dimensions too.
+	D3D11_SHADER_RESOURCE_VIEW_DESC desc;
+	desc.Format = DXGI_FORMAT_B8G8R8A8_TYPELESS;
+	desc.ViewDimension = D3D_SRV_DIMENSION_TEXTURE2D;
+	desc.Texture2D = { 0, -1 };
 	hr = m_Device->CreateShaderResourceView(texture, NULL, &pSRView);
 	if (FAILED(hr))
 		__debugbreak();

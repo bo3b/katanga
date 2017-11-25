@@ -227,3 +227,13 @@ because for Oculus it shows full frame rate of 1/90 ms.  For OpenVR, it shows 0.
 Different ways they handle end of frame.
 It's also notable how much impact this has.  
 For GTX 980, we jump from 25% for the game, to 45% for game+Rift.
+
+LegacyShader/Diffuse, the default, is 2% GPU faster than Standard. 12-13% GPU.
+Using sbsShader did not help any.
+
+
+11-25-17
+Seriously hard to get all this working, but sucess!  Now getting stereo bits from the
+game, into Unity as a texture.  The display texture is side-by-side.  Took much time
+and debugging to figure out how to get stereo bits out of DX9, no samples, bad docs.
+Also that target surface for StretchRect cannot be shared, or it breaks the stereo.

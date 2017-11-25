@@ -25,6 +25,36 @@
 // Good table of usages:
 // https://msdn.microsoft.com/en-us/library/windows/desktop/bb172625(v=vs.85).aspx
 
+// Worth noting that the destination of the backbuffer copy cannot be a plain
+// surface, which directly contradicts the examples given in GDC presentations.
+// If the destination is a plain surface as they show, then the DX9 debug layer
+// will break with:
+// Direct3D9: (ERROR) :If the destination surface is an offscreen plain surface, the source must also be an offscreen plain.  StretchRect failed
+//
+// Obviously that is less than ideal.  NVidia documentation sucks, and no samples.
+//
+// A note in the documentation: https://msdn.microsoft.com/en-us/library/windows/desktop/bb172586(v=vs.85).aspx
+// "A cross-process shared-surface should not be locked."
+//
+// It can also not be a RenderTarget, although that is what the nvapi header file
+// suggests.  CreateRenderTarget does not work, presumably because it does not
+// make a stereo texture.
+//
+// After much experimentation, including writing a sample program that could be
+// debugged directly using Pix, I hit upon using CreateTexture with the RenderTarget
+// flag set.  This succeeds in the sample app, to StretchRect a 2x Surface, with
+// both eyes.  The Texture can be converted to Surface using GetSurfaceLevel.
+// https://github.com/bo3b/ReverseBlit-DX9
+//  
+// With that use of CreateTexture, the next step was to find that shared surfaces
+// cannot be used as the target, necessitating a second copy from the game.  This is
+// a second destination of the game bits, which is the final shared resource.  This
+// is OK, because we need to swap eyes for Unity, and this is where it's done.
+
+// Overall, seriously hard to get this all working.  Multiple problems with bad
+// and misleading and missing documentation. And no sample code.  This complicated
+// runtime environment makes it hard to debug as well.  Careful with that axe, Eugene,
+// this is all pretty fragile.
 
 //-----------------------------------------------------------
 
@@ -42,8 +72,14 @@
 CNktHookLib nktInProc;
 
 // The surface that we copy the current game frame into. It is shared.
-IDirect3DSurface9* gGameSurface = nullptr;
-HANDLE gGameSharedHandle = nullptr;
+// It starts as a Texture so that it is created stereo, but is converted
+// to a Surface for use in StretchRect.
+
+IDirect3DTexture9* gGameTexture = nullptr;
+IDirect3DSurface9* gGameSurface = nullptr;	// created as a reference to Texture
+
+IDirect3DSurface9* gSharedTarget = nullptr;	// Actual shared RenderTarget
+HANDLE gGameSharedHandle = nullptr;			// Handle to share with DX11
 
 // The nvapi stereo handle, to access the reverse blit.
 StereoHandle gNVAPI = nullptr;
@@ -82,7 +118,13 @@ HRESULT (__stdcall *pOrigPresent)(IDirect3DDevice9Ex* This,
 
 
 // This is it. The one we are after.  This is the hook for the DX9 Present call
-// which the game will call for every frame.  
+// which the game will call for every frame.  At each call, we will make a copy
+// of whatever the game drew, and that will be passed along via the shared surface
+// to the VR layer.
+//
+// The StretchRect to the gGameSurface will be reflected in the gGameTexture. So
+// even though we are sharing the original Texture and not the target gGameSurface
+// here, we still expect it to be stereo and match the gGameSurface.
 
 HRESULT __stdcall Hooked_Present(IDirect3DDevice9Ex* This,
 	/* [in] */ const RECT    *pSourceRect,
@@ -96,22 +138,32 @@ HRESULT __stdcall Hooked_Present(IDirect3DDevice9Ex* This,
 	hr = This->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &backBuffer);
 	if (SUCCEEDED(hr) && gGameSurface > 0)
 	{
-		D3DSURFACE_DESC bufferDesc, copyDesc;
-		backBuffer->GetDesc(&bufferDesc);
-		gGameSurface->GetDesc(&copyDesc);
-		RECT srcRect = { 0, 0, bufferDesc.Width, bufferDesc.Height };
-		RECT dstRect = { 0, 0, copyDesc.Width, copyDesc.Height };
-
 		hr = NvAPI_Stereo_ReverseStereoBlitControl(gNVAPI, true);
+		{
+			hr = This->StretchRect(backBuffer, nullptr, gGameSurface, nullptr, D3DTEXF_NONE);
+			if (FAILED(hr))
+				::OutputDebugString(L"Bad StretchRect to Texture.\n");
 
-		// Copy current frame from backbuffer to our shared storage surface.
-		hr = This->StretchRect(backBuffer, &srcRect, gGameSurface, &dstRect, D3DTEXF_NONE);
-		if (FAILED(hr))
-			::OutputDebugString(L"Bad StretchRect.\n");
-
+			// Todo: move this second copy to different thread, so as not to block game.
+			hr = This->StretchRect(gGameSurface, nullptr, gSharedTarget, nullptr, D3DTEXF_NONE);
+			if (FAILED(hr))
+				::OutputDebugString(L"Bad StretchRect to RenderTarget.\n");
+		}
 		hr = NvAPI_Stereo_ReverseStereoBlitControl(gNVAPI, false);
 
+		// StretchRect the stereo snapshot back onto the backbuffer so we can see what we got.
+		// Keep aspect ratio intact, because we want to see if it's a stretched image.
+		D3DSURFACE_DESC bufferDesc;
+		backBuffer->GetDesc(&bufferDesc);
+		RECT backBufferRect = { 0, 0, bufferDesc.Width, bufferDesc.Height };
+		RECT stereoImageRect = { 0, 0, bufferDesc.Width * 2, bufferDesc.Height };
+
+		int insetW = 300;
+		int insetH = 300.0 * stereoImageRect.bottom / stereoImageRect.right;
+		RECT topScreen = { 5, 5, insetW, insetH };
+		hr = This->StretchRect(gSharedTarget, &stereoImageRect, backBuffer, &topScreen, D3DTEXF_NONE);
 	}
+	backBuffer->Release();
 
 	hr = pOrigPresent(This, pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
 	return hr;
@@ -446,26 +498,51 @@ HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 			::OutputDebugStringA("Failed to hook IDirect3DDevice9::CreateIndexBuffer\n");
 
 
-		// Now that we have a proper Ex Device from the game, let's also make a 
-		// DX9 Surface, so that we can snapshot the game output.  This surface needs to
-		// use the Shared parameter, so that we can share it to another Device.  Because
-		// these are all DX9Ex objects, the share will work.
-
-		UINT width = pPresentationParameters->BackBufferWidth * 2;
-		UINT height = pPresentationParameters->BackBufferHeight;
-		D3DFORMAT format = pPresentationParameters->BackBufferFormat;
-		HRESULT res = pDevice9Ex->CreateRenderTarget(width, height, format, D3DMULTISAMPLE_NONE, 0, false,
-			&gGameSurface, &gGameSharedHandle);
-		if (FAILED(res))
-			throw std::exception("Fail to create shared RenderTarget");
-
-		res = NvAPI_Initialize();
+		HRESULT res = NvAPI_Initialize();
 		if (FAILED(res))
 			throw std::exception("Failed to NvAPI_Initialize\n");
 
 		res = NvAPI_Stereo_CreateHandleFromIUnknown(pDevice9Ex, &gNVAPI);
 		if (FAILED(res))
 			throw std::exception("Failed to NvAPI_Stereo_CreateHandleFromIUnknown\n");
+
+		res = NvAPI_Stereo_SetSurfaceCreationMode(__in gNVAPI, __in NVAPI_STEREO_SURFACECREATEMODE_FORCESTEREO);
+		if (FAILED(res))
+			throw std::exception("Failed to NvAPI_Stereo_SetSurfaceCreationMode\n");
+
+		// Now that we have a proper Ex Device from the game, let's also make a 
+		// DX9 Surface, so that we can snapshot the game output.  This surface needs to
+		// use the Shared parameter, so that we can share it to another Device.  Because
+		// these are all DX9Ex objects, the share will work.
+		// 
+		// The Nvidia documentation suggests this should be an OffScreenPlainSurface,
+		// but that has never worked, because it is disallowed by DX9.  Experimenting
+		// quite a bit, I hit upon using CreateTexture, with the D3DUSAGE_RENDERTARGET
+		// flag set.  
+		//
+		// This Texture cannot be shared here.  When shared variable is set for input,
+		// the StretchRect fails at Present, and makes a mono copy.  Thus, we need to
+		// create second target, which will be the one passed to the VR/Unity side.
+
+		UINT width = pPresentationParameters->BackBufferWidth * 2;
+		UINT height = pPresentationParameters->BackBufferHeight;
+		D3DFORMAT format = pPresentationParameters->BackBufferFormat;
+
+		res = pDevice9Ex->CreateTexture(width, height, 0, D3DUSAGE_RENDERTARGET, format, D3DPOOL_DEFAULT,
+			&gGameTexture, nullptr);
+		if (FAILED(res))
+			throw std::exception("Fail to create shared stereo Texture");
+			
+		res = gGameTexture->GetSurfaceLevel(0, &gGameSurface);
+		if (FAILED(res))
+			throw std::exception("Fail to GetSurfaceLevel of stereo Texture");
+
+		// Actual shared surface, as a RenderTarget. RenderTarget because its main
+		// goal at this moment is to be written to.
+		res = pDevice9Ex->CreateRenderTarget(width, height, format, D3DMULTISAMPLE_NONE, 0, true,
+			&gSharedTarget, &gGameSharedHandle);
+		if (FAILED(res))
+			throw std::exception("Fail to CreateRenderTarget for copy of stereo Texture");
 	}
 
 	// We are returning the IDirect3DDevice9Ex object, because the Device the game
