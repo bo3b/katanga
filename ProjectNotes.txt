@@ -231,9 +231,40 @@ For GTX 980, we jump from 25% for the game, to 45% for game+Rift.
 LegacyShader/Diffuse, the default, is 2% GPU faster than Standard. 12-13% GPU.
 Using sbsShader did not help any.
 
+As another test, to see how much overhead Unity provides, running the Oculus sample
+app, TinyRoom, release x64.  
+ Oculus TinyRoom: 12%-13% of GPU.  
+ 
+That app will use Oculus SDK directly, with native DX11 calls. No reason to 
+think we can ever do better than that.
+
 
 11-25-17
 Seriously hard to get all this working, but sucess!  Now getting stereo bits from the
 game, into Unity as a texture.  The display texture is side-by-side.  Took much time
 and debugging to figure out how to get stereo bits out of DX9, no samples, bad docs.
 Also that target surface for StretchRect cannot be shared, or it breaks the stereo.
+
+Every stage of the pipeline has been unbelievably complicated to get working.  It's 
+not a surprise no one else has tried this.  
+
+
+11-28-17
+Finally!  Got stereo bits from the game, all the way to the headset, and showing in
+stereo in the virtual 3D TV.  Yes! 
+
+Last trick here was in Unity, trying to sweettalk the VR support into showing my SBS
+image as actual stereo, half for each eye.  Currently not quite right, it's requiring
+multipath support, and I really want SinglePass Stereo for performance.  But, this is
+working, with multipath, and an OnPreRender call for the camera script.  That gets
+called once for each eye, so I can alternate eyes for the CopyTexture call.
+
+Using CopyTexture seems superior to Blit, because Blit requires a shader to run, and
+CopyTexture just does something closer to a memcpy.  May not matter at all, because
+ultimately something probably runs a shader to put bits into the quad, but I think
+this might save a Draw call from shaders.  Probably does not matter, not measurable.
+
+Performance with a full Release buid is good.  Game runs well, if it's full screen
+it's at full 60 fps. No F notification in VR, very smooth.  55-70% of GPU in use.
+Some stalls during flyover in game.  
+

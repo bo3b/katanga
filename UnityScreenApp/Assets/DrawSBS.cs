@@ -18,8 +18,11 @@ public class DrawSBS : MonoBehaviour
     static System.Int32 _gameSharedHandle = 0;
     //static Texture2D _tex;
     TextMesh _rate;
-    Texture2D _bothEyes;
-    RenderTexture _quadTexture;
+    public static Texture2D _bothEyes;
+public static    RenderTexture _quadTexture;
+    Texture2D _leftTex = null;
+    Texture2D _rightTex = null;
+
 
     [DllImport("UnityNativePlugin64")]
 	private static extern void SetTimeFromUnity(float t);
@@ -34,7 +37,7 @@ public class DrawSBS : MonoBehaviour
     void Start()
     {
         _rate = GameObject.Find("rate").GetComponent<TextMesh>();
-
+        
         //_tex = new Texture2D(512, 512, TextureFormat.RGBA32, false);
         //// Set point filtering just so we can see the pixels clearly
         //_tex.filterMode = FilterMode.Point;
@@ -168,34 +171,52 @@ public class DrawSBS : MonoBehaviour
             print("... WaitForSharedSurface");
 
             // ToDo: To work, we need to pass in a parameter? 
-            // This will call to DeviarePlugin native routine to fetch current gGameSurfaceShare HANDLE.
+            // This will call to DeviarePlugin native DLL routine to fetch current gGameSurfaceShare HANDLE.
             System.Int32 native = 0; // (int)_tex.GetNativeTexturePtr();
             object parm = native;
             _gameSharedHandle = _spyMgr.CallCustomApi(_gameProcess, _nativeDLLName, "GetSharedHandle", ref parm, true);
         }
 
-        print("-> Got shared handle: " + _gameSharedHandle);
+        print("-> Got shared handle: " + _gameSharedHandle.ToString("x"));
 
         // We finally have a valid gGameSurfaceShare as a DX11 HANDLE.  
         // We can thus finish up the init.
 
-        // Call into the UnityNativePlugin for DX11 access to create a ShaderResourceView.
+        // Call into the UnityNativePlugin for DX11 access to create a ID3D11ShaderResourceView.
         // You'd expect this to be a IDX11Texture2D, but that's not what Unity wants.
         IntPtr shared = CreateSharedTexture(_gameSharedHandle);
 
         // This is the Unity Texture2D, double width texture, with right eye on the left half.
         // It will always be up to date with latest game image.
-        _bothEyes = Texture2D.CreateExternalTexture(3200, 900, TextureFormat.ARGB32, false, true, shared);
+        _bothEyes = Texture2D.CreateExternalTexture(3200, 900, TextureFormat.BGRA32, false, true, shared);
+        print("..eyes width: " + _bothEyes.width + " height: " + _bothEyes.height + " format: " + _bothEyes.format);
+
+        _leftTex = new Texture2D(3200, 900, TextureFormat.BGRA32, false);
+        _rightTex = new Texture2D(3200, 900, TextureFormat.BGRA32, false);
+
+        Graphics.CopyTexture(_bothEyes, 0, 0, 0, 0, 1600, 900, _leftTex, 0, 0, 0, 0);
+        Graphics.CopyTexture(_bothEyes, 0, 0, 0, 0, 1600, 900, _rightTex, 0, 0, 0, 0);
+
+        Material leftMat = GameObject.Find("left").GetComponent<Renderer>().material;
+        leftMat.mainTexture = _leftTex;
+        Material rightMat = GameObject.Find("right").GetComponent<Renderer>().material;
+        rightMat.mainTexture = _rightTex;
+
+        //leftMat.mainTextureScale = new Vector2(2.0f, 2.0f);
+        //leftMat.mainTextureOffset = new Vector2(0.5f,0);
+
 
         // The texture for the Quad, that will be a RenderTexture, so we can blit into it.
         // Needs to be double width, and vrUsage set, for Blit to know.
-        //RenderTextureDescriptor vrDesc = UnityEngine.XR.XRSettings.eyeTextureDesc;
-        //vrDesc.width = 1600;
-        //vrDesc.height = 900;
-        //_quadTexture = new RenderTexture(vrDesc);
-        //_quadTexture.Create();
+        RenderTextureDescriptor vrDesc = UnityEngine.XR.XRSettings.eyeTextureDesc;
+        vrDesc.width = 1600;
+        vrDesc.height = 900;
+        vrDesc.colorFormat = RenderTextureFormat.BGRA32;
+        vrDesc.vrUsage = VRTextureUsage.TwoEyes;
+        _quadTexture = new RenderTexture(vrDesc);
+        _quadTexture.Create();
+        GetComponent<Renderer>().material.mainTexture = _quadTexture;
 
-        GetComponent<Renderer>().material.mainTexture = _bothEyes;
 
         StartCoroutine("UpdateFPS");
 
@@ -243,12 +264,19 @@ public class DrawSBS : MonoBehaviour
         }
     }
 
+
+
+    
     // Update is called once per frame
     // Update is much slower than coroutines.  Unless it's required for VR, skip it.
     void Update()
     {
         //Graphics.Blit(_bothEyes, _quadTexture);
-
+        if (_leftTex != null)
+        {
+            Graphics.CopyTexture(_bothEyes, 0, 0, 0, 0, 3200, 900, _leftTex, 0, 0, 0, 0);
+            Graphics.CopyTexture(_bothEyes, 0, 0, 0, 0, 3200, 900, _rightTex, 0, 0, 0, 0);
+        }
         //SetTimeFromUnity(Time.timeSinceLevelLoad);
         //GL.IssuePluginEvent(GetRenderEventFunc(), 1);
 
@@ -262,5 +290,7 @@ public class DrawSBS : MonoBehaviour
         //{
         //    _noiseTex.UpdateExternalTexture((IntPtr)pGameScreen);
         //}
+        if (Input.GetKey("escape"))
+            Application.Quit();
     }
 }
