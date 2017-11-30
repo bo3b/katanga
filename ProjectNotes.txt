@@ -268,3 +268,49 @@ Performance with a full Release buid is good.  Game runs well, if it's full scre
 it's at full 60 fps. No F notification in VR, very smooth.  55-70% of GPU in use.
 Some stalls during flyover in game.  
 
+
+11-30-17
+And... Winner!  Got it to show stereo all the way to the virtual 3D TV.  Correct eyes,
+changeable depth and convergence like you'd want.  Looks good.
+
+The key aspect here was working out the best way to do this.  The best way seems to
+be to have a custom shader attached the the Quad Material, which does the work of 
+copying the texture to the actual VR screen and transforming them through the MVP
+matrix, as the head camera moves.  This saves an extra copy of the bits, and that
+stage has to run anyway, so modifying that shader seems like best.  While there,
+it has the ability to use the primary input texture of _bothEyes, and decide to
+fetch either left or right half depending upon the unity_StereoEyeIndex variable.
+Changes which half of the texture bits are fetched from, and thus shows the correct
+piece to the correct eye.
+
+We specifically do not use the Graphics.Blit, because that required a script on the
+camera in order to function, and it wasn't clear if would work to handle both eyes.
+It would also be another copy that is unnecessary.
+Similarly, we don't Graphics.CopyTexture to the Quad Material, because there needed
+to be two copies, and had to be done from the camera script as well, where the
+OnPreRender would get called twice, so we could swap eyes.  Also a second copy, 
+although this does work when using Multi-Pass Stereo.  In SinglePassStereo, OnPreRender
+is only called once, so this won't work for the faster path.  
+Tried to work out how to use the vrDesc for a RenderTexture, but nothing made
+sense, and could not get anything to work.  It was documented as automatically
+working for built in shaders, but it never seemed to recognize it was a VR texture.
+
+This is also using SinglePassStereo.  This is supposed to be quite a lot faster,
+and we don't need multipass.  Successfully drawing in VR using SinglePassStereo, using
+the custom shader.
+
+This is going to be nearly as fast as it is possible to make it.  The bits from the 
+game are copied only twice, once to get stereo bits cleanly out of game, then once
+again to the shared texture.  The shared texture is used directly in the DX11 side,
+by the shader to fetch pixels.  So, very little extra copies.  Would be nice to lose
+that second copy, but NVidia doesn't work copying to a shared resource.
+
+Overall performance is good. GPU usage is fairly low, 38-42% GPU on the splash screen.
+There are some F frame rate indicators in VR that are a concern.  Probably blocking
+VR from multithreaded access causing stalls, but don't really know.  Need to look.
+Ths is using 3D Vision to screen, which might be locked to 60Hz, and stall when
+lower.  We get stalls during Ball flyover.  Oculus F indicator up constantly when
+the ball is close with pull effect.  With that effect on, GPU usage goes to 70-74%.
+Idling in-game is 57-60%.
+
+No crashes.  Very solid.

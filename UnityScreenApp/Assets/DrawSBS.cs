@@ -14,64 +14,26 @@ public class DrawSBS : MonoBehaviour
 {
     static NktSpyMgr _spyMgr;
     static NktProcess _gameProcess;
-    string _nativeDLLName;
-    static System.Int32 _gameSharedHandle = 0;
-    //static Texture2D _tex;
-    TextMesh _rate;
+    static string _nativeDLLName;
+
+    // Primary Texture received from game as shared ID3D11ShaderResourceView
+    // It automatically updates as the injected DLL copies the bits into the
+    // shared resource.
     Texture2D _bothEyes;
-    RenderTexture _quadTexture;
 
-
-    [DllImport("UnityNativePlugin64")]
-	private static extern void SetTimeFromUnity(float t);
-    [DllImport("UnityNativePlugin64")]
-    private static extern void SetTextureFromUnity(System.IntPtr texture, int w, int h);
-    [DllImport("UnityNativePlugin64")]
-    private static extern IntPtr GetRenderEventFunc();
-    [DllImport("UnityNativePlugin64")]
-    private static extern IntPtr CreateSharedTexture(int sharedHandle);
-
-
+    // -----------------------------------------------------------------------------
     void Start()
     {
-        _rate = GameObject.Find("rate").GetComponent<TextMesh>();
-        
-        //_tex = new Texture2D(512, 512, TextureFormat.RGBA32, false);
-        //// Set point filtering just so we can see the pixels clearly
-        //_tex.filterMode = FilterMode.Point;
-        //// Call Apply() so it's actually uploaded to the GPU
-        //_tex.Apply();
-
-        //// Set texture onto our material
-        //GetComponent<Renderer>().material.mainTexture = _tex;
-
-        //// Pass texture pointer to the native plugin
-        //SetTextureFromUnity(_tex.GetNativeTexturePtr(), _tex.width, _tex.height);
-
-        
-        //// Sierpinksky triangles for a default view, shows if other updates fail.
-        //for (int y = 0; y < _tex.height; y++)
-        //{
-        //    for (int x = 0; x < _tex.width; x++)
-        //    {
-        //        Color color = ((x & y) != 0 ? Color.white : Color.grey);
-        //        _tex.SetPixel(x, y, color);
-        //    }
-        //}
-        //// Call Apply() so it's actually uploaded to the GPU
-        //_tex.Apply();
-
-
         int hresult;
         object continueevent;
-        
+
+
         string drawSBS_directory = Environment.CurrentDirectory;
         print("root directory: " + drawSBS_directory);
-        
+
         _nativeDLLName = Application.dataPath + "/Plugins/DeviarePlugin.dll";
 
         string game = @"G:\Games\The Ball\Binaries\Win32\theball.exe";
-//        string game = @"C:\Users\bo3b\Documents\Visual Studio Projects\DirectXSamples\Textures\Debug\textures.exe";
 
         _spyMgr = new NktSpyMgr();
         hresult = _spyMgr.Initialize();
@@ -99,8 +61,6 @@ public class DrawSBS : MonoBehaviour
             if (_gameProcess == null)
                 throw new Exception("Game launch failed.");
 
-//            if (!System.Diagnostics.Debugger.IsAttached)
-//System.Diagnostics.Debugger.Break();
 
             // Load the NativePlugin for the C++ side.  The NativePlugin must be in this app folder.
             // The Agent supports the use of Deviare in the CustomDLL, but does not respond to hooks.
@@ -151,8 +111,13 @@ public class DrawSBS : MonoBehaviour
     }
 
 
-    // This will just wait until the CreateDevice has been called in DeviarePlugin,
-    // and thus we have created a shared surface for copying game bits into.
+    // Our x64 Native DLL allows us direct access to DX11 in order to take
+    // the shared handle and turn it into a ID3D11ShaderResourceView for Unity.
+    [DllImport("UnityNativePlugin64")]
+    private static extern IntPtr CreateSharedTexture(int sharedHandle);
+
+    // WaitForSharedSurface will just wait until the CreateDevice has been called in 
+    // DeviarePlugin, and thus we have created a shared surface for copying game bits into.
     // This is asynchronous because it's in the game world, and we don't know when
     // it will happen.
     //
@@ -161,7 +126,9 @@ public class DrawSBS : MonoBehaviour
 
     private IEnumerator WaitForSharedSurface()
     {
-        while (_gameSharedHandle == 0)
+        System.Int32 gameSharedHandle = 0;
+
+        while (gameSharedHandle == 0)
         {
             // Check-in every 200ms.
             yield return new WaitForSecondsRealtime(0.2f);
@@ -172,79 +139,60 @@ public class DrawSBS : MonoBehaviour
             // This will call to DeviarePlugin native DLL routine to fetch current gGameSurfaceShare HANDLE.
             System.Int32 native = 0; // (int)_tex.GetNativeTexturePtr();
             object parm = native;
-            _gameSharedHandle = _spyMgr.CallCustomApi(_gameProcess, _nativeDLLName, "GetSharedHandle", ref parm, true);
+            gameSharedHandle = _spyMgr.CallCustomApi(_gameProcess, _nativeDLLName, "GetSharedHandle", ref parm, true);
         }
-
-        print("-> Got shared handle: " + _gameSharedHandle.ToString("x"));
 
         // We finally have a valid gGameSurfaceShare as a DX11 HANDLE.  
         // We can thus finish up the init.
 
-        // Call into the UnityNativePlugin for DX11 access to create a ID3D11ShaderResourceView.
+        print("-> Got shared handle: " + gameSharedHandle.ToString("x"));
+
+
+        // Call into the x64 UnityNativePlugin DLL for DX11 access, in order to create a ID3D11ShaderResourceView.
         // You'd expect this to be a IDX11Texture2D, but that's not what Unity wants.
-        IntPtr shared = CreateSharedTexture(_gameSharedHandle);
+
+        IntPtr shared = CreateSharedTexture(gameSharedHandle);
 
         // This is the Unity Texture2D, double width texture, with right eye on the left half.
-        // It will always be up to date with latest game image.
+        // It will always be up to date with latest game image, because we pass in 'shared'.
+
         _bothEyes = Texture2D.CreateExternalTexture(3200, 900, TextureFormat.BGRA32, false, true, shared);
+
         print("..eyes width: " + _bothEyes.width + " height: " + _bothEyes.height + " format: " + _bothEyes.format);
 
+
+        // This is the primary Material for the Quad used for the virtual TV.
+        // Assigning the 2x width _bothEyes texture to it means it always has valid
+        // game bits.  The custom sbsShader for the material takes care of 
+        // showing the correct half for each eye.
+
+        GetComponent<Renderer>().material.mainTexture = _bothEyes;
+
+
+        // These are test Quads, and will be removed.  One for each eye.
         Material leftMat = GameObject.Find("left").GetComponent<Renderer>().material;
         leftMat.mainTexture = _bothEyes;
         Material rightMat = GameObject.Find("right").GetComponent<Renderer>().material;
         rightMat.mainTexture = _bothEyes;
 
+        // Using same primary 2x width shared texture, specify which half is used.
         leftMat.mainTextureScale = new Vector2(0.5f, 1.0f);
         leftMat.mainTextureOffset = new Vector2(0.5f, 0);
         rightMat.mainTextureScale = new Vector2(0.5f, 1.0f);
         rightMat.mainTextureOffset = new Vector2(0.0f, 0);
 
 
-        // The texture for the Quad, that will be a RenderTexture, so we can blit into it.
-        // Needs to be double width, and vrUsage set, for Blit to know.
-        //RenderTextureDescriptor vrDesc = UnityEngine.XR.XRSettings.eyeTextureDesc;
-        //vrDesc.width = 1600;
-        //vrDesc.height = 900;
-        //vrDesc.colorFormat = RenderTextureFormat.BGRA32;
-        //vrDesc.vrUsage = VRTextureUsage.TwoEyes;
-        //_quadTexture = new RenderTexture(vrDesc);
-        //_quadTexture.Create();
-
-        GetComponent<Renderer>().material.mainTexture = _bothEyes;
-
-
         StartCoroutine("UpdateFPS");
 
         yield return null;
-
-        // And allow the final update loop to start.
-        //StartCoroutine("CallPluginAtEndOfFrames");
     }
 
 
-    // Infinite loop of fetching the bits from the shared surface, and drawing them into
-    // this VR apps texture, so that Unity will display them.
-
-    private IEnumerator CallPluginAtEndOfFrames()
-    {
-        while (true)
-        {
-            // Wait until all frame rendering is done
-            yield return new WaitForEndOfFrame();
-
-            // Set time for the plugin
-            SetTimeFromUnity(Time.timeSinceLevelLoad);
-
-            // Issue a plugin event with arbitrary integer identifier.
-            // The plugin can distinguish between different
-            // things it needs to do based on this ID.
-            // For our simple plugin, it does not matter which ID we pass here.
-            GL.IssuePluginEvent(GetRenderEventFunc(), 1);
-        }
-    }
-
+    // -----------------------------------------------------------------------------
     private IEnumerator UpdateFPS()
     {
+        TextMesh rate = GameObject.Find("rate").GetComponent<TextMesh>();
+
         while (true)
         {
             yield return new WaitForSecondsRealtime(0.2f);
@@ -253,39 +201,35 @@ public class DrawSBS : MonoBehaviour
             if (XRStats.TryGetGPUTimeLastFrame(out gpuTime))
             {
                 // At 90 fps, we want to know the % of a single VR frame we are using.
-            //    gpuTime = gpuTime / ((1f / 90f) * 1000f) * 100f;
-                _rate.text = System.String.Format("{0:F1} ms", gpuTime);
+                //    gpuTime = gpuTime / ((1f / 90f) * 1000f) * 100f;
+                rate.text = System.String.Format("{0:F1} ms", gpuTime);
             }
         }
     }
 
 
-
-    
-    // Update is called once per frame
+    // -----------------------------------------------------------------------------
+    // Update is called once per frame, before rendering. Great diagram:
+    // https://docs.unity3d.com/Manual/ExecutionOrder.html
     // Update is much slower than coroutines.  Unless it's required for VR, skip it.
+
     void Update()
     {
-        //Graphics.Blit(_bothEyes, _quadTexture);
-        if (_quadTexture != null)
-        {
-//            Graphics.CopyTexture(_bothEyes, 0, 0, 0, 0, 3200, 900, _quadTexture, 0, 0, 0, 0);
-        }
-        //SetTimeFromUnity(Time.timeSinceLevelLoad);
-        //GL.IssuePluginEvent(GetRenderEventFunc(), 1);
-
-        //   ModifyTexturePixels();
-        //System.Int32 pGameScreen;
-        //System.Int32 native = (int)_noiseTex.GetNativeTexturePtr();
-        //object parm = native;
-//        pGameScreen = _spyMgr.CallCustomApi(_gameProcess, _nativeDLLName, "GetGameSurface", ref parm, true);
-
-        //if (pGameScreen != 0)
-        //{
-        //    _noiseTex.UpdateExternalTexture((IntPtr)pGameScreen);
-        //}
         if (Input.GetKey("escape"))
             Application.Quit();
     }
 
 }
+
+//// Sierpinksky triangles for a default view, shows if other updates fail.
+//for (int y = 0; y < _tex.height; y++)
+//{
+//    for (int x = 0; x < _tex.width; x++)
+//    {
+//        Color color = ((x & y) != 0 ? Color.white : Color.grey);
+//        _tex.SetPixel(x, y, color);
+//    }
+//}
+//// Call Apply() so it's actually uploaded to the GPU
+//_tex.Apply();
+
