@@ -18,10 +18,8 @@ public class DrawSBS : MonoBehaviour
     static System.Int32 _gameSharedHandle = 0;
     //static Texture2D _tex;
     TextMesh _rate;
-    public static Texture2D _bothEyes;
-public static    RenderTexture _quadTexture;
-    Texture2D _leftTex = null;
-    Texture2D _rightTex = null;
+    Texture2D _bothEyes;
+    RenderTexture _quadTexture;
 
 
     [DllImport("UnityNativePlugin64")]
@@ -191,31 +189,28 @@ public static    RenderTexture _quadTexture;
         _bothEyes = Texture2D.CreateExternalTexture(3200, 900, TextureFormat.BGRA32, false, true, shared);
         print("..eyes width: " + _bothEyes.width + " height: " + _bothEyes.height + " format: " + _bothEyes.format);
 
-        _leftTex = new Texture2D(3200, 900, TextureFormat.BGRA32, false);
-        _rightTex = new Texture2D(3200, 900, TextureFormat.BGRA32, false);
-
-        Graphics.CopyTexture(_bothEyes, 0, 0, 0, 0, 1600, 900, _leftTex, 0, 0, 0, 0);
-        Graphics.CopyTexture(_bothEyes, 0, 0, 0, 0, 1600, 900, _rightTex, 0, 0, 0, 0);
-
         Material leftMat = GameObject.Find("left").GetComponent<Renderer>().material;
-        leftMat.mainTexture = _leftTex;
+        leftMat.mainTexture = _bothEyes;
         Material rightMat = GameObject.Find("right").GetComponent<Renderer>().material;
-        rightMat.mainTexture = _rightTex;
+        rightMat.mainTexture = _bothEyes;
 
-        //leftMat.mainTextureScale = new Vector2(2.0f, 2.0f);
-        //leftMat.mainTextureOffset = new Vector2(0.5f,0);
+        leftMat.mainTextureScale = new Vector2(0.5f, 1.0f);
+        leftMat.mainTextureOffset = new Vector2(0.5f, 0);
+        rightMat.mainTextureScale = new Vector2(0.5f, 1.0f);
+        rightMat.mainTextureOffset = new Vector2(0.0f, 0);
 
 
         // The texture for the Quad, that will be a RenderTexture, so we can blit into it.
         // Needs to be double width, and vrUsage set, for Blit to know.
-        RenderTextureDescriptor vrDesc = UnityEngine.XR.XRSettings.eyeTextureDesc;
-        vrDesc.width = 1600;
-        vrDesc.height = 900;
-        vrDesc.colorFormat = RenderTextureFormat.BGRA32;
-        vrDesc.vrUsage = VRTextureUsage.TwoEyes;
-        _quadTexture = new RenderTexture(vrDesc);
-        _quadTexture.Create();
-        GetComponent<Renderer>().material.mainTexture = _quadTexture;
+        //RenderTextureDescriptor vrDesc = UnityEngine.XR.XRSettings.eyeTextureDesc;
+        //vrDesc.width = 1600;
+        //vrDesc.height = 900;
+        //vrDesc.colorFormat = RenderTextureFormat.BGRA32;
+        //vrDesc.vrUsage = VRTextureUsage.TwoEyes;
+        //_quadTexture = new RenderTexture(vrDesc);
+        //_quadTexture.Create();
+
+        GetComponent<Renderer>().material.mainTexture = _bothEyes;
 
 
         StartCoroutine("UpdateFPS");
@@ -272,10 +267,9 @@ public static    RenderTexture _quadTexture;
     void Update()
     {
         //Graphics.Blit(_bothEyes, _quadTexture);
-        if (_leftTex != null)
+        if (_quadTexture != null)
         {
-            Graphics.CopyTexture(_bothEyes, 0, 0, 0, 0, 3200, 900, _leftTex, 0, 0, 0, 0);
-            Graphics.CopyTexture(_bothEyes, 0, 0, 0, 0, 3200, 900, _rightTex, 0, 0, 0, 0);
+//            Graphics.CopyTexture(_bothEyes, 0, 0, 0, 0, 3200, 900, _quadTexture, 0, 0, 0, 0);
         }
         //SetTimeFromUnity(Time.timeSinceLevelLoad);
         //GL.IssuePluginEvent(GetRenderEventFunc(), 1);
@@ -293,4 +287,5 @@ public static    RenderTexture _quadTexture;
         if (Input.GetKey("escape"))
             Application.Quit();
     }
+
 }
