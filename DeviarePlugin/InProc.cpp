@@ -104,6 +104,24 @@ HANDLE WINAPI GetSharedHandle(int* in)
 
 
 //-----------------------------------------------------------
+// StretchRect the stereo snapshot back onto the backbuffer so we can see what we got.
+// Keep aspect ratio intact, because we want to see if it's a stretched image.
+
+void DrawStereoOnGame(IDirect3DDevice9Ex* device, IDirect3DSurface9* surface, IDirect3DSurface9* back)
+{
+	D3DSURFACE_DESC bufferDesc;
+	back->GetDesc(&bufferDesc);
+	RECT backBufferRect = { 0, 0, bufferDesc.Width, bufferDesc.Height };
+	RECT stereoImageRect = { 0, 0, bufferDesc.Width * 2, bufferDesc.Height };
+
+	int insetW = 300;
+	int insetH = 300.0 * stereoImageRect.bottom / stereoImageRect.right;
+	RECT topScreen = { 5, 5, insetW, insetH };
+	device->StretchRect(surface, &stereoImageRect, back, &topScreen, D3DTEXF_NONE);
+}
+
+
+//-----------------------------------------------------------
 // Interface to implement the hook for IDirect3DDevice9->Present
 
 // This declaration serves a dual purpose of defining the interface routine as required by
@@ -122,7 +140,7 @@ HRESULT (__stdcall *pOrigPresent)(IDirect3DDevice9Ex* This,
 // of whatever the game drew, and that will be passed along via the shared surface
 // to the VR layer.
 //
-// The StretchRect to the gGameSurface will be reflected in the gGameTexture. So
+// The StretchRect to the gGameSurface will be duplicated in the gGameTexture. So
 // even though we are sharing the original Texture and not the target gGameSurface
 // here, we still expect it to be stereo and match the gGameSurface.
 
@@ -134,7 +152,7 @@ HRESULT __stdcall Hooked_Present(IDirect3DDevice9Ex* This,
 {
 	HRESULT hr;
 	IDirect3DSurface9* backBuffer;
-
+	
 	hr = This->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &backBuffer);
 	if (SUCCEEDED(hr) && gGameSurface > 0)
 	{
@@ -151,22 +169,14 @@ HRESULT __stdcall Hooked_Present(IDirect3DDevice9Ex* This,
 		}
 		hr = NvAPI_Stereo_ReverseStereoBlitControl(gNVAPI, false);
 
-		// StretchRect the stereo snapshot back onto the backbuffer so we can see what we got.
-		// Keep aspect ratio intact, because we want to see if it's a stretched image.
-		D3DSURFACE_DESC bufferDesc;
-		backBuffer->GetDesc(&bufferDesc);
-		RECT backBufferRect = { 0, 0, bufferDesc.Width, bufferDesc.Height };
-		RECT stereoImageRect = { 0, 0, bufferDesc.Width * 2, bufferDesc.Height };
-
-		int insetW = 300;
-		int insetH = 300.0 * stereoImageRect.bottom / stereoImageRect.right;
-		RECT topScreen = { 5, 5, insetW, insetH };
-		hr = This->StretchRect(gSharedTarget, &stereoImageRect, backBuffer, &topScreen, D3DTEXF_NONE);
+#ifdef _DEBUG
+		DrawStereoOnGame(This, gSharedTarget, backBuffer);
+#endif
 	}
 	backBuffer->Release();
 
-	hr = pOrigPresent(This, pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
-	return hr;
+	HRESULT hrp = pOrigPresent(This, pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
+	return hrp;
 }
 
 //-----------------------------------------------------------
@@ -457,6 +467,7 @@ HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 	//BehaviorFlags |= D3DCREATE_MULTITHREADED;	// ToDo: not certain this is needed, said to slow things down.
 
 	IDirect3DDevice9Ex* pDevice9Ex = nullptr;
+	pPresentationParameters->Windowed = 1;  // ToDo: get an error on presparams if full screen.
 	hr = pDX9Ex->CreateDeviceEx(Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters, NULL,
 		&pDevice9Ex);
 	if (FAILED(hr))
