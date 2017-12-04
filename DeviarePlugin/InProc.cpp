@@ -78,6 +78,9 @@ CNktHookLib nktInProc;
 IDirect3DTexture9* gGameTexture = nullptr;
 IDirect3DSurface9* gGameSurface = nullptr;	// created as a reference to Texture
 
+HANDLE gSharedThread = nullptr;				// will copy from GameSurface to SharedSurface
+HANDLE gFreshBits = nullptr;				// Synchronization Event object
+
 IDirect3DSurface9* gSharedTarget = nullptr;	// Actual shared RenderTarget
 HANDLE gGameSharedHandle = nullptr;			// Handle to share with DX11
 
@@ -115,7 +118,7 @@ void DrawStereoOnGame(IDirect3DDevice9Ex* device, IDirect3DSurface9* surface, ID
 	RECT stereoImageRect = { 0, 0, bufferDesc.Width * 2, bufferDesc.Height };
 
 	int insetW = 300;
-	int insetH = 300.0 * stereoImageRect.bottom / stereoImageRect.right;
+	int insetH = (int)(300.0 * stereoImageRect.bottom / stereoImageRect.right);
 	RECT topScreen = { 5, 5, insetW, insetH };
 	device->StretchRect(surface, &stereoImageRect, back, &topScreen, D3DTEXF_NONE);
 }
@@ -162,10 +165,7 @@ HRESULT __stdcall Hooked_Present(IDirect3DDevice9Ex* This,
 			if (FAILED(hr))
 				::OutputDebugString(L"Bad StretchRect to Texture.\n");
 
-			// Todo: move this second copy to different thread, so as not to block game.
-			hr = This->StretchRect(gGameSurface, nullptr, gSharedTarget, nullptr, D3DTEXF_NONE);
-			if (FAILED(hr))
-				::OutputDebugString(L"Bad StretchRect to RenderTarget.\n");
+			SetEvent(gFreshBits);		// Signal other thread to start StretchRect
 		}
 		hr = NvAPI_Stereo_ReverseStereoBlitControl(gNVAPI, false);
 
@@ -178,6 +178,50 @@ HRESULT __stdcall Hooked_Present(IDirect3DDevice9Ex* This,
 	HRESULT hrp = pOrigPresent(This, pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
 	return hrp;
 }
+
+
+// This thread routine will be Resumed whenever the Present call has fresh data.
+// It will be Suspended mostly.  This is a separate thread, even with the complexity
+// that adds, because we otherwise have two back to back StretchRect on the main
+// game thread.  The first one is inescapable, we must copy the stereo bits from the 
+// backbuffer into the gGameSurface.  The second is to copy to the gSharedTarget
+// RenderTarget, and this second copy would stall waiting for the first to finish.
+// The GPU driver enforces the stall.  Rather than stall there, which would affect
+// the game, it's better to stall here in a separate thread where it causes no harm.
+//
+// WaitForSingleObject returns 0=WAIT_OBJECT_0 when signaled, anything else can be
+// considered and error and will exit the thread.  This includes timeouts, because
+// we should never have a timeout. The thread is started suspended, and so we wait
+// until the first Present call to act, which avoids the largest startup delay.
+// After that, anything taking 5 seconds has to be a fatal error, we are expecting
+// this to fire every frame.
+
+DWORD __stdcall CopyGameToShared(LPVOID lpDevice)
+{
+	IDirect3DDevice9Ex* device = static_cast<IDirect3DDevice9Ex*>(lpDevice);
+	HRESULT hr;
+	DWORD object;
+	BOOL reset;
+
+	while (true)
+	{
+		object = WaitForSingleObject(gFreshBits, 60 * 1000);
+		if (object != WAIT_OBJECT_0)
+			break;
+
+		hr = device->StretchRect(gGameSurface, nullptr, gSharedTarget, nullptr, D3DTEXF_NONE);
+		// Not supposed to use CLR.
+		//if (FAILED(hr))
+		//	::OutputDebugString(L"Bad StretchRect to RenderTarget in CopyGameToShared thread.\n");
+
+		reset = ResetEvent(gFreshBits);
+		if (!reset)
+			break;
+	}
+
+	return E_FAIL;
+}
+
 
 //-----------------------------------------------------------
 // Interface to implement the hook for IDirect3DDevice9->CreateTexture
@@ -464,7 +508,9 @@ HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 	// in a different process altogether.  
 	// Direct3D9: (WARN) : Device that was created without D3DCREATE_MULTITHREADED is being used by a thread other than the creation thread.
 	// Also- this warning happens in TheBall, when run with only the debug layer. Not our fault.
-	//BehaviorFlags |= D3DCREATE_MULTITHREADED;	// ToDo: not certain this is needed, said to slow things down.
+	// But, we are doing multithreaded StretchRect now, so let's add this.  Otherwise we get a
+	// a crash.  Not certain this is best, said to slow things down.
+	BehaviorFlags |= D3DCREATE_MULTITHREADED;
 
 	IDirect3DDevice9Ex* pDevice9Ex = nullptr;
 	pPresentationParameters->Windowed = 1;  // ToDo: get an error on presparams if full screen.
@@ -554,6 +600,31 @@ HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 			&gSharedTarget, &gGameSharedHandle);
 		if (FAILED(res))
 			throw std::exception("Fail to CreateRenderTarget for copy of stereo Texture");
+
+		// Since we are doing setup here, also create a thread that will be used to copy
+		// from the stereo game surface into the shared surface.  This way the game will
+		// not stall while waiting for that copy.
+		//
+		// And the thread synchronization Event object. Signaled when we get fresh bits.
+		// Starts in off state, thread active, so it should pause at launch.
+		gFreshBits = CreateEvent(
+			NULL,               // default security attributes
+			TRUE,               // manual-reset event
+			FALSE,              // initial state is nonsignaled
+			nullptr);			// object name
+		if (gFreshBits == nullptr)
+			throw std::exception("Fail to CreateEvent for gFreshBits");
+
+		gSharedThread = CreateThread(
+			NULL,                   // default security attributes
+			0,                      // use default stack size  
+			CopyGameToShared,       // thread function name
+			pDevice9Ex,		        // device, as argument to thread function 
+			0,				        // runs immediately, to a pause state. 
+			nullptr);			    // returns the thread identifier 
+		if (gSharedThread == nullptr)
+			throw std::exception("Fail to CreateThread for GameToShared");
+
 	}
 
 	// We are returning the IDirect3DDevice9Ex object, because the Device the game
