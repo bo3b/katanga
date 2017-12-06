@@ -314,3 +314,10 @@ the ball is close with pull effect.  With that effect on, GPU usage goes to 70-7
 Idling in-game is 57-60%.
 
 No crashes.  Very solid.
+
+
+12-3-17
+Looking at a dropped Compositor problem, where I see C show up periodically.  Should
+not be happening, we have maybe 50% of GPU headroom.  Tried backing up from the
+extra thread to do second copy, and that did not help, so extra thread is not the
+problem.  

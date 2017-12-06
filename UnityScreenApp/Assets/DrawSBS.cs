@@ -157,6 +157,7 @@ public class DrawSBS : MonoBehaviour
         // It will always be up to date with latest game image, because we pass in 'shared'.
 
         _bothEyes = Texture2D.CreateExternalTexture(3200, 900, TextureFormat.BGRA32, false, true, shared);
+        //_bothEyes = new Texture2D(3200, 900, TextureFormat.BGRA32, false, true);
 
         print("..eyes width: " + _bothEyes.width + " height: " + _bothEyes.height + " format: " + _bothEyes.format);
 
@@ -182,30 +183,30 @@ public class DrawSBS : MonoBehaviour
         rightMat.mainTextureOffset = new Vector2(0.0f, 0);
 
 
-        StartCoroutine("UpdateFPS");
+        //StartCoroutine("UpdateFPS");
 
         yield return null;
     }
 
 
     // -----------------------------------------------------------------------------
-    private IEnumerator UpdateFPS()
-    {
-        TextMesh rate = GameObject.Find("rate").GetComponent<TextMesh>();
+    //private IEnumerator UpdateFPS()
+    //{
+    //    TextMesh rate = GameObject.Find("rate").GetComponent<TextMesh>();
 
-        while (true)
-        {
-            yield return new WaitForSecondsRealtime(0.2f);
+    //    while (true)
+    //    {
+    //        yield return new WaitForSecondsRealtime(0.2f);
 
-            float gpuTime;
-            if (XRStats.TryGetGPUTimeLastFrame(out gpuTime))
-            {
-                // At 90 fps, we want to know the % of a single VR frame we are using.
-                //    gpuTime = gpuTime / ((1f / 90f) * 1000f) * 100f;
-                rate.text = System.String.Format("{0:F1} ms", gpuTime);
-            }
-        }
-    }
+    //        float gpuTime;
+    //        if (XRStats.TryGetGPUTimeLastFrame(out gpuTime))
+    //        {
+    //            // At 90 fps, we want to know the % of a single VR frame we are using.
+    //            //    gpuTime = gpuTime / ((1f / 90f) * 1000f) * 100f;
+    //            rate.text = System.String.Format("{0:F1} ms", gpuTime);
+    //        }
+    //    }
+    //}
 
 
     // -----------------------------------------------------------------------------
@@ -215,10 +216,17 @@ public class DrawSBS : MonoBehaviour
 
     void Update()
     {
+        if (Time.frameCount % 30 == 0)
+            System.GC.Collect();
+
         if (Input.GetKey("escape"))
             Application.Quit();
-    }
 
+        if (Input.GetAxis("Mouse ScrollWheel") < 0)
+            this.transform.position += Vector3.back;
+        if (Input.GetAxis("Mouse ScrollWheel") > 0)
+            this.transform.position += Vector3.forward;
+    }
 }
 
 //// Sierpinksky triangles for a default view, shows if other updates fail.

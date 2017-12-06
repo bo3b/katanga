@@ -161,7 +161,7 @@ PlayerSettings:
   ForceSDCardPermission: 0
   CreateWallpaper: 0
   APKExpansionFiles: 0
-  keepLoadedShadersAlive: 0
+  keepLoadedShadersAlive: 1
   StripUnusedMeshComponents: 0
   VertexChannelCompressionMask:
     serializedVersion: 2
@@ -247,8 +247,8 @@ PlayerSettings:
     m_Enabled: 1
     m_Devices:
     - Oculus
-    - None
     - OpenVR
+    - None
   m_BuildTargetEnableVuforiaSettings: []
   openGLRequireES31: 0
   openGLRequireES31AEP: 0
