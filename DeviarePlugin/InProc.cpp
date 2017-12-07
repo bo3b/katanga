@@ -110,7 +110,7 @@ HANDLE WINAPI GetSharedHandle(int* in)
 // StretchRect the stereo snapshot back onto the backbuffer so we can see what we got.
 // Keep aspect ratio intact, because we want to see if it's a stretched image.
 
-void DrawStereoOnGame(IDirect3DDevice9Ex* device, IDirect3DSurface9* surface, IDirect3DSurface9* back)
+void DrawStereoOnGame(IDirect3DDevice9* device, IDirect3DSurface9* surface, IDirect3DSurface9* back)
 {
 	D3DSURFACE_DESC bufferDesc;
 	back->GetDesc(&bufferDesc);
@@ -130,7 +130,7 @@ void DrawStereoOnGame(IDirect3DDevice9Ex* device, IDirect3DSurface9* surface, ID
 // This declaration serves a dual purpose of defining the interface routine as required by
 // DX9, and also is the storage for the original call, returned by nktInProc.Hook
 
-HRESULT (__stdcall *pOrigPresent)(IDirect3DDevice9Ex* This,
+HRESULT (__stdcall *pOrigPresent)(IDirect3DDevice9* This,
 	/* [in] */ const RECT    *pSourceRect,
 	/* [in] */ const RECT    *pDestRect,
 	/* [in] */       HWND    hDestWindowOverride,
@@ -147,7 +147,7 @@ HRESULT (__stdcall *pOrigPresent)(IDirect3DDevice9Ex* This,
 // even though we are sharing the original Texture and not the target gGameSurface
 // here, we still expect it to be stereo and match the gGameSurface.
 
-HRESULT __stdcall Hooked_Present(IDirect3DDevice9Ex* This,
+HRESULT __stdcall Hooked_Present(IDirect3DDevice9* This,
 	/* [in] */ const RECT    *pSourceRect,
 	/* [in] */ const RECT    *pDestRect,
 	/* [in] */       HWND    hDestWindowOverride,
@@ -164,8 +164,9 @@ HRESULT __stdcall Hooked_Present(IDirect3DDevice9Ex* This,
 			hr = This->StretchRect(backBuffer, nullptr, gGameSurface, nullptr, D3DTEXF_NONE);
 			if (FAILED(hr))
 				::OutputDebugString(L"Bad StretchRect to Texture.\n");
+			hr = This->StretchRect(gGameSurface, nullptr, gSharedTarget, nullptr, D3DTEXF_NONE);
 
-			SetEvent(gFreshBits);		// Signal other thread to start StretchRect
+//			SetEvent(gFreshBits);		// Signal other thread to start StretchRect
 		}
 		hr = NvAPI_Stereo_ReverseStereoBlitControl(gNVAPI, false);
 
@@ -198,7 +199,7 @@ HRESULT __stdcall Hooked_Present(IDirect3DDevice9Ex* This,
 
 DWORD __stdcall CopyGameToShared(LPVOID lpDevice)
 {
-	IDirect3DDevice9Ex* device = static_cast<IDirect3DDevice9Ex*>(lpDevice);
+	IDirect3DDevice9* device = static_cast<IDirect3DDevice9*>(lpDevice);
 	HRESULT hr;
 	DWORD object;
 	BOOL reset;
@@ -484,6 +485,7 @@ HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 	/* [out, retval] */ IDirect3DDevice9      **ppReturnedDeviceInterface)
 {
 	wchar_t info[512];
+	HRESULT hr;
 
 	::OutputDebugString(L"NativePlugin::Hooked_CreateDevice called\n");
 	if (pPresentationParameters)
@@ -493,15 +495,6 @@ HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 		::OutputDebugString(info);
 	}
 
-	// Once we make it here, we can be certain that the This factory is 
-	// actually an IDirect3D9Ex, but passed back to the game as IDirect3D9.
-	// We can upcast the factory so that we can make a IDirect3DDevice9Ex.
-
-	IDirect3D9Ex* pDX9Ex;
-	HRESULT hr = This->QueryInterface(IID_PPV_ARGS(&pDX9Ex));
-	if (FAILED(hr))
-		throw std::exception("Failed to upcast to IDirect3D9Ex factory");
-
 	// This is called out in the debug layer as a potential performance problem, but the
 	// docs suggest adding this will slow things down.  It is unlikely to be actually
 	// necessary, because this is in the running game, and the other threads are actually
@@ -510,19 +503,21 @@ HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 	// Also- this warning happens in TheBall, when run with only the debug layer. Not our fault.
 	// But, we are doing multithreaded StretchRect now, so let's add this.  Otherwise we get a
 	// a crash.  Not certain this is best, said to slow things down.
-	BehaviorFlags |= D3DCREATE_MULTITHREADED;
+	//BehaviorFlags |= D3DCREATE_MULTITHREADED;
 
-	IDirect3DDevice9Ex* pDevice9Ex = nullptr;
-	pPresentationParameters->Windowed = 1;  // ToDo: get an error on presparams if full screen.
-	hr = pDX9Ex->CreateDeviceEx(Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters, NULL,
-		&pDevice9Ex);
+	// Run original call game is expecting.
+	// This will return a IDirect3DDevice9Ex variant regardless, but using the original
+	// call allows us to avoid a lot of weirdness with full screen handling.
+
+	hr = pOrigCreateDevice(This, Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters,
+		ppReturnedDeviceInterface);
 	if (FAILED(hr))
-		throw std::exception("Failed to create IDirect3DDevice9Ex");
+		throw std::exception("Failed to create IDirect3DDevice9");
 
-	if (ppReturnedDeviceInterface)
-		*ppReturnedDeviceInterface = static_cast<IDirect3DDevice9*>(pDevice9Ex);
 
 	// Using that fresh DX9 Device, we can now hook the Present and CreateTexture calls.
+
+	IDirect3DDevice9* pDevice9 = *ppReturnedDeviceInterface;
 
 	if (pOrigPresent == nullptr && SUCCEEDED(hr) && ppReturnedDeviceInterface != nullptr)
 	{
@@ -530,27 +525,27 @@ HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 		DWORD dwOsErr;
 		
 		dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigPresent,
-			lpvtbl_Present(pDevice9Ex), Hooked_Present, 0);
+			lpvtbl_Present(pDevice9), Hooked_Present, 0);
 		if (FAILED(dwOsErr))
 			::OutputDebugStringA("Failed to hook IDirect3DDevice9::Present\n");
 
 		dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigCreateTexture,
-			lpvtbl_CreateTexture(pDevice9Ex), Hooked_CreateTexture, 0);
+			lpvtbl_CreateTexture(pDevice9), Hooked_CreateTexture, 0);
 		if (FAILED(dwOsErr))
 			::OutputDebugStringA("Failed to hook IDirect3DDevice9::CreateTexture\n");
 
 		dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigCreateCubeTexture,
-			lpvtbl_CreateCubeTexture(pDevice9Ex), Hooked_CreateCubeTexture, 0);
+			lpvtbl_CreateCubeTexture(pDevice9), Hooked_CreateCubeTexture, 0);
 		if (FAILED(dwOsErr))
 			::OutputDebugStringA("Failed to hook IDirect3DDevice9::CreateCubeTexture\n");
 
 		dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigCreateVertexBuffer,
-			lpvtbl_CreateVertexBuffer(pDevice9Ex), Hooked_CreateVertexBuffer, 0);
+			lpvtbl_CreateVertexBuffer(pDevice9), Hooked_CreateVertexBuffer, 0);
 		if (FAILED(dwOsErr))
 			::OutputDebugStringA("Failed to hook IDirect3DDevice9::CreateVertexBuffer\n");
 
 		dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigCreateIndexBuffer,
-			lpvtbl_CreateIndexBuffer(pDevice9Ex), Hooked_CreateIndexBuffer, 0);
+			lpvtbl_CreateIndexBuffer(pDevice9), Hooked_CreateIndexBuffer, 0);
 		if (FAILED(dwOsErr))
 			::OutputDebugStringA("Failed to hook IDirect3DDevice9::CreateIndexBuffer\n");
 
@@ -559,7 +554,8 @@ HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 		if (FAILED(res))
 			throw std::exception("Failed to NvAPI_Initialize\n");
 
-		res = NvAPI_Stereo_CreateHandleFromIUnknown(pDevice9Ex, &gNVAPI);
+		// ToDo: need to handle stereo disabled...
+		res = NvAPI_Stereo_CreateHandleFromIUnknown(pDevice9, &gNVAPI);
 		if (FAILED(res))
 			throw std::exception("Failed to NvAPI_Stereo_CreateHandleFromIUnknown\n");
 
@@ -585,7 +581,7 @@ HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 		UINT height = pPresentationParameters->BackBufferHeight;
 		D3DFORMAT format = pPresentationParameters->BackBufferFormat;
 
-		res = pDevice9Ex->CreateTexture(width, height, 0, D3DUSAGE_RENDERTARGET, format, D3DPOOL_DEFAULT,
+		res = pDevice9->CreateTexture(width, height, 0, D3DUSAGE_RENDERTARGET, format, D3DPOOL_DEFAULT,
 			&gGameTexture, nullptr);
 		if (FAILED(res))
 			throw std::exception("Fail to create shared stereo Texture");
@@ -596,7 +592,7 @@ HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 
 		// Actual shared surface, as a RenderTarget. RenderTarget because its main
 		// goal at this moment is to be written to.
-		res = pDevice9Ex->CreateRenderTarget(width, height, format, D3DMULTISAMPLE_NONE, 0, true,
+		res = pDevice9->CreateRenderTarget(width, height, format, D3DMULTISAMPLE_NONE, 0, true,
 			&gSharedTarget, &gGameSharedHandle);
 		if (FAILED(res))
 			throw std::exception("Fail to CreateRenderTarget for copy of stereo Texture");
@@ -607,23 +603,23 @@ HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 		//
 		// And the thread synchronization Event object. Signaled when we get fresh bits.
 		// Starts in off state, thread active, so it should pause at launch.
-		gFreshBits = CreateEvent(
-			NULL,               // default security attributes
-			TRUE,               // manual-reset event
-			FALSE,              // initial state is nonsignaled
-			nullptr);			// object name
-		if (gFreshBits == nullptr)
-			throw std::exception("Fail to CreateEvent for gFreshBits");
+		//gFreshBits = CreateEvent(
+		//	NULL,               // default security attributes
+		//	TRUE,               // manual-reset event
+		//	FALSE,              // initial state is nonsignaled
+		//	nullptr);			// object name
+		//if (gFreshBits == nullptr)
+		//	throw std::exception("Fail to CreateEvent for gFreshBits");
 
-		gSharedThread = CreateThread(
-			NULL,                   // default security attributes
-			0,                      // use default stack size  
-			CopyGameToShared,       // thread function name
-			pDevice9Ex,		        // device, as argument to thread function 
-			0,				        // runs immediately, to a pause state. 
-			nullptr);			    // returns the thread identifier 
-		if (gSharedThread == nullptr)
-			throw std::exception("Fail to CreateThread for GameToShared");
+		//gSharedThread = CreateThread(
+		//	NULL,                   // default security attributes
+		//	0,                      // use default stack size  
+		//	CopyGameToShared,       // thread function name
+		//	pDevice9,		        // device, as argument to thread function 
+		//	0,				        // runs immediately, to a pause state. 
+		//	nullptr);			    // returns the thread identifier 
+		//if (gSharedThread == nullptr)
+		//	throw std::exception("Fail to CreateThread for GameToShared");
 
 	}
 

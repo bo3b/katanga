@@ -321,3 +321,22 @@ Looking at a dropped Compositor problem, where I see C show up periodically.  Sh
 not be happening, we have maybe 50% of GPU headroom.  Tried backing up from the
 extra thread to do second copy, and that did not help, so extra thread is not the
 problem.  
+Lots of other tests here, cannot quite pin it down.  Almost seems like a false
+error, although Oculus debug tends to be very good.  No other tool shows a snag
+when the ball is transparent up close, where in headset we see flashing F.  Tried
+VS profile, Unity GPU profile.  And multiple paths of dropping pieces of my 
+pipeline.  Only change that mattered was drawing the shared surface, even if bits
+were not changing.
+If not in the full screen foreground, I get Fs.  If it's full screen, but not front
+app, still get frames through, but no Fs.
+
+
+12-6-17
+Interesting experiment where I only create a DX9Ex factory, but then allow the calls
+to go through as normal DX9 calls for CreateDevice, CreateTexture, Present et. al.
+Creating the Shared resource still works, no error, and I get stereo out.
+This is probably the best way to go, to avoid having to tweak all the other calls for
+DX9, like CreateTexture, CreateTexure3D to add parameters.
+This works with only DX9Ex factory, but the returned CreateDevice is still considered
+a Device9Ex by the debug runtime, and I still need all the CreateTexture/Buffer overrides
+to fix those debug flaws.
