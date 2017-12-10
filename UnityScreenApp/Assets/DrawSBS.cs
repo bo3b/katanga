@@ -2,12 +2,14 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
+using System.IO;
+using System.Text;
+
 using UnityEngine;
 using UnityEngine.XR;
 using UnityEngine.UI;
 
 using Nektra.Deviare2;
-using System.IO;
 
 
 public class DrawSBS : MonoBehaviour
@@ -22,18 +24,31 @@ public class DrawSBS : MonoBehaviour
     Texture2D _bothEyes;
 
     // -----------------------------------------------------------------------------
+    
+    [DllImport("UnityNativePlugin64")]
+    static extern void SelectGameDialog([MarshalAs(UnmanagedType.LPWStr)] StringBuilder unicodeFileName, int len);
+
     void Start()
     {
         int hresult;
         object continueevent;
-
-
         string drawSBS_directory = Environment.CurrentDirectory;
-        print("root directory: " + drawSBS_directory);
-
         _nativeDLLName = Application.dataPath + "/Plugins/DeviarePlugin.dll";
-
         string game = @"G:\Games\The Ball\Binaries\Win32\theball.exe";
+
+
+        // Ask user to select the game to run in virtual 3D.  
+        // If they hold Ctrl at launch. Test for ctrl is in C++,
+        // because Unity does not support GetKey until Update.
+
+        int MAX_PATH = 260;
+        StringBuilder sb = new StringBuilder("arf arf arf", MAX_PATH);
+        SelectGameDialog(sb, sb.Capacity);
+        Directory.SetCurrentDirectory(drawSBS_directory);
+
+        if (sb.Length != 0)
+            game = sb.ToString();
+
 
         _spyMgr = new NktSpyMgr();
         hresult = _spyMgr.Initialize();

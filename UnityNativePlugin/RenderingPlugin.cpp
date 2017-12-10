@@ -194,3 +194,28 @@ extern "C" UnityRenderingEvent UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API GetRen
 	return OnRenderEvent;
 }
 
+
+// --------------------------------------------------------------------------
+// SelectGameDialog, to use windows select dialog to choose game exe.
+//
+// Modifies the input string to be the game path the user chooses.
+
+extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API SelectGameDialog(wchar_t *filename, int len)
+{
+	*filename = NULL;			// empty string default for failures/cancel.
+
+	if (!GetAsyncKeyState(VK_LCONTROL))
+		return;
+
+	OPENFILENAME ofn = { 0 };
+	ofn.lStructSize = sizeof(ofn);
+	ofn.hwndOwner = NULL;  // If you have a window to center over, put its HANDLE here
+	ofn.lpstrFilter = L"Game Exe\0*.exe\0\0";
+	ofn.lpstrFile = filename;
+	ofn.nMaxFile = len;
+	ofn.lpstrTitle = L"Select a Game Exe to launch in Virtual 3D.";
+	ofn.Flags = OFN_DONTADDTORECENT | OFN_FILEMUSTEXIST;
+
+	GetOpenFileName(&ofn);
+}
+
