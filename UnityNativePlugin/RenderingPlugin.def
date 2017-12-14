@@ -12,3 +12,4 @@ EXPORTS
    GetRenderEventFunc
 
    CreateSharedTexture
+   TriggerEvent

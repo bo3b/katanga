@@ -329,6 +329,26 @@ pipeline.  Only change that mattered was drawing the shared surface, even if bit
 were not changing.
 If not in the full screen foreground, I get Fs.  If it's full screen, but not front
 app, still get frames through, but no Fs.
+Changing vsync in game, to limited to 160 using .ini.  Works.  Game runs at 105 fps
+natively.  Still getting Fs.
+
+Turning off shared surface altogether, and setting the Textures to null still gives
+me Fs.  So even with no share at all between apps, it still stalls.  This suggests
+that it has something to do with the GPU itself, where the dual GPU processes stall
+the pipeline, or can't switch effectively or something.
+Definitely seems related to the transparency effect.  When I set ball to not transparent
+it doesn't F, in windowed mode.  Game specific?  Might be pipeline flush on transparent
+or something.
+
+After doing quite a bit of analysis, including using GPUView to look at GPU usage while
+both apps are running- the problem is that TheBall has a sequence that takes 8ms of time
+and locks out anything else from getting GPU time during that sequence. When this overlaps
+the Present for Katanga, it stalls and shows a dropped F frame. 
+The actual underlying problem is that the GPU scheduler is retarded, and apparently 
+cannot be tuned.  It decides unilatterally that the frontmost window TheBall is more 
+important than anything else and thus does not give up time when our much more critical
+VR app calls.  SetGPUPriority does nothing, and there are no nvapi calls that would
+allow a fix. Scheduler is a black box and fuck off.
 
 
 12-6-17

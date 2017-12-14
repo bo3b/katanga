@@ -5,3 +5,5 @@ EXPORTS
   OnHookRemoved  @4
   OnFunctionCall @5
   GetSharedHandle  @101
+  GetEventHandle   @102
+  TriggerEvent	   @103

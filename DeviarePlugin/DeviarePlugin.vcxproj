@@ -108,6 +108,7 @@
       <PrecompiledHeaderFile />
       <PrecompiledHeaderOutputFile />
       <ShowIncludes>false</ShowIncludes>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>

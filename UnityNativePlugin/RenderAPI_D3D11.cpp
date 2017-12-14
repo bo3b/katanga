@@ -247,6 +247,16 @@ ID3D11ShaderResourceView* RenderAPI_D3D11::CreateSharedSurface(HANDLE shared)
 	ID3D11Texture2D* texture;
 	ID3D11ShaderResourceView* pSRView;
 
+	// Bump priority for this Device, it's VR and must be tops.
+
+	IDXGIDevice* pDXGIDevice;
+	hr = m_Device->QueryInterface(__uuidof(IDXGIDevice), (void**)(&pDXGIDevice));
+	if (FAILED(hr))
+		__debugbreak();
+	hr = pDXGIDevice->SetGPUThreadPriority(7);
+	if (FAILED(hr))
+		__debugbreak();
+
 	hr = m_Device->OpenSharedResource(shared, __uuidof(ID3D11Resource), (void**)(&resource));
 	{
 		if (FAILED(hr))

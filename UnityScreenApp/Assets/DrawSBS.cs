@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.IO;
 using System.Text;
+using System.Threading;
 
 using UnityEngine;
 using UnityEngine.XR;
@@ -22,6 +23,8 @@ public class DrawSBS : MonoBehaviour
     // It automatically updates as the injected DLL copies the bits into the
     // shared resource.
     Texture2D _bothEyes;
+
+//    System.Int32 _gameEventSignal = 0;
 
     // -----------------------------------------------------------------------------
     
@@ -198,9 +201,42 @@ public class DrawSBS : MonoBehaviour
         rightMat.mainTextureOffset = new Vector2(0.0f, 0);
 
 
-        //StartCoroutine("UpdateFPS");
+        // ToDo: To work, we need to pass in a parameter? 
+        // This will call to DeviarePlugin native DLL routine to fetch current gGameSurfaceShare HANDLE.
+        //System.Int32 dummy = 0; // (int)_tex.GetNativeTexturePtr();
+        //object deviare = dummy;
+        //_gameEventSignal = _spyMgr.CallCustomApi(_gameProcess, _nativeDLLName, "GetEventHandle", ref deviare, true);
+
+
+        StartCoroutine("SyncAtEndofFrame");
 
         yield return null;
+    }
+
+
+    // -----------------------------------------------------------------------------
+    // Wait for the EndOfFrame, and then trigger the sync Event to allow
+    // the game to continue.  Will use the _gameEventSignal from the NativePlugin
+    // to trigger the Event which was actually created in the game process.
+    // _gameEventSignal is a HANDLE from x32 game.
+
+    // Our x64 Native DLL allows us direct access to DX11 in order to take
+    // the shared handle and turn it into a ID3D11ShaderResourceView for Unity.
+    //[DllImport("UnityNativePlugin64")]
+    //private static extern void TriggerEvent(int eventHandle);
+
+    private IEnumerator SyncAtEndofFrame()
+    {
+        while (true)
+        {
+            yield return new WaitForFixedUpdate();
+
+            //TriggerEvent(_gameEventSignal);        
+
+            System.Int32 dummy = 0; 
+            object deviare = dummy;
+            _spyMgr.CallCustomApi(_gameProcess, _nativeDLLName, "TriggerEvent", ref deviare, true);
+        }
     }
 
 
@@ -228,7 +264,7 @@ public class DrawSBS : MonoBehaviour
     // Update is called once per frame, before rendering. Great diagram:
     // https://docs.unity3d.com/Manual/ExecutionOrder.html
     // Update is much slower than coroutines.  Unless it's required for VR, skip it.
-
+   
     void Update()
     {
         if (Time.frameCount % 30 == 0)

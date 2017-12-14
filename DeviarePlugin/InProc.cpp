@@ -79,6 +79,7 @@ IDirect3DTexture9* gGameTexture = nullptr;
 IDirect3DSurface9* gGameSurface = nullptr;	// created as a reference to Texture
 
 HANDLE gSharedThread = nullptr;				// will copy from GameSurface to SharedSurface
+
 HANDLE gFreshBits = nullptr;				// Synchronization Event object
 
 IDirect3DSurface9* gSharedTarget = nullptr;	// Actual shared RenderTarget
@@ -104,6 +105,24 @@ HANDLE WINAPI GetSharedHandle(int* in)
 	return gGameSharedHandle;
 }
 
+// Shared Event object that is the notification that the VR side
+// has called Present.
+
+HANDLE WINAPI GetEventHandle(int* in)
+{
+	::OutputDebugString(L"GetSharedEvent::\n");
+
+	return gFreshBits;
+}
+
+HANDLE WINAPI TriggerEvent(int* in)
+{
+//	::OutputDebugString(L"TriggerEvent::\n");
+
+	BOOL res = SetEvent(gFreshBits);
+
+	return NULL;
+}
 
 
 //-----------------------------------------------------------
@@ -175,6 +194,20 @@ HRESULT __stdcall Hooked_Present(IDirect3DDevice9* This,
 #endif
 	}
 	backBuffer->Release();
+
+	// Wait for the Present here in the game, until we are past the Present in Vr.
+	// This will force the game to synchronize with the VR display timing, and not
+	// interrupt the critical end of frame and compositor blits.
+	// At the expense of making the game run slower.
+
+	DWORD object = WaitForSingleObject(gFreshBits, 60);
+	if (object != WAIT_OBJECT_0)
+		::OutputDebugString(L"Bad WaitForSingleObject in Present.\n");
+
+	BOOL reset = ResetEvent(gFreshBits);
+	if (!reset)
+		::OutputDebugString(L"Bad ResetEvent in Present.\n");
+
 
 	HRESULT hrp = pOrigPresent(This, pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
 	return hrp;
@@ -563,6 +596,17 @@ HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 		if (FAILED(res))
 			throw std::exception("Failed to NvAPI_Stereo_SetSurfaceCreationMode\n");
 
+
+		// Make the priority lower for this game thread, to allow VR side preference.
+
+		IDirect3DDevice9Ex* pExDevice;
+		res = pDevice9->QueryInterface(__uuidof(IDirect3DDevice9Ex), (void**)(&pExDevice));
+		if (FAILED(res))
+			throw std::exception("Failed to QueryInterface for IDirect3DDevice9Ex\n");
+		res = pExDevice->SetGPUThreadPriority(-1);
+		if (FAILED(res))
+			throw std::exception("Failed to SetGPUThreadPriority for IDirect3DDevice9Ex\n");
+
 		// Now that we have a proper Ex Device from the game, let's also make a 
 		// DX9 Surface, so that we can snapshot the game output.  This surface needs to
 		// use the Shared parameter, so that we can share it to another Device.  Because
@@ -603,13 +647,13 @@ HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 		//
 		// And the thread synchronization Event object. Signaled when we get fresh bits.
 		// Starts in off state, thread active, so it should pause at launch.
-		//gFreshBits = CreateEvent(
-		//	NULL,               // default security attributes
-		//	TRUE,               // manual-reset event
-		//	FALSE,              // initial state is nonsignaled
-		//	nullptr);			// object name
-		//if (gFreshBits == nullptr)
-		//	throw std::exception("Fail to CreateEvent for gFreshBits");
+		gFreshBits = CreateEvent(
+			NULL,               // default security attributes
+			FALSE,              // not manual, auto-reset event
+			FALSE,              // initial state is nonsignaled
+			nullptr);			// object name
+		if (gFreshBits == nullptr)
+			throw std::exception("Fail to CreateEvent for gFreshBits");
 
 		//gSharedThread = CreateThread(
 		//	NULL,                   // default security attributes
