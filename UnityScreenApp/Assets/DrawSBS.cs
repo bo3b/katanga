@@ -37,7 +37,8 @@ public class DrawSBS : MonoBehaviour
         object continueevent;
         string drawSBS_directory = Environment.CurrentDirectory;
         _nativeDLLName = Application.dataPath + "/Plugins/DeviarePlugin.dll";
-        string game = @"G:\Games\The Ball\Binaries\Win32\theball.exe";
+        string game = @"G:\Games\limbo\limbo.exe";
+        //string game = "C:\\Program Files (x86)\\Steam\\steam.exe -applaunch 35460";
 
 
         // Ask user to select the game to run in virtual 3D.  
@@ -273,10 +274,32 @@ public class DrawSBS : MonoBehaviour
         if (Input.GetKey("escape"))
             Application.Quit();
 
+        // The triangle from camera to quad edges is setup as
+        //  camera: 0, 1, 0
+        //  quad:   0, 2.75, 5
+        // So the distance to screen is h=5, and width is w=8.
+        // Triangle calculator says the inner angle and corner angle is thus
+        //  1.349 rad  0.896 rad
+        // h=w/2*tan(corner) => w=h*2/tan(corner) 
+
+        double h, w;
+        float width;
         if (Input.GetAxis("Mouse ScrollWheel") < 0)
+        {
             this.transform.position += Vector3.back;
+            h = this.transform.position.z;
+            w = h * 2 / Math.Tan(0.896);
+            width = (float)w;
+            this.transform.localScale = new Vector3(width, -width * 9 / 16, 1);
+        }
         if (Input.GetAxis("Mouse ScrollWheel") > 0)
+        {
             this.transform.position += Vector3.forward;
+            h = this.transform.position.z;
+            w = h * 2 / Math.Tan(0.896);
+            width = (float)w;
+            this.transform.localScale = new Vector3(width, -width * 9 / 16, 1);
+        }
     }
 }
 
