@@ -224,11 +224,11 @@ extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API SelectGameDialog(wcha
 // TriggerEvent, an example function we export which is used to trigger the Event
 // object in the game process.  That will allow the drawing to continue at Present.
 
-extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API TriggerEvent(HANDLE eventHandle)
-{
-	BOOL res = SetEvent(eventHandle);
-	if (!res)
-		__debugbreak();
-}
+//extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API TriggerEvent(HANDLE eventHandle)
+//{
+//	BOOL res = SetEvent(eventHandle);
+//	if (!res)
+//		__debugbreak();
+//}
 
 

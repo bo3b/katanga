@@ -80,7 +80,7 @@ IDirect3DSurface9* gGameSurface = nullptr;	// created as a reference to Texture
 
 HANDLE gSharedThread = nullptr;				// will copy from GameSurface to SharedSurface
 
-HANDLE gFreshBits = nullptr;				// Synchronization Event object
+//HANDLE gFreshBits = nullptr;				// Synchronization Event object
 
 IDirect3DSurface9* gSharedTarget = nullptr;	// Actual shared RenderTarget
 HANDLE gGameSharedHandle = nullptr;			// Handle to share with DX11
@@ -108,21 +108,21 @@ HANDLE WINAPI GetSharedHandle(int* in)
 // Shared Event object that is the notification that the VR side
 // has called Present.
 
-HANDLE WINAPI GetEventHandle(int* in)
-{
-	::OutputDebugString(L"GetSharedEvent::\n");
-
-	return gFreshBits;
-}
-
-HANDLE WINAPI TriggerEvent(int* in)
-{
-//	::OutputDebugString(L"TriggerEvent::\n");
-
-	BOOL res = SetEvent(gFreshBits);
-
-	return NULL;
-}
+//HANDLE WINAPI GetEventHandle(int* in)
+//{
+//	::OutputDebugString(L"GetSharedEvent::\n");
+//
+//	return gFreshBits;
+//}
+//
+//HANDLE WINAPI TriggerEvent(int* in)
+//{
+////	::OutputDebugString(L"TriggerEvent::\n");
+//
+//	BOOL res = SetEvent(gFreshBits);
+//
+//	return NULL;
+//}
 
 
 //-----------------------------------------------------------
@@ -200,13 +200,13 @@ HRESULT __stdcall Hooked_Present(IDirect3DDevice9* This,
 	// interrupt the critical end of frame and compositor blits.
 	// At the expense of making the game run slower.
 
-	DWORD object = WaitForSingleObject(gFreshBits, 60);
-	if (object != WAIT_OBJECT_0)
-		::OutputDebugString(L"Bad WaitForSingleObject in Present.\n");
+	//DWORD object = WaitForSingleObject(gFreshBits, 60);
+	//if (object != WAIT_OBJECT_0)
+	//	::OutputDebugString(L"Bad WaitForSingleObject in Present.\n");
 
-	BOOL reset = ResetEvent(gFreshBits);
-	if (!reset)
-		::OutputDebugString(L"Bad ResetEvent in Present.\n");
+	//BOOL reset = ResetEvent(gFreshBits);
+	//if (!reset)
+	//	::OutputDebugString(L"Bad ResetEvent in Present.\n");
 
 
 	HRESULT hrp = pOrigPresent(This, pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
@@ -230,31 +230,31 @@ HRESULT __stdcall Hooked_Present(IDirect3DDevice9* This,
 // After that, anything taking 5 seconds has to be a fatal error, we are expecting
 // this to fire every frame.
 
-DWORD __stdcall CopyGameToShared(LPVOID lpDevice)
-{
-	IDirect3DDevice9* device = static_cast<IDirect3DDevice9*>(lpDevice);
-	HRESULT hr;
-	DWORD object;
-	BOOL reset;
-
-	while (true)
-	{
-		object = WaitForSingleObject(gFreshBits, 60 * 1000);
-		if (object != WAIT_OBJECT_0)
-			break;
-
-		hr = device->StretchRect(gGameSurface, nullptr, gSharedTarget, nullptr, D3DTEXF_NONE);
-		// Not supposed to use CLR.
-		//if (FAILED(hr))
-		//	::OutputDebugString(L"Bad StretchRect to RenderTarget in CopyGameToShared thread.\n");
-
-		reset = ResetEvent(gFreshBits);
-		if (!reset)
-			break;
-	}
-
-	return E_FAIL;
-}
+//DWORD __stdcall CopyGameToShared(LPVOID lpDevice)
+//{
+//	IDirect3DDevice9* device = static_cast<IDirect3DDevice9*>(lpDevice);
+//	HRESULT hr;
+//	DWORD object;
+//	BOOL reset;
+//
+//	while (true)
+//	{
+//		object = WaitForSingleObject(gFreshBits, 60 * 1000);
+//		if (object != WAIT_OBJECT_0)
+//			break;
+//
+//		hr = device->StretchRect(gGameSurface, nullptr, gSharedTarget, nullptr, D3DTEXF_NONE);
+//		// Not supposed to use CLR.
+//		//if (FAILED(hr))
+//		//	::OutputDebugString(L"Bad StretchRect to RenderTarget in CopyGameToShared thread.\n");
+//
+//		reset = ResetEvent(gFreshBits);
+//		if (!reset)
+//			break;
+//	}
+//
+//	return E_FAIL;
+//}
 
 
 //-----------------------------------------------------------
@@ -647,13 +647,13 @@ HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 		//
 		// And the thread synchronization Event object. Signaled when we get fresh bits.
 		// Starts in off state, thread active, so it should pause at launch.
-		gFreshBits = CreateEvent(
-			NULL,               // default security attributes
-			FALSE,              // not manual, auto-reset event
-			FALSE,              // initial state is nonsignaled
-			nullptr);			// object name
-		if (gFreshBits == nullptr)
-			throw std::exception("Fail to CreateEvent for gFreshBits");
+		//gFreshBits = CreateEvent(
+		//	NULL,               // default security attributes
+		//	FALSE,              // not manual, auto-reset event
+		//	FALSE,              // initial state is nonsignaled
+		//	nullptr);			// object name
+		//if (gFreshBits == nullptr)
+		//	throw std::exception("Fail to CreateEvent for gFreshBits");
 
 		//gSharedThread = CreateThread(
 		//	NULL,                   // default security attributes

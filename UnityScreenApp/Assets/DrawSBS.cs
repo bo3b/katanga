@@ -37,8 +37,9 @@ public class DrawSBS : MonoBehaviour
         object continueevent;
         string drawSBS_directory = Environment.CurrentDirectory;
         _nativeDLLName = Application.dataPath + "/Plugins/DeviarePlugin.dll";
-        string game = @"G:\Games\limbo\limbo.exe";
+        //string game = @"G:\Games\S.T.A.L.K.E.R. Shadow of Chernobyl\bin\XR_3DA.exe";
         //string game = "C:\\Program Files (x86)\\Steam\\steam.exe -applaunch 35460";
+        string game = @"G:\Games\The Ball\Binaries\Win32\theball.exe";
 
 
         // Ask user to select the game to run in virtual 3D.  
@@ -209,7 +210,7 @@ public class DrawSBS : MonoBehaviour
         //_gameEventSignal = _spyMgr.CallCustomApi(_gameProcess, _nativeDLLName, "GetEventHandle", ref deviare, true);
 
 
-        StartCoroutine("SyncAtEndofFrame");
+//        StartCoroutine("SyncAtEndofFrame");
 
         yield return null;
     }
@@ -226,19 +227,19 @@ public class DrawSBS : MonoBehaviour
     //[DllImport("UnityNativePlugin64")]
     //private static extern void TriggerEvent(int eventHandle);
 
-    private IEnumerator SyncAtEndofFrame()
-    {
-        while (true)
-        {
-            yield return new WaitForFixedUpdate();
+    //private IEnumerator SyncAtEndofFrame()
+    //{
+    //    while (true)
+    //    {
+    //        yield return new WaitForFixedUpdate();
 
-            //TriggerEvent(_gameEventSignal);        
+    //        //TriggerEvent(_gameEventSignal);        
 
-            System.Int32 dummy = 0; 
-            object deviare = dummy;
-            _spyMgr.CallCustomApi(_gameProcess, _nativeDLLName, "TriggerEvent", ref deviare, true);
-        }
-    }
+    //        System.Int32 dummy = 0; 
+    //        object deviare = dummy;
+    //        _spyMgr.CallCustomApi(_gameProcess, _nativeDLLName, "TriggerEvent", ref deviare, true);
+    //    }
+    //}
 
 
     // -----------------------------------------------------------------------------
