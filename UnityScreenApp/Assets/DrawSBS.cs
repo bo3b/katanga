@@ -210,7 +210,7 @@ public class DrawSBS : MonoBehaviour
         //_gameEventSignal = _spyMgr.CallCustomApi(_gameProcess, _nativeDLLName, "GetEventHandle", ref deviare, true);
 
 
-//        StartCoroutine("SyncAtEndofFrame");
+        StartCoroutine("SyncAtEndofFrame");
 
         yield return null;
     }
@@ -221,25 +221,32 @@ public class DrawSBS : MonoBehaviour
     // the game to continue.  Will use the _gameEventSignal from the NativePlugin
     // to trigger the Event which was actually created in the game process.
     // _gameEventSignal is a HANDLE from x32 game.
+    //
+    // WaitForFixedUpdate happens right at the start of next frame.
+    // The goal here is to sync up the game with the VR state.  VR state needs
+    // to take precedence, and is running at 90 Hz.  As long as the game can
+    // maintain better than that rate, we can delay the game each frame to keep 
+    // them in sync. If the game cannot keep that rate, it will drop to 1/2
+    // rate at 45 Hz. Not as good, but acceptable.
 
     // Our x64 Native DLL allows us direct access to DX11 in order to take
     // the shared handle and turn it into a ID3D11ShaderResourceView for Unity.
-    //[DllImport("UnityNativePlugin64")]
-    //private static extern void TriggerEvent(int eventHandle);
+    [DllImport("UnityNativePlugin64")]
+    private static extern void TriggerEvent(int eventHandle);
 
-    //private IEnumerator SyncAtEndofFrame()
-    //{
-    //    while (true)
-    //    {
-    //        yield return new WaitForFixedUpdate();
+    private IEnumerator SyncAtEndofFrame()
+    {
+        while (true)
+        {
+            yield return new WaitForFixedUpdate();
 
-    //        //TriggerEvent(_gameEventSignal);        
+            //TriggerEvent(_gameEventSignal);        
 
-    //        System.Int32 dummy = 0; 
-    //        object deviare = dummy;
-    //        _spyMgr.CallCustomApi(_gameProcess, _nativeDLLName, "TriggerEvent", ref deviare, true);
-    //    }
-    //}
+            System.Int32 dummy = 0;
+            object deviare = dummy;
+            _spyMgr.CallCustomApi(_gameProcess, _nativeDLLName, "TriggerEvent", ref deviare, false);
+        }
+    }
 
 
     // -----------------------------------------------------------------------------

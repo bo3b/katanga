@@ -80,7 +80,7 @@ IDirect3DSurface9* gGameSurface = nullptr;	// created as a reference to Texture
 
 HANDLE gSharedThread = nullptr;				// will copy from GameSurface to SharedSurface
 
-//HANDLE gFreshBits = nullptr;				// Synchronization Event object
+HANDLE gFreshBits = nullptr;				// Synchronization Event object
 
 IDirect3DSurface9* gSharedTarget = nullptr;	// Actual shared RenderTarget
 HANDLE gGameSharedHandle = nullptr;			// Handle to share with DX11
@@ -108,21 +108,24 @@ HANDLE WINAPI GetSharedHandle(int* in)
 // Shared Event object that is the notification that the VR side
 // has called Present.
 
-//HANDLE WINAPI GetEventHandle(int* in)
-//{
-//	::OutputDebugString(L"GetSharedEvent::\n");
-//
-//	return gFreshBits;
-//}
-//
-//HANDLE WINAPI TriggerEvent(int* in)
-//{
-////	::OutputDebugString(L"TriggerEvent::\n");
-//
-//	BOOL res = SetEvent(gFreshBits);
-//
-//	return NULL;
-//}
+HANDLE WINAPI GetEventHandle(int* in)
+{
+	::OutputDebugString(L"GetSharedEvent::\n");
+
+	return gFreshBits;
+}
+
+// Called from C# side after VR app has presented its frame.
+// This allows our locked present for the target game to continue.
+
+HANDLE WINAPI TriggerEvent(int* in)
+{
+//	::OutputDebugString(L"TriggerEvent::\n");
+
+	BOOL res = SetEvent(gFreshBits);
+
+	return NULL;
+}
 
 
 //-----------------------------------------------------------
@@ -195,21 +198,23 @@ HRESULT __stdcall Hooked_Present(IDirect3DDevice9* This,
 	}
 	backBuffer->Release();
 
-	// Wait for the Present here in the game, until we are past the Present in Vr.
+	HRESULT hrp = pOrigPresent(This, pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
+
+
+	// Wait after Present here in the game, until we are past the Present in Vr.
 	// This will force the game to synchronize with the VR display timing, and not
 	// interrupt the critical end of frame and compositor blits.
-	// At the expense of making the game run slower.
+	// At the expense of making the game run slower and be locked to the VR 
+	// frame rate.
 
-	//DWORD object = WaitForSingleObject(gFreshBits, 60);
-	//if (object != WAIT_OBJECT_0)
-	//	::OutputDebugString(L"Bad WaitForSingleObject in Present.\n");
+	DWORD object = WaitForSingleObject(gFreshBits, 100);
+	if (object != WAIT_OBJECT_0)
+		::OutputDebugString(L"Bad WaitForSingleObject in Present.\n");
 
-	//BOOL reset = ResetEvent(gFreshBits);
-	//if (!reset)
-	//	::OutputDebugString(L"Bad ResetEvent in Present.\n");
+	BOOL reset = ResetEvent(gFreshBits);
+	if (!reset)
+		::OutputDebugString(L"Bad ResetEvent in Present.\n");
 
-
-	HRESULT hrp = pOrigPresent(This, pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
 	return hrp;
 }
 
@@ -294,11 +299,13 @@ HRESULT __stdcall Hooked_CreateTexture(IDirect3DDevice9* This,
 	/* [out, retval] */ IDirect3DTexture9 **ppTexture,
 	/* [in] */          HANDLE            *pSharedHandle)
 {
+#ifdef _DEBUG
 	wchar_t info[512];
 	swprintf_s(info, _countof(info),
 		L"NativePlugin::Hooked_CreateTexture - Levels: %d, Usage: %x, Format: %d, Pool: %d\n",
 		Levels, Usage, Format, Pool);
 	::OutputDebugString(info);
+#endif
 
 	// Force Managed_Pool to always be default, the only possibility on DX9Ex.
 	// D3DPOOL_SYSTEMMEM is still valid however, and should not be tweaked.
@@ -352,11 +359,13 @@ HRESULT __stdcall Hooked_CreateCubeTexture(IDirect3DDevice9* This,
 	/* [out, retval] */ IDirect3DCubeTexture9 **ppCubeTexture,
 	/* [in] */          HANDLE                *pSharedHandle)
 {
+#ifdef _DEBUG
 	wchar_t info[512];
 	swprintf_s(info, _countof(info),
 		L"NativePlugin::Hooked_CreateTexture - Levels: %d, Usage: %x, Format: %d, Pool: %d\n",
 		Levels, Usage, Format, Pool);
 	::OutputDebugString(info);
+#endif
 
 	// Force Managed_Pool to always be default, the only possibility on DX9Ex.
 	// D3DPOOL_SYSTEMMEM is still valid however, and should not be tweaked.
@@ -411,11 +420,13 @@ HRESULT __stdcall Hooked_CreateVertexBuffer(IDirect3DDevice9* This,
 	/* [out, retval] */ IDirect3DVertexBuffer9 **ppVertexBuffer,
 	/* [in] */          HANDLE                 *pSharedHandle)
 {
+#ifdef _DEBUG
 	wchar_t info[512];
 	swprintf_s(info, _countof(info),
 		L"NativePlugin::Hooked_CreateVertexBuffer -  Usage: %x, Pool: %d\n",
 		Usage, Pool);
 	::OutputDebugString(info);
+#endif
 
 	// Force Managed_Pool to always be default, the only possibility on DX9Ex.
 	// D3DPOOL_SYSTEMMEM is still valid however, and should not be tweaked.
@@ -462,11 +473,13 @@ HRESULT __stdcall Hooked_CreateIndexBuffer(IDirect3DDevice9* This,
 	/* [out, retval] */ IDirect3DIndexBuffer9 **ppIndexBuffer,
 	/* [in] */          HANDLE                *pSharedHandle)
 {
+#ifdef _DEBUG
 	wchar_t info[512];
 	swprintf_s(info, _countof(info),
 		L"NativePlugin::Hooked_CreateIndexBuffer -  Usage: %x, Format: %d, Pool: %d\n",
 		Usage, Format, Pool);
 	::OutputDebugString(info);
+#endif
 
 	// Force Managed_Pool to always be default, the only possibility on DX9Ex.
 	// D3DPOOL_SYSTEMMEM is still valid however, and should not be tweaked.
@@ -647,13 +660,13 @@ HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 		//
 		// And the thread synchronization Event object. Signaled when we get fresh bits.
 		// Starts in off state, thread active, so it should pause at launch.
-		//gFreshBits = CreateEvent(
-		//	NULL,               // default security attributes
-		//	FALSE,              // not manual, auto-reset event
-		//	FALSE,              // initial state is nonsignaled
-		//	nullptr);			// object name
-		//if (gFreshBits == nullptr)
-		//	throw std::exception("Fail to CreateEvent for gFreshBits");
+		gFreshBits = CreateEvent(
+			NULL,               // default security attributes
+			TRUE,               // manual, not auto-reset event
+			FALSE,              // initial state is nonsignaled
+			nullptr);			// object name
+		if (gFreshBits == nullptr)
+			throw std::exception("Fail to CreateEvent for gFreshBits");
 
 		//gSharedThread = CreateThread(
 		//	NULL,                   // default security attributes
