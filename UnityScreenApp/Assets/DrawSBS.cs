@@ -238,7 +238,7 @@ public class DrawSBS : MonoBehaviour
     {
         while (true)
         {
-            yield return new WaitForFixedUpdate();
+            yield return new WaitForEndOfFrame();
 
             //TriggerEvent(_gameEventSignal);        
 
