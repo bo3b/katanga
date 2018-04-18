@@ -87,7 +87,7 @@ public class DrawSBS : MonoBehaviour
 
             print("Load NativePlugin... " + _nativeDLLName);
             _spyMgr.LoadAgent(_gameProcess);
-            int result = _spyMgr.LoadCustomDll(_gameProcess, _nativeDLLName, true, true);
+            int result = _spyMgr.LoadCustomDll(_gameProcess, _nativeDLLName, false, true);
             if (result != 1)
                 throw new Exception("Could not load NativePlugin DLL.");
 
