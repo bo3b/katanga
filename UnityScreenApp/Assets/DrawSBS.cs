@@ -210,7 +210,7 @@ public class DrawSBS : MonoBehaviour
         //_gameEventSignal = _spyMgr.CallCustomApi(_gameProcess, _nativeDLLName, "GetEventHandle", ref deviare, true);
 
 
-        StartCoroutine("SyncAtEndofFrame");
+//        StartCoroutine("SyncAtStartOfFrame");
 
         yield return null;
     }
@@ -228,22 +228,31 @@ public class DrawSBS : MonoBehaviour
     // maintain better than that rate, we can delay the game each frame to keep 
     // them in sync. If the game cannot keep that rate, it will drop to 1/2
     // rate at 45 Hz. Not as good, but acceptable.
+    //
+    // At end of frame, stall the game draw calls with TriggerEvent.
 
-    // Our x64 Native DLL allows us direct access to DX11 in order to take
-    // the shared handle and turn it into a ID3D11ShaderResourceView for Unity.
-    [DllImport("UnityNativePlugin64")]
-    private static extern void TriggerEvent(int eventHandle);
 
-    private IEnumerator SyncAtEndofFrame()
+    // At start of frame, immediately after we've presented in VR, 
+    // restart the game app.
+    private IEnumerator SyncAtStartOfFrame()
     {
         while (true)
         {
-            yield return new WaitForEndOfFrame();
+            // yield, will run again after Update.
+            yield return null;
 
-            //TriggerEvent(_gameEventSignal);        
-
-            System.Int32 dummy = 0;
+            // Now at the front of each VR frame, allow game to carry on.
+            System.Int32 dummy = 1;  // SetEvent
             object deviare = dummy;
+            _spyMgr.CallCustomApi(_gameProcess, _nativeDLLName, "TriggerEvent", ref deviare, false);
+
+            // And wait here for nearly end of frame.
+            // This cannot be WaitForRealTime, that has less than 1 frame resolution.
+            // This will lock up the VR app for 10ms.
+            System.Threading.Thread.Sleep(8);
+
+            // Here 1 ms before end of VR frame, lock out the game.
+            dummy = 0;  // ResetEvent
             _spyMgr.CallCustomApi(_gameProcess, _nativeDLLName, "TriggerEvent", ref deviare, false);
         }
     }

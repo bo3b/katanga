@@ -4,7 +4,7 @@
 QualitySettings:
   m_ObjectHideFlags: 0
   serializedVersion: 5
-  m_CurrentQuality: 0
+  m_CurrentQuality: 3
   m_QualitySettings:
   - serializedVersion: 2
     name: Medium
@@ -94,7 +94,7 @@ QualitySettings:
     name: Ultra
     pixelLightCount: 4
     shadows: 0
-    shadowResolution: 2
+    shadowResolution: 0
     shadowProjection: 1
     shadowCascades: 4
     shadowDistance: 150
@@ -110,7 +110,7 @@ QualitySettings:
     softVegetation: 1
     realtimeReflectionProbes: 0
     billboardsFaceCameraPosition: 0
-    vSyncCount: 1
+    vSyncCount: 0
     lodBias: 2
     maximumLODLevel: 0
     particleRaycastBudget: 4096

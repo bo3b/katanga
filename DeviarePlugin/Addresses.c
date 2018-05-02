@@ -95,4 +95,12 @@ LPVOID lpvtbl_CreateIndexBuffer(IDirect3DDevice9* pDX9Device)
 	return pDX9Device->lpVtbl->CreateIndexBuffer;
 }
 
+LPVOID lpvtbl_DrawIndexedPrimitiveUP(IDirect3DDevice9* pDX9Device)
+{
+	if (!pDX9Device)
+		return NULL;
+
+	return pDX9Device->lpVtbl->DrawIndexedPrimitiveUP;
+}
+
 #undef CINTERFACE
