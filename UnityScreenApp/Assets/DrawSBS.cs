@@ -11,6 +11,7 @@ using UnityEngine.XR;
 using UnityEngine.UI;
 
 using Nektra.Deviare2;
+using System.Diagnostics;
 
 
 public class DrawSBS : MonoBehaviour
@@ -24,10 +25,12 @@ public class DrawSBS : MonoBehaviour
     // shared resource.
     Texture2D _bothEyes;
 
-//    System.Int32 _gameEventSignal = 0;
+    //    System.Int32 _gameEventSignal = 0;
+    static int ResetEvent = 0;
+    static int SetEvent = 1;
 
     // -----------------------------------------------------------------------------
-    
+
     [DllImport("UnityNativePlugin64")]
     static extern void SelectGameDialog([MarshalAs(UnmanagedType.LPWStr)] StringBuilder unicodeFileName, int len);
 
@@ -210,7 +213,8 @@ public class DrawSBS : MonoBehaviour
         //_gameEventSignal = _spyMgr.CallCustomApi(_gameProcess, _nativeDLLName, "GetEventHandle", ref deviare, true);
 
 
-//        StartCoroutine("SyncAtStartOfFrame");
+        StartCoroutine("SyncAtStartOfFrame");
+        //StartCoroutine("SyncAtEndofFrame");
 
         yield return null;
     }
@@ -231,32 +235,95 @@ public class DrawSBS : MonoBehaviour
     //
     // At end of frame, stall the game draw calls with TriggerEvent.
 
+    long startTime = Stopwatch.GetTimestamp();
 
     // At start of frame, immediately after we've presented in VR, 
     // restart the game app.
     private IEnumerator SyncAtStartOfFrame()
     {
+        int callcount = 0;
+        print("SyncAtStartOfFrame, first call: " + startTime.ToString());
+
         while (true)
         {
-            // yield, will run again after Update.
+            // yield, will run again after Update.  
+            // This is super early in the frame, measurement shows maybe 
+            // 0.5ms after start.  
             yield return null;
 
-            // Now at the front of each VR frame, allow game to carry on.
-            System.Int32 dummy = 1;  // SetEvent
+            callcount += 1;
+
+            // Here at very early in frame, allow game to carry on.
+            System.Int32 dummy = SetEvent;
             object deviare = dummy;
             _spyMgr.CallCustomApi(_gameProcess, _nativeDLLName, "TriggerEvent", ref deviare, false);
 
-            // And wait here for nearly end of frame.
-            // This cannot be WaitForRealTime, that has less than 1 frame resolution.
-            // This will lock up the VR app for 10ms.
-            System.Threading.Thread.Sleep(8);
 
-            // Here 1 ms before end of VR frame, lock out the game.
-            dummy = 0;  // ResetEvent
+            long nowTime = Stopwatch.GetTimestamp();
+
+            // print every 30 frames 
+            if ((callcount % 30) == 0)
+            {
+                long elapsedTime = nowTime - startTime;
+                double elapsedMS = elapsedTime * (1000.0 / Stopwatch.Frequency);
+                print("SyncAtStartOfFrame: " + elapsedMS.ToString("F1"));
+            }
+
+            startTime = nowTime;
+
+            // Since this is another thread as a coroutine, we won't block the main
+            // drawing thread from doing its thing.
+            // Wait here by CPU spin, for 9ms, close to end of frame, before we
+            // pause the running game.  
+            // The CPU spin here is necessary, no normal waits or sleeps on Windows
+            // can do anything faster than about 16ms, which is way to slow for VR.
+            // Burning one CPU core for this is not a big deal.
+
+            double waited;
+            do
+            {
+                waited = Stopwatch.GetTimestamp() - startTime;
+                waited *= (1000.0 / Stopwatch.Frequency);
+                //if ((callcount % 30) == 0)
+                //{
+                //    print("waiting: " + waited.ToString("F1"));
+                //}
+            } while (waited < 3.0);
+
+
+            // Now at close to the end of each VR frame, tell game to pause.
+            dummy = ResetEvent;
+            deviare = dummy;
             _spyMgr.CallCustomApi(_gameProcess, _nativeDLLName, "TriggerEvent", ref deviare, false);
         }
     }
 
+    private IEnumerator SyncAtEndofFrame()
+    {
+        int callcount = 0;
+        long firstTime = Stopwatch.GetTimestamp();
+        print("SyncAtEndofFrame, first call: " + firstTime.ToString());
+
+        while (true)
+        {
+            yield return new WaitForEndOfFrame();
+
+            // print every 30 frames 
+            if ((callcount % 30) == 0)
+            {
+                long nowTime = Stopwatch.GetTimestamp();
+                long elapsedTime = nowTime - startTime;
+                double elapsedMS = elapsedTime * (1000.0 / Stopwatch.Frequency);
+                print("SyncAtEndofFrame: " + elapsedMS.ToString("F1"));
+            }
+
+            //TriggerEvent(_gameEventSignal);        
+
+            System.Int32 dummy = 0;  // ResetEvent
+            object deviare = dummy;
+            _spyMgr.CallCustomApi(_gameProcess, _nativeDLLName, "TriggerEvent", ref deviare, false);
+        }
+    }
 
     // -----------------------------------------------------------------------------
     //private IEnumerator UpdateFPS()
@@ -282,7 +349,7 @@ public class DrawSBS : MonoBehaviour
     // Update is called once per frame, before rendering. Great diagram:
     // https://docs.unity3d.com/Manual/ExecutionOrder.html
     // Update is much slower than coroutines.  Unless it's required for VR, skip it.
-   
+
     void Update()
     {
         if (Time.frameCount % 30 == 0)

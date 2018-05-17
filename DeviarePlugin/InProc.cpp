@@ -90,6 +90,11 @@ HANDLE gGameSharedHandle = nullptr;			// Handle to share with DX11
 // The nvapi stereo handle, to access the reverse blit.
 StereoHandle gNVAPI = nullptr;
 
+HANDLE gameThread = nullptr;
+
+wchar_t info[512];
+static unsigned long triggerCount = 0;
+
 
 // --------------------------------------------------------------------------------------------------
 
@@ -120,21 +125,53 @@ HANDLE WINAPI GetEventHandle(int* in)
 // Called from C# side after VR app has presented its frame.
 // This allows our locked present for the target game to continue.
 
+static LARGE_INTEGER startTriggeredTicks, resetTriggerTicks;
+static LARGE_INTEGER frequency;
+
 HANDLE WINAPI TriggerEvent(int* in)
 {
 	//	::OutputDebugString(L"TriggerEvent::\n");
 
-	if ((int)in == 0)
-	{
-		BOOL reset = ResetEvent(gFreshBits);
-		if (!reset)
-			::OutputDebugString(L"Bad ResetEvent in TriggerEvent.\n");
-	}
-	else
+
+	if ((int)in == 1)		// Active triggered
 	{
 		BOOL set = SetEvent(gFreshBits);
 		if (!set)
 			::OutputDebugString(L"Bad SetEvent in TriggerEvent.\n");
+
+		// Waste time spinning, while we wait for high resolution timer.
+		// This timer using QueryPerformanceCounter should be accurate
+		// to some 100ns or so, for any system we care about.
+
+		QueryPerformanceFrequency(&frequency);
+		QueryPerformanceCounter(&startTriggeredTicks);
+
+		triggerCount += 1;
+
+		if ((triggerCount % 30) == 0)
+		{
+			LONGLONG startMS = startTriggeredTicks.QuadPart * 1000 / frequency.QuadPart;
+			swprintf_s(info, _countof(info),
+				L"SetEvent - ms: %d, frequency: %d, triggerCount: %d\n", startMS, frequency.QuadPart, triggerCount);
+			::OutputDebugString(info);
+		}
+	}
+	else					// Reset untriggered
+	{
+		BOOL reset = ResetEvent(gFreshBits);
+		if (!reset)
+			::OutputDebugString(L"Bad ResetEvent in TriggerEvent.\n");
+
+		QueryPerformanceCounter(&resetTriggerTicks);
+
+		if ((triggerCount % 30) == 0)
+		{
+			LONGLONG frameTicks = resetTriggerTicks.QuadPart - startTriggeredTicks.QuadPart;
+			LONGLONG endMS = frameTicks * 1000 / frequency.QuadPart;
+			swprintf_s(info, _countof(info),
+				L"ResetEvent - ms: %d\n", endMS);
+			::OutputDebugString(info);
+		}
 	}
 
 	return NULL;
@@ -212,7 +249,14 @@ HRESULT __stdcall Hooked_Present(IDirect3DDevice9* This,
 	backBuffer->Release();
 
 	HRESULT hrp = pOrigPresent(This, pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
-	
+
+	// Sync starting next frame with VR app.
+	DWORD object;
+	do
+	{
+		object = WaitForSingleObject(gFreshBits, 0);
+	} while (object != WAIT_OBJECT_0);
+
 	return hrp;
 }
 
@@ -497,7 +541,6 @@ HRESULT __stdcall Hooked_CreateIndexBuffer(IDirect3DDevice9* This,
 
 long volatile waster = 0;
 unsigned int volatile limit = 30000;
-static unsigned int callcount = 0;
 unsigned int volatile calllimit = 30;
 
 // Experimental, delay at each DrawIndexedPrimitiveUP to allow the lame
@@ -525,7 +568,94 @@ HRESULT __stdcall Hooked_DrawIndexedPrimitiveUP(IDirect3DDevice9* This,
 	/* [in] */       UINT             VertexStreamZeroStride)
 {
 #ifdef _DEBUG
-	wchar_t info[512];
+	swprintf_s(info, _countof(info),
+		L"NativePlugin::Hooked_DrawIndexedPrimitiveUP -  NumVertices: %d, pIndexData: %p\n",
+		NumVertices, pIndexData);
+	::OutputDebugString(info);
+#endif
+
+	// Stall for a small amount of time, to allow scheduler to notice.
+	// 93 of these in TheBall frame.
+
+	// Wait here at a handy DrawCall, until we are past the Present in Vr.
+	// This will force the game to synchronize with the VR display timing, and not
+	// interrupt the critical end of frame and compositor blits.
+	// At the expense of making the game run slower.
+	// We need to do this because the NVidia scheduler for the GPU will give the
+	// topmost app all priority, and that stalls our VR app in the background.
+	
+	LARGE_INTEGER startWaiterTicks, loopWaitTicks;
+	waster = 0;
+	if ((triggerCount % 30) == 0)
+	{
+		QueryPerformanceCounter(&startWaiterTicks);
+	}
+
+	DWORD object;
+	do
+	{
+		waster += 1;
+		object = WaitForSingleObject(gFreshBits, 0);
+	}
+	while (object != WAIT_OBJECT_0);
+
+	if (((triggerCount % 30) == 0) && waster > 1)
+	{
+		LONGLONG midFrameTicks = startWaiterTicks.QuadPart - startTriggeredTicks.QuadPart;
+		LONGLONG waitStartMS = midFrameTicks * 1000 / frequency.QuadPart;
+
+		swprintf_s(info, _countof(info),
+			L"WaitForSingleObject -  startWaiter ms: %d\n", waitStartMS);
+		::OutputDebugString(info);
+
+		QueryPerformanceCounter(&loopWaitTicks);
+		LONGLONG loopedTicks = loopWaitTicks.QuadPart - startWaiterTicks.QuadPart;
+		LONGLONG endMS = loopedTicks * 1000 / frequency.QuadPart;
+
+		swprintf_s(info, _countof(info),
+			L"WaitForSingleObject -  count: %d, looped ms: %d\n", waster, endMS);
+		::OutputDebugString(info);
+	}
+
+
+	//BOOL reset = ResetEvent(gFreshBits);
+	//if (!reset)
+	//	::OutputDebugString(L"Bad ResetEvent in Present.\n");
+
+	//callcount++;
+	//if (callcount > calllimit)
+	//{
+	//	waster = 0;
+	//	for (size_t i = 0; i < limit; i++)
+	//		waster++;
+	//	callcount = 0;
+	//}
+
+	HRESULT hr = pOrigDrawIndexedPrimitiveUP(This, PrimitiveType, MinVertexIndex, NumVertices,
+		PrimitiveCount, pIndexData, IndexDataFormat, pVertexStreamZeroData, VertexStreamZeroStride);
+	if (FAILED(hr))
+		::OutputDebugStringA("Failed to call pOrigDrawIndexedPrimitiveUP\n");
+
+	return hr;
+}
+
+HRESULT(__stdcall *pOrigDrawIndexedPrimitive)(IDirect3DDevice9* This,
+/* [in] */ D3DPRIMITIVETYPE Type,
+/* [in] */ INT              BaseVertexIndex,
+/* [in] */ UINT             MinIndex,
+/* [in] */ UINT             NumVertices,
+/* [in] */ UINT             StartIndex,
+/* [in] */ UINT             PrimitiveCount) = nullptr;
+
+HRESULT __stdcall Hooked_DrawIndexedPrimitive(IDirect3DDevice9* This,
+	/* [in] */ D3DPRIMITIVETYPE Type,
+	/* [in] */ INT              BaseVertexIndex,
+	/* [in] */ UINT             MinIndex,
+	/* [in] */ UINT             NumVertices,
+	/* [in] */ UINT             StartIndex,
+	/* [in] */ UINT             PrimitiveCount)
+{
+#ifdef _DEBUG
 	swprintf_s(info, _countof(info),
 		L"NativePlugin::Hooked_DrawIndexedPrimitiveUP -  NumVertices: %d, pIndexData: %p\n",
 		NumVertices, pIndexData);
@@ -542,27 +672,29 @@ HRESULT __stdcall Hooked_DrawIndexedPrimitiveUP(IDirect3DDevice9* This,
 	// We need to do this because the NVidia scheduler for the GPU will give the
 	// topmost app all priority, and that stalls our VR app in the background.
 
-	//DWORD object = WaitForSingleObject(gFreshBits, 100);
-	//if (object != WAIT_OBJECT_0)
-	//	::OutputDebugString(L"Bad WaitForSingleObject in Present.\n");
+	DWORD object;
+	do
+	{
+		object = WaitForSingleObject(gFreshBits, 0);
+	} while (object != WAIT_OBJECT_0);
+
 
 	//BOOL reset = ResetEvent(gFreshBits);
 	//if (!reset)
 	//	::OutputDebugString(L"Bad ResetEvent in Present.\n");
 
-	callcount++;
-	if (callcount > calllimit)
-	{
-		waster = 0;
-		for (size_t i = 0; i < limit; i++)
-			waster++;
-		callcount = 0;
-	}
+	//callcount++;
+	//if (callcount > calllimit)
+	//{
+	//	waster = 0;
+	//	for (size_t i = 0; i < limit; i++)
+	//		waster++;
+	//	callcount = 0;
+	//}
 
-	HRESULT hr = pOrigDrawIndexedPrimitiveUP(This, PrimitiveType, MinVertexIndex, NumVertices,
-		PrimitiveCount, pIndexData, IndexDataFormat, pVertexStreamZeroData, VertexStreamZeroStride);
+	HRESULT hr = pOrigDrawIndexedPrimitive(This, Type, BaseVertexIndex, MinIndex, NumVertices, StartIndex, PrimitiveCount);
 	if (FAILED(hr))
-		::OutputDebugStringA("Failed to call pOrigDrawIndexedPrimitiveUP\n");
+		::OutputDebugStringA("Failed to call pOrigDrawIndexedPrimitive\n");
 
 	return hr;
 }
@@ -686,6 +818,7 @@ HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 
 
 		// Make the priority lower for this game thread, to allow VR side preference.
+		// ToDo: doesn't seem to change anything.
 
 		IDirect3DDevice9Ex* pExDevice;
 		res = pDevice9->QueryInterface(__uuidof(IDirect3DDevice9Ex), (void**)(&pExDevice));
@@ -753,10 +886,16 @@ HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 		//if (gSharedThread == nullptr)
 		//	throw std::exception("Fail to CreateThread for GameToShared");
 
+		// We are certain to be being called from the game's primary thread here,
+		// as this is CreateDevice.  Save the reference.
+		// ToDo: Can't use Suspend/Resume, because the task switching time is too
+		// high, like >16ms, which is must larger than we can use.
+		HANDLE thread = GetCurrentThread();
+		DuplicateHandle(GetCurrentProcess(), thread, GetCurrentProcess(), &gameThread, 0, TRUE, DUPLICATE_SAME_ACCESS);
 	}
 
 	// We are returning the IDirect3DDevice9Ex object, because the Device the game
-	// is going to use needs to be Ex type, so we can share from it's backbuffer.
+	// is going to use needs to be Ex type, so we can share from its backbuffer.
 
 	return hr;
 }
