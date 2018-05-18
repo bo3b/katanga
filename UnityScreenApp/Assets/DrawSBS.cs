@@ -213,7 +213,7 @@ public class DrawSBS : MonoBehaviour
         //_gameEventSignal = _spyMgr.CallCustomApi(_gameProcess, _nativeDLLName, "GetEventHandle", ref deviare, true);
 
 
-        StartCoroutine("SyncAtStartOfFrame");
+        //StartCoroutine("SyncAtStartOfFrame");
         //StartCoroutine("SyncAtEndofFrame");
 
         yield return null;

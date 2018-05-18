@@ -384,3 +384,7 @@ with the most work as well.  Worth an experiment to see if I can keep performanc
 this way.  Experiments with VorpX suggest that he is doing this, and his performance 
 seems spot on.
 
+Still going to use Unity app for the moment, as all the launching and Deviare injection
+happen there.  Just turning off the VR aspect, so as far as it is concerned, it's just
+a regular 2D game.
+
