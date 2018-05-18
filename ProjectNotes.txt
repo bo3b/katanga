@@ -360,3 +360,27 @@ DX9, like CreateTexture, CreateTexure3D to add parameters.
 This works with only DX9Ex factory, but the returned CreateDevice is still considered
 a Device9Ex by the debug runtime, and I still need all the CreateTexture/Buffer overrides
 to fix those debug flaws.
+
+
+5-18-18
+Pretty big gap there as I lost motivation.  Back looking at the dropped frames problem.
+Definitely seems to be priority related, but I have no tools to fix that. Asked for
+access to Context Priority in the NVidia VRworks, but no one responds, including Dave.
+
+Managed to create a semaphore based stall system, using a Windows Event that can be
+triggered on/off.  In the main VR app, I trigger this off after 3ms from the front of
+the frame, then in the game, at patched draw calls, I look for and stall if that is
+off.  This works in that the code does what I expected, and doesn't seem to have any
+bugs.  In GPUView I can see that the game 8ms blob is broken into two pieces and the
+frame rate in the game drops to 45.  
+
+Not a full solution though.  Still get occasional dropped frames as it conflicts.
+It would be possible to tune it for just this game, but that doesn't seem like a 
+particularly hot strategy anyway.  
+
+Switching now to embedding the DX11 VR side into the game app as well, and doing the 
+entire VR world on my own handbuilt code, no Unity.  This gives me the most flexibility,
+with the most work as well.  Worth an experiment to see if I can keep performance up
+this way.  Experiments with VorpX suggest that he is doing this, and his performance 
+seems spot on.
+
