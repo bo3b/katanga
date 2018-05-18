@@ -90,7 +90,7 @@ HANDLE gGameSharedHandle = nullptr;			// Handle to share with DX11
 // The nvapi stereo handle, to access the reverse blit.
 StereoHandle gNVAPI = nullptr;
 
-HANDLE gameThread = nullptr;
+//HANDLE gameThread = nullptr;
 
 wchar_t info[512];
 static unsigned long triggerCount = 0;
@@ -539,165 +539,6 @@ HRESULT __stdcall Hooked_CreateIndexBuffer(IDirect3DDevice9* This,
 	return hr;
 }
 
-long volatile waster = 0;
-unsigned int volatile limit = 30000;
-unsigned int volatile calllimit = 30;
-
-// Experimental, delay at each DrawIndexedPrimitiveUP to allow the lame
-// Nvidia scheduler to avoid locking out our VR world in deference to the
-// game window that is in front.
-
-HRESULT(__stdcall *pOrigDrawIndexedPrimitiveUP)(IDirect3DDevice9* This,
-	/* [in] */       D3DPRIMITIVETYPE PrimitiveType,
-	/* [in] */       UINT             MinVertexIndex,
-	/* [in] */       UINT             NumVertices,
-	/* [in] */       UINT             PrimitiveCount,
-	/* [in] */ const void             *pIndexData,
-	/* [in] */       D3DFORMAT        IndexDataFormat,
-	/* [in] */ const void             *pVertexStreamZeroData,
-	/* [in] */       UINT             VertexStreamZeroStride) = nullptr;
-
-HRESULT __stdcall Hooked_DrawIndexedPrimitiveUP(IDirect3DDevice9* This, 
-	/* [in] */       D3DPRIMITIVETYPE PrimitiveType,
-	/* [in] */       UINT             MinVertexIndex,
-	/* [in] */       UINT             NumVertices,
-	/* [in] */       UINT             PrimitiveCount,
-	/* [in] */ const void             *pIndexData,
-	/* [in] */       D3DFORMAT        IndexDataFormat,
-	/* [in] */ const void             *pVertexStreamZeroData,
-	/* [in] */       UINT             VertexStreamZeroStride)
-{
-#ifdef _DEBUG
-	swprintf_s(info, _countof(info),
-		L"NativePlugin::Hooked_DrawIndexedPrimitiveUP -  NumVertices: %d, pIndexData: %p\n",
-		NumVertices, pIndexData);
-	::OutputDebugString(info);
-#endif
-
-	// Stall for a small amount of time, to allow scheduler to notice.
-	// 93 of these in TheBall frame.
-
-	// Wait here at a handy DrawCall, until we are past the Present in Vr.
-	// This will force the game to synchronize with the VR display timing, and not
-	// interrupt the critical end of frame and compositor blits.
-	// At the expense of making the game run slower.
-	// We need to do this because the NVidia scheduler for the GPU will give the
-	// topmost app all priority, and that stalls our VR app in the background.
-	
-	LARGE_INTEGER startWaiterTicks, loopWaitTicks;
-	waster = 0;
-	if ((triggerCount % 30) == 0)
-	{
-		QueryPerformanceCounter(&startWaiterTicks);
-	}
-
-	DWORD object;
-	do
-	{
-		waster += 1;
-		object = WaitForSingleObject(gFreshBits, 0);
-	}
-	while (object != WAIT_OBJECT_0);
-
-	if (((triggerCount % 30) == 0) && waster > 1)
-	{
-		LONGLONG midFrameTicks = startWaiterTicks.QuadPart - startTriggeredTicks.QuadPart;
-		LONGLONG waitStartMS = midFrameTicks * 1000 / frequency.QuadPart;
-
-		swprintf_s(info, _countof(info),
-			L"WaitForSingleObject -  startWaiter ms: %d\n", waitStartMS);
-		::OutputDebugString(info);
-
-		QueryPerformanceCounter(&loopWaitTicks);
-		LONGLONG loopedTicks = loopWaitTicks.QuadPart - startWaiterTicks.QuadPart;
-		LONGLONG endMS = loopedTicks * 1000 / frequency.QuadPart;
-
-		swprintf_s(info, _countof(info),
-			L"WaitForSingleObject -  count: %d, looped ms: %d\n", waster, endMS);
-		::OutputDebugString(info);
-	}
-
-
-	//BOOL reset = ResetEvent(gFreshBits);
-	//if (!reset)
-	//	::OutputDebugString(L"Bad ResetEvent in Present.\n");
-
-	//callcount++;
-	//if (callcount > calllimit)
-	//{
-	//	waster = 0;
-	//	for (size_t i = 0; i < limit; i++)
-	//		waster++;
-	//	callcount = 0;
-	//}
-
-	HRESULT hr = pOrigDrawIndexedPrimitiveUP(This, PrimitiveType, MinVertexIndex, NumVertices,
-		PrimitiveCount, pIndexData, IndexDataFormat, pVertexStreamZeroData, VertexStreamZeroStride);
-	if (FAILED(hr))
-		::OutputDebugStringA("Failed to call pOrigDrawIndexedPrimitiveUP\n");
-
-	return hr;
-}
-
-HRESULT(__stdcall *pOrigDrawIndexedPrimitive)(IDirect3DDevice9* This,
-/* [in] */ D3DPRIMITIVETYPE Type,
-/* [in] */ INT              BaseVertexIndex,
-/* [in] */ UINT             MinIndex,
-/* [in] */ UINT             NumVertices,
-/* [in] */ UINT             StartIndex,
-/* [in] */ UINT             PrimitiveCount) = nullptr;
-
-HRESULT __stdcall Hooked_DrawIndexedPrimitive(IDirect3DDevice9* This,
-	/* [in] */ D3DPRIMITIVETYPE Type,
-	/* [in] */ INT              BaseVertexIndex,
-	/* [in] */ UINT             MinIndex,
-	/* [in] */ UINT             NumVertices,
-	/* [in] */ UINT             StartIndex,
-	/* [in] */ UINT             PrimitiveCount)
-{
-#ifdef _DEBUG
-	swprintf_s(info, _countof(info),
-		L"NativePlugin::Hooked_DrawIndexedPrimitiveUP -  NumVertices: %d, pIndexData: %p\n",
-		NumVertices, pIndexData);
-	::OutputDebugString(info);
-#endif
-
-	// Stall for a small amount of time, to allow scheduler to notice.
-	// 93 of these in TheBall frame.
-
-	// Wait here at a handy DrawCall, until we are past the Present in Vr.
-	// This will force the game to synchronize with the VR display timing, and not
-	// interrupt the critical end of frame and compositor blits.
-	// At the expense of making the game run slower.
-	// We need to do this because the NVidia scheduler for the GPU will give the
-	// topmost app all priority, and that stalls our VR app in the background.
-
-	DWORD object;
-	do
-	{
-		object = WaitForSingleObject(gFreshBits, 0);
-	} while (object != WAIT_OBJECT_0);
-
-
-	//BOOL reset = ResetEvent(gFreshBits);
-	//if (!reset)
-	//	::OutputDebugString(L"Bad ResetEvent in Present.\n");
-
-	//callcount++;
-	//if (callcount > calllimit)
-	//{
-	//	waster = 0;
-	//	for (size_t i = 0; i < limit; i++)
-	//		waster++;
-	//	callcount = 0;
-	//}
-
-	HRESULT hr = pOrigDrawIndexedPrimitive(This, Type, BaseVertexIndex, MinIndex, NumVertices, StartIndex, PrimitiveCount);
-	if (FAILED(hr))
-		::OutputDebugStringA("Failed to call pOrigDrawIndexedPrimitive\n");
-
-	return hr;
-}
 
 //-----------------------------------------------------------
 // Interface to implement the hook for IDirect3D9->CreateDevice
@@ -797,11 +638,6 @@ HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 		if (FAILED(dwOsErr))
 			::OutputDebugStringA("Failed to hook IDirect3DDevice9::CreateIndexBuffer\n");
 
-		dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigDrawIndexedPrimitiveUP,
-			lpvtbl_DrawIndexedPrimitiveUP(pDevice9), Hooked_DrawIndexedPrimitiveUP, 0);
-		if (FAILED(dwOsErr))
-			::OutputDebugStringA("Failed to hook IDirect3DDevice9::DrawIndexedPrimitiveUP\n");
-
 
 		HRESULT res = NvAPI_Initialize();
 		if (FAILED(res))
@@ -890,8 +726,8 @@ HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 		// as this is CreateDevice.  Save the reference.
 		// ToDo: Can't use Suspend/Resume, because the task switching time is too
 		// high, like >16ms, which is must larger than we can use.
-		HANDLE thread = GetCurrentThread();
-		DuplicateHandle(GetCurrentProcess(), thread, GetCurrentProcess(), &gameThread, 0, TRUE, DUPLICATE_SAME_ACCESS);
+		//HANDLE thread = GetCurrentThread();
+		//DuplicateHandle(GetCurrentProcess(), thread, GetCurrentProcess(), &gameThread, 0, TRUE, DUPLICATE_SAME_ACCESS);
 	}
 
 	// We are returning the IDirect3DDevice9Ex object, because the Device the game
