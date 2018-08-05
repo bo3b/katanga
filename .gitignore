@@ -56,3 +56,4 @@ ios.app
 # Builds
 *.apk
 *.unitypackage
+/.vs
