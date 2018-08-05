@@ -288,7 +288,9 @@ ID3D11ShaderResourceView* RenderAPI_D3D11::CreateSharedSurface(HANDLE shared)
 	D3D11_SHADER_RESOURCE_VIEW_DESC desc;
 	desc.Format = DXGI_FORMAT_B8G8R8A8_TYPELESS;
 	desc.ViewDimension = D3D_SRV_DIMENSION_TEXTURE2D;
-	desc.Texture2D = { 0, -1 };
+	desc.Texture2D.MipLevels = 0;
+	desc.Texture2D.MostDetailedMip = -1;  // Pathetic design- defined as UINT, requires -1.
+
 	hr = m_Device->CreateShaderResourceView(texture, NULL, &pSRView);
 	if (FAILED(hr))
 		__debugbreak();
