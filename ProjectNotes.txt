@@ -388,3 +388,11 @@ Still going to use Unity app for the moment, as all the launching and Deviare in
 happen there.  Just turning off the VR aspect, so as far as it is concerned, it's just
 a regular 2D game.
 
+
+8-5-18
+Installing for new Squanchando computer.  Decided to update the VS2017 and latest LTS
+Unity.  Reasoning that it's better to have latest graphical debugging tools here, as
+more valuable than stable setup.  Causes a few problems, like broken directory paths.
+
+Also of note, doesn't work at all on WMR, because WMR does not presently support 
+3D Vision.  Driver crashes if 3D is enabled.  Bug reported.
