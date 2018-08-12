@@ -42,7 +42,7 @@ public class DrawSBS : MonoBehaviour
         _nativeDLLName = Application.dataPath + "/Plugins/DeviarePlugin.dll";
         //string game = @"G:\Games\S.T.A.L.K.E.R. Shadow of Chernobyl\bin\XR_3DA.exe";
         //string game = "C:\\Program Files (x86)\\Steam\\steam.exe -applaunch 35460";
-        string game = @"G:\Games\The Ball\Binaries\Win32\theball.exe";
+        string game = @"w:\Games\The Ball\Binaries\Win32\theball.exe";
 
 
         // Ask user to select the game to run in virtual 3D.  
