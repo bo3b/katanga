@@ -396,3 +396,24 @@ more valuable than stable setup.  Causes a few problems, like broken directory p
 
 Also of note, doesn't work at all on WMR, because WMR does not presently support 
 3D Vision.  Driver crashes if 3D is enabled.  Bug reported.
+
+
+8-27-18
+Tried to get Registration-Free COM to work, but cannot quite get the right combo for
+the Unity app.  Too strange a runtime, not clear where to connect.  Got it working
+OK for InvisibleWalls sample, including a subdirectory of DeviareCOM, but nothing 
+else.  Does not appear to support an arbitrary directory. Documentation sucks, and I
+could not find any examples of people using a different directory than the root.
+Even using the root for Unity does not work, probably because they set the working
+directory to PlugIns or something.  Super fragile mechanism, no good debug tools.
+The sxstrace command creates an empty log in the Unity case.  All in all, a good
+waste of multiple weeks.
+
+Change of plan there- RegFree is a nice-to-have, not required.  Definitely far 
+superior, but tweaky and hard to figure out.  Easy enough to regsvr32 at install 
+time instead, so let's skip the distraction and get on more important stuff.
+
+Like avoiding the Steam sublaunch for hooking.  If I follow:
+https://stackoverflow.com/questions/9624629/debug-games-from-steam-with-pix
+and create a steamapp_id.txt file with 35460 in it, I can successfully launch
+the Steam version of TheBall without any problems.
