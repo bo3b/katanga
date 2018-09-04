@@ -11,6 +11,7 @@
 **/Assets/AssetStoreTools*
 **/Assets/Plugins/*
 /Release/*
+/Debug/*
 
 # Unity3D Crash Reports
 sysinfo.txt
@@ -56,4 +57,7 @@ ios.app
 # Builds
 *.apk
 *.unitypackage
-/.vs
+
+# New for VS2017
+/.vs/*
+UnityScreenApp/.vs/*
