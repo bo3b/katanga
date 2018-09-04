@@ -42,9 +42,11 @@ public class DrawSBS : MonoBehaviour
         _nativeDLLName = Application.dataPath + "/Plugins/DeviarePlugin.dll";
         //string game = @"G:\Games\S.T.A.L.K.E.R. Shadow of Chernobyl\bin\XR_3DA.exe";
         //string game = "C:\\Program Files (x86)\\Steam\\steam.exe -applaunch 35460";
-        string game = @"w:\Games\The Ball\Binaries\Win32\theball.exe";
+        //string game = @"C:\Program Files (x86)\Steam\steamapps\common\The Ball\Binaries\Win32\theball.exe";
+        string game = @"W:\steamlibrary\steamapps\common\Psychonauts\psychonauts.exe";
 
-
+        print("Running: " + game + "\n");
+        
         // Ask user to select the game to run in virtual 3D.  
         // If they hold Ctrl at launch. Test for ctrl is in C++,
         // because Unity does not support GetKey until Update.
@@ -57,6 +59,16 @@ public class DrawSBS : MonoBehaviour
         if (sb.Length != 0)
             game = sb.ToString();
 
+
+        string wd = System.IO.Directory.GetCurrentDirectory();
+        print("WorkingDirectory: " + wd);
+        print("CurrentDirectory: " + drawSBS_directory);
+
+        //print("App Directory:" + Environment.CurrentDirectory);
+        //foreach (var path in Directory.GetFileSystemEntries(Environment.CurrentDirectory))
+        //    print(System.IO.Path.GetFileName(path)); // file name
+        //foreach (var path in Directory.GetFileSystemEntries(Environment.CurrentDirectory + "\\Assets\\Plugins\\"))
+        //    print(System.IO.Path.GetFileName(path)); // file name
 
         _spyMgr = new NktSpyMgr();
         hresult = _spyMgr.Initialize();
