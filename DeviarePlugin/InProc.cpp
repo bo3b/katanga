@@ -251,11 +251,11 @@ HRESULT __stdcall Hooked_Present(IDirect3DDevice9* This,
 	HRESULT hrp = pOrigPresent(This, pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
 
 	// Sync starting next frame with VR app.
-	DWORD object;
-	do
-	{
-		object = WaitForSingleObject(gFreshBits, 0);
-	} while (object != WAIT_OBJECT_0);
+	//DWORD object;
+	//do
+	//{
+	//	object = WaitForSingleObject(gFreshBits, 0);
+	//} while (object != WAIT_OBJECT_0);
 
 	return hrp;
 }
