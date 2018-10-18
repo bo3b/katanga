@@ -417,3 +417,24 @@ Like avoiding the Steam sublaunch for hooking.  If I follow:
 https://stackoverflow.com/questions/9624629/debug-games-from-steam-with-pix
 and create a steamapp_id.txt file with 35460 in it, I can successfully launch
 the Steam version of TheBall without any problems.
+
+
+10-7-18
+Switching gears here.  Tried to hookup to Psychonauts, and was successful at running
+in VR as well.  Then tried to add HelixMod and discovered the old versions do not
+support the CreateDeviceEx call, so when it's installed, there is no hook available.
+Tried to work around it by calling out to System32 specifically, but something is
+interfering with HelixMod, or it is, and no longer hooks the game and fixes the shaders.
+This combined with all the tweaks needed to get Ex variant working seems like a hint
+this isn't the right approach.  
+
+This seems like as good a time as any to try to use the Encode/Decode chip that is 
+built into all GPUs now.  We can convert the game data to a video stream, and pass
+that to the VR/Unity side to Decode.  Pretty sure this is how BigScreen works.
+It can work lossless video, which was a big concern.  Only real question is whether
+it is fast enough.  Probably not as good as surface sharing, but maybe that doesn't 
+matter.  Should be more reliable and simpler to implement.  Should also make it 
+much easier to connect with DX11 games, as the decode part would not change.
+
+Hopefully the encode/decode does not require going to system memory, which would
+be a big killer to this approach.
