@@ -93,6 +93,7 @@ StereoHandle gNVAPI = nullptr;
 
 // The Nvidia video stream encoder 
 NvEncoderD3D9* gEncoder = nullptr;
+std::vector<std::vector<uint8_t>> gPacket;
 
 //HANDLE gameThread = nullptr;
 
@@ -235,9 +236,9 @@ HRESULT __stdcall Hooked_Present(IDirect3DDevice9* This,
 	hr = This->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &backBuffer);
 	if (SUCCEEDED(hr) && gGameSurface > 0)
 	{
-		// Send backbuffer to the video encoder
+		// Get next buffer for the video encoder
 		const NvEncInputFrame* encoderInputFrame = gEncoder->GetNextInputFrame();
-		gEncoder->EncodeFrame(vpacket);
+		IDirect3DSurface9 *pEncodeInputSurface = reinterpret_cast<IDirect3DSurface9*>(encoderInputFrame->inputPtr);
 
 		hr = NvAPI_Stereo_ReverseStereoBlitControl(gNVAPI, true);
 		{
@@ -246,9 +247,15 @@ HRESULT __stdcall Hooked_Present(IDirect3DDevice9* This,
 				::OutputDebugString(L"Bad StretchRect to Texture.\n");
 			hr = This->StretchRect(gGameSurface, nullptr, gSharedTarget, nullptr, D3DTEXF_NONE);
 
+			// Copy backbuffer onto the video encoder buffer
+			hr = This->StretchRect(backBuffer, nullptr, pEncodeInputSurface, nullptr, D3DTEXF_NONE);
+
 //			SetEvent(gFreshBits);		// Signal other thread to start StretchRect
 		}
 		hr = NvAPI_Stereo_ReverseStereoBlitControl(gNVAPI, false);
+
+		// ToDo: this is copying data back to CPU memory...
+		gEncoder->EncodeFrame(gPacket);
 
 #ifdef _DEBUG
 		DrawStereoOnGame(This, gSharedTarget, backBuffer);
