@@ -64,8 +64,9 @@
 
 #include "NktHookLib.h"
 
-#include "nvapi\nvapi.h"
+#include "nvapi.h"
 
+#include "NvEncoder\NvEncoderD3D9.h"
 
 //-----------------------------------------------------------
 
@@ -89,6 +90,9 @@ HANDLE gGameSharedHandle = nullptr;			// Handle to share with DX11
 
 // The nvapi stereo handle, to access the reverse blit.
 StereoHandle gNVAPI = nullptr;
+
+// The Nvidia video stream encoder 
+NvEncoderD3D9* gEncoder = nullptr;
 
 //HANDLE gameThread = nullptr;
 
@@ -231,6 +235,10 @@ HRESULT __stdcall Hooked_Present(IDirect3DDevice9* This,
 	hr = This->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &backBuffer);
 	if (SUCCEEDED(hr) && gGameSurface > 0)
 	{
+		// Send backbuffer to the video encoder
+		const NvEncInputFrame* encoderInputFrame = gEncoder->GetNextInputFrame();
+		gEncoder->EncodeFrame(vpacket);
+
 		hr = NvAPI_Stereo_ReverseStereoBlitControl(gNVAPI, true);
 		{
 			hr = This->StretchRect(backBuffer, nullptr, gGameSurface, nullptr, D3DTEXF_NONE);
@@ -558,12 +566,6 @@ HRESULT(__stdcall *pOrigCreateDevice)(IDirect3D9* This,
 
 // The actual Hooked routine for CreateDevice, called whenever the game
 // makes a IDirect3D9->CreateDevice call.
-//
-// However, because we always need to have a shared surface from the game
-// backbuffer, this device must actually be created as a IDirect3DDevice9Ex.
-// That allows us to create a shared surface, still on the GPU.  IDirect3DDevice9
-// objects can only share through system memory, which is too slow.
-// This should be OK, because the game should not know or care that it went Ex.
 
 HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 	/* [in] */          UINT                  Adapter,
@@ -575,12 +577,15 @@ HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 {
 	wchar_t info[512];
 	HRESULT hr;
+	UINT gameWidth = pPresentationParameters->BackBufferWidth;
+	UINT gameHeight = pPresentationParameters->BackBufferHeight;
+	D3DFORMAT gameFormat = pPresentationParameters->BackBufferFormat;
 
 	::OutputDebugString(L"NativePlugin::Hooked_CreateDevice called\n");
 	if (pPresentationParameters)
 	{
 		swprintf_s(info, _countof(info), L"  Width: %d, Height: %d, Format: %d\n"
-			, pPresentationParameters->BackBufferWidth, pPresentationParameters->BackBufferHeight, pPresentationParameters->BackBufferFormat);
+			, gameWidth, gameHeight, gameFormat);
 		::OutputDebugString(info);
 	}
 
@@ -592,11 +597,12 @@ HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 	// Also- this warning happens in TheBall, when run with only the debug layer. Not our fault.
 	// But, we are doing multithreaded StretchRect now, so let's add this.  Otherwise we get a
 	// a crash.  Not certain this is best, said to slow things down.
-	//BehaviorFlags |= D3DCREATE_MULTITHREADED;
+
+	// According to docs, also need a couple of other flags, for the NvCodec to work.
+	BehaviorFlags |= D3DCREATE_MULTITHREADED | D3DCREATE_FPU_PRESERVE | D3DCREATE_HARDWARE_VERTEXPROCESSING;
+	   
 
 	// Run original call game is expecting.
-	// This will return a IDirect3DDevice9Ex variant regardless, but using the original
-	// call allows us to avoid a lot of weirdness with full screen handling.
 
 	hr = pOrigCreateDevice(This, Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters,
 		ppReturnedDeviceInterface);
@@ -604,7 +610,9 @@ HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 		throw std::exception("Failed to create IDirect3DDevice9");
 
 
-	// Using that fresh DX9 Device, we can now hook the Present and CreateTexture calls.
+	// Using that fresh DX9 Device, we can now hook the Present call.
+	// Do this one-time init, including setting up NvAPI, and the 
+	// NvCodec for encoding.
 
 	IDirect3DDevice9* pDevice9 = *ppReturnedDeviceInterface;
 
@@ -618,26 +626,8 @@ HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 		if (FAILED(dwOsErr))
 			::OutputDebugStringA("Failed to hook IDirect3DDevice9::Present\n");
 
-		dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigCreateTexture,
-			lpvtbl_CreateTexture(pDevice9), Hooked_CreateTexture, 0);
-		if (FAILED(dwOsErr))
-			::OutputDebugStringA("Failed to hook IDirect3DDevice9::CreateTexture\n");
 
-		dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigCreateCubeTexture,
-			lpvtbl_CreateCubeTexture(pDevice9), Hooked_CreateCubeTexture, 0);
-		if (FAILED(dwOsErr))
-			::OutputDebugStringA("Failed to hook IDirect3DDevice9::CreateCubeTexture\n");
-
-		dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigCreateVertexBuffer,
-			lpvtbl_CreateVertexBuffer(pDevice9), Hooked_CreateVertexBuffer, 0);
-		if (FAILED(dwOsErr))
-			::OutputDebugStringA("Failed to hook IDirect3DDevice9::CreateVertexBuffer\n");
-
-		dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigCreateIndexBuffer,
-			lpvtbl_CreateIndexBuffer(pDevice9), Hooked_CreateIndexBuffer, 0);
-		if (FAILED(dwOsErr))
-			::OutputDebugStringA("Failed to hook IDirect3DDevice9::CreateIndexBuffer\n");
-
+		// We still need the NvAPI to fetch the stereo backbuffer, so init it here.
 
 		HRESULT res = NvAPI_Initialize();
 		if (FAILED(res))
@@ -653,50 +643,21 @@ HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 			throw std::exception("Failed to NvAPI_Stereo_SetSurfaceCreationMode\n");
 
 
-		// Make the priority lower for this game thread, to allow VR side preference.
-		// ToDo: doesn't seem to change anything.
+		// We also need to init the NvCodec, to setup for encoding the game frames
+		// as a video stream.  This will use the NvCodec sample code as a good example
+		// of this init.  
+		// ARGB would not seem to match the game BGRA format, but maybe the encoder is big-endian.
+		gEncoder = new NvEncoderD3D9(pDevice9, gameWidth, gameHeight, NV_ENC_BUFFER_FORMAT_ARGB);
 
-		IDirect3DDevice9Ex* pExDevice;
-		res = pDevice9->QueryInterface(__uuidof(IDirect3DDevice9Ex), (void**)(&pExDevice));
-		if (FAILED(res))
-			throw std::exception("Failed to QueryInterface for IDirect3DDevice9Ex\n");
-		res = pExDevice->SetGPUThreadPriority(-1);
-		if (FAILED(res))
-			throw std::exception("Failed to SetGPUThreadPriority for IDirect3DDevice9Ex\n");
+		// Lossless HighPerformance encoding seems like the call for game to VR display.
+		// Works on anything 7xx series GPU and above.
+		NV_ENC_INITIALIZE_PARAMS initializeParams = { NV_ENC_INITIALIZE_PARAMS_VER };
+		NV_ENC_CONFIG encodeConfig = { NV_ENC_CONFIG_VER };
+		initializeParams.encodeConfig = &encodeConfig;
+		gEncoder->CreateDefaultEncoderParams(&initializeParams, NV_ENC_CODEC_H264_GUID, NV_ENC_PRESET_LOSSLESS_HP_GUID);
+				
+		gEncoder->CreateEncoder(&initializeParams);
 
-		// Now that we have a proper Ex Device from the game, let's also make a 
-		// DX9 Surface, so that we can snapshot the game output.  This surface needs to
-		// use the Shared parameter, so that we can share it to another Device.  Because
-		// these are all DX9Ex objects, the share will work.
-		// 
-		// The Nvidia documentation suggests this should be an OffScreenPlainSurface,
-		// but that has never worked, because it is disallowed by DX9.  Experimenting
-		// quite a bit, I hit upon using CreateTexture, with the D3DUSAGE_RENDERTARGET
-		// flag set.  
-		//
-		// This Texture cannot be shared here.  When shared variable is set for input,
-		// the StretchRect fails at Present, and makes a mono copy.  Thus, we need to
-		// create second target, which will be the one passed to the VR/Unity side.
-
-		UINT width = pPresentationParameters->BackBufferWidth * 2;
-		UINT height = pPresentationParameters->BackBufferHeight;
-		D3DFORMAT format = pPresentationParameters->BackBufferFormat;
-
-		res = pDevice9->CreateTexture(width, height, 0, D3DUSAGE_RENDERTARGET, format, D3DPOOL_DEFAULT,
-			&gGameTexture, nullptr);
-		if (FAILED(res))
-			throw std::exception("Fail to create shared stereo Texture");
-			
-		res = gGameTexture->GetSurfaceLevel(0, &gGameSurface);
-		if (FAILED(res))
-			throw std::exception("Fail to GetSurfaceLevel of stereo Texture");
-
-		// Actual shared surface, as a RenderTarget. RenderTarget because its main
-		// goal at this moment is to be written to.
-		res = pDevice9->CreateRenderTarget(width, height, format, D3DMULTISAMPLE_NONE, 0, true,
-			&gSharedTarget, &gGameSharedHandle);
-		if (FAILED(res))
-			throw std::exception("Fail to CreateRenderTarget for copy of stereo Texture");
 
 		// Since we are doing setup here, also create a thread that will be used to copy
 		// from the stereo game surface into the shared surface.  This way the game will
@@ -750,17 +711,12 @@ HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 // This hook call is called from the Deviare side, to continue the 
 // daisy-chain to IDirect3DDevice9::Present.
 //
-// It's also worth noting that we convert the key objects into Ex
-// versions, because we need to share our copy of the game backbuffer.
-// We need to hook the CreateDevice, not CreateDeviceEx, because the
-// game is nearly certain to be calling CreateDevice.
-// 
 
-void HookCreateDevice(IDirect3D9Ex* pDX9Ex)
+void HookCreateDevice(IDirect3D9* pDX9)
 {
 	// This can be called multiple times by a game, so let's be sure to
 	// only hook once.
-	if (pOrigCreateDevice == nullptr && pDX9Ex != nullptr)
+	if (pOrigCreateDevice == nullptr && pDX9 != nullptr)
 	{
 #ifdef _DEBUG 
 		nktInProc.SetEnableDebugOutput(TRUE);
@@ -777,7 +733,7 @@ void HookCreateDevice(IDirect3D9Ex* pDX9Ex)
 
 		SIZE_T hook_id;
 		DWORD dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigCreateDevice,
-			lpvtbl_CreateDevice(pDX9Ex), Hooked_CreateDevice, 0);
+			lpvtbl_CreateDevice(pDX9), Hooked_CreateDevice, 0);
 
 		if (FAILED(dwOsErr))
 			throw std::exception("Failed to hook IDirect3D9::CreateDevice");
