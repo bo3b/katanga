@@ -63,44 +63,5 @@ LPVOID lpvtbl_Present(IDirect3DDevice9* pDX9Device)
 	return pDX9Device->lpVtbl->Present;
 }
 
-LPVOID lpvtbl_CreateTexture(IDirect3DDevice9* pDX9Device)
-{
-	if (!pDX9Device)
-		return NULL;
-
-	return pDX9Device->lpVtbl->CreateTexture;
-}
-
-LPVOID lpvtbl_CreateCubeTexture(IDirect3DDevice9* pDX9Device)
-{
-	if (!pDX9Device)
-		return NULL;
-
-	return pDX9Device->lpVtbl->CreateCubeTexture;
-}
-
-LPVOID lpvtbl_CreateVertexBuffer(IDirect3DDevice9* pDX9Device)
-{
-	if (!pDX9Device)
-		return NULL;
-
-	return pDX9Device->lpVtbl->CreateVertexBuffer;
-}
-
-LPVOID lpvtbl_CreateIndexBuffer(IDirect3DDevice9* pDX9Device)
-{
-	if (!pDX9Device)
-		return NULL;
-
-	return pDX9Device->lpVtbl->CreateIndexBuffer;
-}
-
-LPVOID lpvtbl_DrawIndexedPrimitiveUP(IDirect3DDevice9* pDX9Device)
-{
-	if (!pDX9Device)
-		return NULL;
-
-	return pDX9Device->lpVtbl->DrawIndexedPrimitiveUP;
-}
 
 #undef CINTERFACE
