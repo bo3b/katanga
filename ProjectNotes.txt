@@ -438,3 +438,19 @@ much easier to connect with DX11 games, as the decode part would not change.
 
 Hopefully the encode/decode does not require going to system memory, which would
 be a big killer to this approach.
+
+
+11-7-18
+Setting up to use nvcodec is challenging, because of the many, many versions.  The 
+latest version is probably not the right choice, because it requires an up to date
+driver.  As of the moment, SDK 8.2 requires driver 397.93 or higher.  That's quite a
+bit higher than we'd want to require, because older cards and games can run better
+on older drivers.  Sometimes we need those older drivers.
+Using that idea, going back to SDK 6.0 is not unreasonable.  Requires driver 358.xx or 
+higher, which is after GTX 980ti, but before GTX 1080.  Not as far back as we'd like,
+but better than nothing.  SDK 5.0 requires driver 347.09 or better, but also requires
+installing the CUDA toolkit, which we'd rather not do.  
+SDK 6.0 supports lossless encoding, which is the main goal.
+
+So for the moment, we are going with SDK 6.0.  Might change depending upon user 
+requirements.
