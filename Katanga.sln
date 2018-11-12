@@ -14,15 +14,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UnityScreenApp", "UnityScreenApp\UnityScreenApp.csproj", "{1DCA0463-0316-2B23-DA4E-D67E09FE9217}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "NvCodec", "NvCodec", "{339E856E-A18C-4CB9-8DE1-87D2F0EBBE98}"
-	ProjectSection(SolutionItems) = preProject
-		DeviarePlugin\NvCodec\NvEncoder\nvEncodeAPI.h = DeviarePlugin\NvCodec\NvEncoder\nvEncodeAPI.h
-		DeviarePlugin\NvCodec\NvEncoder\NvEncoder.cpp = DeviarePlugin\NvCodec\NvEncoder\NvEncoder.cpp
-		DeviarePlugin\NvCodec\NvEncoder\NvEncoder.h = DeviarePlugin\NvCodec\NvEncoder\NvEncoder.h
-		DeviarePlugin\NvCodec\NvEncoder\NvEncoderD3D9.cpp = DeviarePlugin\NvCodec\NvEncoder\NvEncoderD3D9.cpp
-		DeviarePlugin\NvCodec\NvEncoder\NvEncoderD3D9.h = DeviarePlugin\NvCodec\NvEncoder\NvEncoderD3D9.h
-	EndProjectSection
-EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "NvAPI", "NvAPI", "{5F3C2817-4527-415F-83E6-D7907D13E4C5}"
 	ProjectSection(SolutionItems) = preProject
 		DeviarePlugin\nvapi\nvapi.h = DeviarePlugin\nvapi\nvapi.h
@@ -82,7 +73,6 @@ Global
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
-		{339E856E-A18C-4CB9-8DE1-87D2F0EBBE98} = {621EA1FD-E5D5-4572-ADBA-EAEDDD418ED5}
 		{5F3C2817-4527-415F-83E6-D7907D13E4C5} = {621EA1FD-E5D5-4572-ADBA-EAEDDD418ED5}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution

@@ -4,8 +4,6 @@
     <ClCompile Include="DeviarePlugin.cpp" />
     <ClCompile Include="InProc.cpp" />
     <ClCompile Include="Addresses.c" />
-    <ClCompile Include="NvCodec\NvEncoder\NvEncoder.cpp" />
-    <ClCompile Include="NvCodec\NvEncoder\NvEncoderD3D9.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DeviarePlugin.h" />
@@ -18,8 +16,6 @@
     <ClInclude Include="nvapi\nvapi_lite_sli.h" />
     <ClInclude Include="nvapi\nvapi_lite_stereo.h" />
     <ClInclude Include="nvapi\nvapi_lite_surround.h" />
-    <ClInclude Include="NvCodec\NvEncoder\NvEncoder.h" />
-    <ClInclude Include="NvCodec\NvEncoder\NvEncoderD3D9.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="DeviarePlugin.def" />
