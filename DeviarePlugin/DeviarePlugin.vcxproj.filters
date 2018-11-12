@@ -4,20 +4,50 @@
     <ClCompile Include="DeviarePlugin.cpp" />
     <ClCompile Include="InProc.cpp" />
     <ClCompile Include="Addresses.c" />
+    <ClCompile Include="NvCodec_6.0.1\src\NvHWEncoder.cpp">
+      <Filter>NvCodec</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DeviarePlugin.h" />
     <ClInclude Include="NktHookLib.h" />
-    <ClInclude Include="nvapi\nvapi.h" />
-    <ClInclude Include="nvapi\nvapi_lite_common.h" />
-    <ClInclude Include="nvapi\nvapi_lite_d3dext.h" />
-    <ClInclude Include="nvapi\nvapi_lite_salend.h" />
-    <ClInclude Include="nvapi\nvapi_lite_salstart.h" />
-    <ClInclude Include="nvapi\nvapi_lite_sli.h" />
-    <ClInclude Include="nvapi\nvapi_lite_stereo.h" />
-    <ClInclude Include="nvapi\nvapi_lite_surround.h" />
+    <ClInclude Include="nvapi\nvapi.h">
+      <Filter>NvAPI</Filter>
+    </ClInclude>
+    <ClInclude Include="nvapi\nvapi_lite_common.h">
+      <Filter>NvAPI</Filter>
+    </ClInclude>
+    <ClInclude Include="nvapi\nvapi_lite_d3dext.h">
+      <Filter>NvAPI</Filter>
+    </ClInclude>
+    <ClInclude Include="nvapi\nvapi_lite_salend.h">
+      <Filter>NvAPI</Filter>
+    </ClInclude>
+    <ClInclude Include="nvapi\nvapi_lite_salstart.h">
+      <Filter>NvAPI</Filter>
+    </ClInclude>
+    <ClInclude Include="nvapi\nvapi_lite_sli.h">
+      <Filter>NvAPI</Filter>
+    </ClInclude>
+    <ClInclude Include="nvapi\nvapi_lite_stereo.h">
+      <Filter>NvAPI</Filter>
+    </ClInclude>
+    <ClInclude Include="nvapi\nvapi_lite_surround.h">
+      <Filter>NvAPI</Filter>
+    </ClInclude>
+    <ClInclude Include="NvCodec_6.0.1\inc\NvHWEncoder.h">
+      <Filter>NvCodec</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="DeviarePlugin.def" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="NvAPI">
+      <UniqueIdentifier>{dbac65c8-d8c8-4f85-881d-58bd5fda2593}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="NvCodec">
+      <UniqueIdentifier>{2e5bb4ee-dc82-4eec-96d1-b4475f652806}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
 </Project>

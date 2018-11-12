@@ -14,18 +14,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UnityScreenApp", "UnityScreenApp\UnityScreenApp.csproj", "{1DCA0463-0316-2B23-DA4E-D67E09FE9217}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "NvAPI", "NvAPI", "{5F3C2817-4527-415F-83E6-D7907D13E4C5}"
-	ProjectSection(SolutionItems) = preProject
-		DeviarePlugin\nvapi\nvapi.h = DeviarePlugin\nvapi\nvapi.h
-		DeviarePlugin\nvapi\nvapi_lite_common.h = DeviarePlugin\nvapi\nvapi_lite_common.h
-		DeviarePlugin\nvapi\nvapi_lite_d3dext.h = DeviarePlugin\nvapi\nvapi_lite_d3dext.h
-		DeviarePlugin\nvapi\nvapi_lite_salend.h = DeviarePlugin\nvapi\nvapi_lite_salend.h
-		DeviarePlugin\nvapi\nvapi_lite_salstart.h = DeviarePlugin\nvapi\nvapi_lite_salstart.h
-		DeviarePlugin\nvapi\nvapi_lite_sli.h = DeviarePlugin\nvapi\nvapi_lite_sli.h
-		DeviarePlugin\nvapi\nvapi_lite_stereo.h = DeviarePlugin\nvapi\nvapi_lite_stereo.h
-		DeviarePlugin\nvapi\nvapi_lite_surround.h = DeviarePlugin\nvapi\nvapi_lite_surround.h
-	EndProjectSection
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -71,9 +59,6 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
-	EndGlobalSection
-	GlobalSection(NestedProjects) = preSolution
-		{5F3C2817-4527-415F-83E6-D7907D13E4C5} = {621EA1FD-E5D5-4572-ADBA-EAEDDD418ED5}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {5A57B820-6958-409F-8F24-70F9047F565E}
