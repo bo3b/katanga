@@ -66,7 +66,7 @@
 
 #include "nvapi.h"
 
-#include "NvEncoder\NvEncoderD3D9.h"
+#include "NvCodec_6.0.1/inc/NvHWEncoder.h"
 
 //-----------------------------------------------------------
 
@@ -91,9 +91,10 @@ HANDLE gGameSharedHandle = nullptr;			// Handle to share with DX11
 // The nvapi stereo handle, to access the reverse blit.
 StereoHandle gNVAPI = nullptr;
 
-// The Nvidia video stream encoder 
-NvEncoderD3D9* gEncoder = nullptr;
-std::vector<std::vector<uint8_t>> gPacket;
+// The Nvidia video stream encoder object
+CNvHWEncoder* gEncoder;
+EncodeBuffer gEncodeBuffer[1];
+int buffer = 0;
 
 //HANDLE gameThread = nullptr;
 
@@ -202,6 +203,26 @@ void DrawStereoOnGame(IDirect3DDevice9* device, IDirect3DSurface9* surface, IDir
 
 
 //-----------------------------------------------------------
+// StretchRect the decoded snapshot back onto the backbuffer so we can see what we got.
+// Keep aspect ratio intact, because we want to see if it's a stretched image.
+// This takes as input the compressed data from the NvCodec, and draws it to the game
+// screen so we can see what it looks like.  Should still be stereo.
+
+void DrawDecodedOnGame(IDirect3DDevice9* device, IDirect3DSurface9* surface, IDirect3DSurface9* back)
+{
+	D3DSURFACE_DESC bufferDesc;
+	back->GetDesc(&bufferDesc);
+	RECT backBufferRect = { 0, 0, bufferDesc.Width, bufferDesc.Height };
+	RECT stereoImageRect = { 0, 0, bufferDesc.Width * 2, bufferDesc.Height };
+
+	int insetW = 300;
+	int insetH = (int)(300.0 * stereoImageRect.bottom / stereoImageRect.right);
+	RECT topScreen = { 5, 5, insetW, insetH };
+	device->StretchRect(surface, &stereoImageRect, back, &topScreen, D3DTEXF_NONE);
+}
+
+
+//-----------------------------------------------------------
 // Interface to implement the hook for IDirect3DDevice9->Present
 
 // This declaration serves a dual purpose of defining the interface routine as required by
@@ -232,14 +253,15 @@ HRESULT __stdcall Hooked_Present(IDirect3DDevice9* This,
 {
 	HRESULT hr;
 	IDirect3DSurface9* backBuffer;
-	
+	NVENCSTATUS nvStatus;
+
 	hr = This->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &backBuffer);
 	if (SUCCEEDED(hr) && gGameSurface > 0)
 	{
-		// Get next buffer for the video encoder
-		const NvEncInputFrame* encoderInputFrame = gEncoder->GetNextInputFrame();
-		IDirect3DSurface9 *pEncodeInputSurface = reinterpret_cast<IDirect3DSurface9*>(encoderInputFrame->inputPtr);
-
+		// Setup for next video encode buffer to use
+		buffer = 1-buffer;
+		IDirect3DSurface9* pEncodeInputSurface = gEncodeBuffer[buffer].stInputBfr.pNV12Surface;
+		
 		hr = NvAPI_Stereo_ReverseStereoBlitControl(gNVAPI, true);
 		{
 			hr = This->StretchRect(backBuffer, nullptr, gGameSurface, nullptr, D3DTEXF_NONE);
@@ -249,16 +271,22 @@ HRESULT __stdcall Hooked_Present(IDirect3DDevice9* This,
 
 			// Copy backbuffer onto the video encoder buffer
 			hr = This->StretchRect(backBuffer, nullptr, pEncodeInputSurface, nullptr, D3DTEXF_NONE);
+			if (FAILED(hr))
+				::OutputDebugString(L"Bad StretchRect to Texture.\n");
 
 //			SetEvent(gFreshBits);		// Signal other thread to start StretchRect
 		}
 		hr = NvAPI_Stereo_ReverseStereoBlitControl(gNVAPI, false);
 
-		// ToDo: this is copying data back to CPU memory...
-		gEncoder->EncodeFrame(gPacket);
+		// ToDo: is this copying data back to CPU memory...
+		// Take current frame, and encode it into the output video stream.
+		nvStatus = gEncoder->NvEncEncodeFrame(&gEncodeBuffer[buffer], NULL, 
+			gEncodeBuffer[buffer].stInputBfr.dwWidth, gEncodeBuffer[buffer].stInputBfr.dwHeight, NV_ENC_PIC_STRUCT_FRAME);
+
 
 #ifdef _DEBUG
 		DrawStereoOnGame(This, gSharedTarget, backBuffer);
+		// write to file?
 #endif
 	}
 	backBuffer->Release();
@@ -555,6 +583,150 @@ HRESULT __stdcall Hooked_CreateIndexBuffer(IDirect3DDevice9* This,
 }
 
 
+
+
+void DumpEncodingConfig(EncodeConfig encodeConfig)
+{
+	printf("Encoding input           : \"%s\"\n", encodeConfig.inputFileName);
+	printf("         output          : \"%s\"\n", encodeConfig.outputFileName);
+	printf("         codec           : \"%s\"\n", encodeConfig.codec == NV_ENC_HEVC ? "HEVC" : "H264");
+	printf("         size            : %dx%d\n", encodeConfig.width, encodeConfig.height);
+	printf("         bitrate         : %d bits/sec\n", encodeConfig.bitrate);
+	printf("         vbvMaxBitrate   : %d bits/sec\n", encodeConfig.vbvMaxBitrate);
+	printf("         vbvSize         : %d bits\n", encodeConfig.vbvSize);
+	printf("         fps             : %d frames/sec\n", encodeConfig.fps);
+	printf("         rcMode          : %s\n", encodeConfig.rcMode == NV_ENC_PARAMS_RC_CONSTQP ? "CONSTQP" :
+		encodeConfig.rcMode == NV_ENC_PARAMS_RC_VBR ? "VBR" :
+		encodeConfig.rcMode == NV_ENC_PARAMS_RC_CBR ? "CBR" :
+		encodeConfig.rcMode == NV_ENC_PARAMS_RC_VBR_MINQP ? "VBR MINQP" :
+		encodeConfig.rcMode == NV_ENC_PARAMS_RC_2_PASS_QUALITY ? "TWO_PASS_QUALITY" :
+		encodeConfig.rcMode == NV_ENC_PARAMS_RC_2_PASS_FRAMESIZE_CAP ? "TWO_PASS_FRAMESIZE_CAP" :
+		encodeConfig.rcMode == NV_ENC_PARAMS_RC_2_PASS_VBR ? "TWO_PASS_VBR" : "UNKNOWN");
+	if (encodeConfig.gopLength == NVENC_INFINITE_GOPLENGTH)
+		printf("         goplength       : INFINITE GOP \n");
+	else
+		printf("         goplength       : %d \n", encodeConfig.gopLength);
+	printf("         B frames        : %d \n", encodeConfig.numB);
+	printf("         QP              : %d \n", encodeConfig.qp);
+	printf("       Input Format      : %s\n", encodeConfig.isYuv444 ? "YUV 444" : "YUV 420");
+	printf("         preset          : %s\n", (encodeConfig.presetGUID == NV_ENC_PRESET_LOW_LATENCY_HQ_GUID) ? "LOW_LATENCY_HQ" :
+		(encodeConfig.presetGUID == NV_ENC_PRESET_LOW_LATENCY_HP_GUID) ? "LOW_LATENCY_HP" :
+		(encodeConfig.presetGUID == NV_ENC_PRESET_HQ_GUID) ? "HQ_PRESET" :
+		(encodeConfig.presetGUID == NV_ENC_PRESET_HP_GUID) ? "HP_PRESET" :
+		(encodeConfig.presetGUID == NV_ENC_PRESET_LOSSLESS_HP_GUID) ? "LOSSLESS_HP" :
+		(encodeConfig.presetGUID == NV_ENC_PRESET_LOW_LATENCY_DEFAULT_GUID) ? "LOW_LATENCY_DEFAULT" : "DEFAULT");
+	printf("  Picture Structure      : %s\n", (encodeConfig.pictureStruct == NV_ENC_PIC_STRUCT_FRAME) ? "Frame Mode" :
+		(encodeConfig.pictureStruct == NV_ENC_PIC_STRUCT_FIELD_TOP_BOTTOM) ? "Top Field first" :
+		(encodeConfig.pictureStruct == NV_ENC_PIC_STRUCT_FIELD_BOTTOM_TOP) ? "Bottom Field first" : "INVALID");
+	printf("         devicetype      : %s\n", "DX9");
+
+	printf("\n");
+}
+
+// Create and initialize the HW Encoder as specfied in the SDK.
+// Simplified from the sample code, and using the Lossless HP Preset.
+// Follows same setup sequence as 6.0.1 SDK NvEncoder app.
+
+NVENCSTATUS SetupNvHWEncoder(IDirect3DDevice9* pDevice)
+{
+	NVENCSTATUS nvStatus;
+
+	gEncoder = new CNvHWEncoder;
+
+	EncodeConfig encodeConfig = { 0 };
+
+	encodeConfig.endFrameIdx = INT_MAX;
+	encodeConfig.bitrate = 5000000;
+	encodeConfig.rcMode = NV_ENC_PARAMS_RC_CONSTQP;
+	encodeConfig.gopLength = NVENC_INFINITE_GOPLENGTH;
+	encodeConfig.deviceType = NV_ENC_DEVICE_TYPE_DIRECTX;
+	encodeConfig.codec = NV_ENC_H264;
+	encodeConfig.fps = 30;
+	encodeConfig.qp = 28;
+	encodeConfig.i_quant_factor = DEFAULT_I_QFACTOR;
+	encodeConfig.b_quant_factor = DEFAULT_B_QFACTOR;
+	encodeConfig.i_quant_offset = DEFAULT_I_QOFFSET;
+	encodeConfig.b_quant_offset = DEFAULT_B_QOFFSET;
+	encodeConfig.presetGUID = NV_ENC_PRESET_DEFAULT_GUID;
+	encodeConfig.pictureStruct = NV_ENC_PIC_STRUCT_FRAME;
+	encodeConfig.isYuv444 = 0;
+
+	//	nvStatus = m_pNvHWEncoder->ParseArguments(&encodeConfig, argc, argv);
+
+	encodeConfig.width = encodeConfig.maxWidth = 1280;
+	encodeConfig.height = encodeConfig.maxHeight = 720;
+	encodeConfig.outputFileName = "encode_out.mp4";
+
+	// For Testing, output encoded file.
+	encodeConfig.fOutput = fopen(encodeConfig.outputFileName, "wb");
+	if (encodeConfig.fOutput == NULL)
+	{
+		PRINTERR("Failed to create \"%s\"\n", encodeConfig.outputFileName);
+		return NV_ENC_ERR_INVALID_CALL;
+	}
+
+	//	hInput = nvOpenFile(encodeConfig.inputFileName);  skipped, as coming from game
+
+	nvStatus = gEncoder->Initialize(pDevice, NV_ENC_DEVICE_TYPE_DIRECTX);
+
+	encodeConfig.presetGUID = gEncoder->GetPresetGUID("lossless", NV_ENC_H264);
+
+	DumpEncodingConfig(encodeConfig);
+
+
+	nvStatus = gEncoder->CreateEncoder(&encodeConfig);
+	if (nvStatus != NV_ENC_SUCCESS)
+		return nvStatus;
+
+
+	//	nvStatus = AllocateIOBuffers(encodeConfig.width, encodeConfig.height, encodeConfig.isYuv444);
+	for (uint32_t i = 0; i < 1; i++)
+	{
+		// Input surface, a DX9 surface from the game.
+		IDirect3DSurface9* pD3D9Surface;
+		HRESULT res = S_OK;
+		res = pDevice->CreateOffscreenPlainSurface(encodeConfig.maxWidth, encodeConfig.maxHeight, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &pD3D9Surface, nullptr);
+		if (FAILED(res))
+			return NV_ENC_ERR_OUT_OF_MEMORY;
+
+		gEncodeBuffer[i].stInputBfr.bufferFmt = NV_ENC_BUFFER_FORMAT_ARGB;
+		gEncodeBuffer[i].stInputBfr.dwWidth = encodeConfig.maxWidth;
+		gEncodeBuffer[i].stInputBfr.dwHeight = encodeConfig.maxHeight;
+		gEncodeBuffer[i].stInputBfr.pNV12Surface = pD3D9Surface;
+
+		//Allocate output surface, a streambuffer from nvcodec
+#define BITSTREAM_BUFFER_SIZE 2 * 1024 * 1024
+		nvStatus = gEncoder->NvEncCreateBitstreamBuffer(BITSTREAM_BUFFER_SIZE, &gEncodeBuffer[i].stOutputBfr.hBitstreamBuffer);
+		if (nvStatus != NV_ENC_SUCCESS)
+			return nvStatus;
+		gEncodeBuffer[i].stOutputBfr.dwBitstreamBufferSize = BITSTREAM_BUFFER_SIZE;
+
+		nvStatus = gEncoder->NvEncRegisterAsyncEvent(&gEncodeBuffer[i].stOutputBfr.hOutputEvent);
+		if (nvStatus != NV_ENC_SUCCESS)
+			return nvStatus;
+		gEncodeBuffer[i].stOutputBfr.bWaitOnEvent = true;
+	}
+
+	return NV_ENC_SUCCESS;
+
+	// Some YUV setup junk I think only on input
+
+	// EncodeFrame for every input from their file
+	// Flush output
+
+	// Close output, close input.
+	// Deinitialize
+
+
+		// ARGB would not seem to match the game BGRA format, but maybe the encoder is big-endian.
+
+		//gEncoder = new NvEncoderD3D9(pDevice9, gameWidth, gameHeight, NV_ENC_BUFFER_FORMAT_ARGB);
+
+		// Lossless HighPerformance encoding seems like the call for game to VR display.
+		// Works on anything 7xx series GPU and above.
+}
+
+
 //-----------------------------------------------------------
 // Interface to implement the hook for IDirect3D9->CreateDevice
 
@@ -650,20 +822,9 @@ HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 			throw std::exception("Failed to NvAPI_Stereo_SetSurfaceCreationMode\n");
 
 
-		// We also need to init the NvCodec, to setup for encoding the game frames
-		// as a video stream.  This will use the NvCodec sample code as a good example
-		// of this init.  
-		// ARGB would not seem to match the game BGRA format, but maybe the encoder is big-endian.
-		gEncoder = new NvEncoderD3D9(pDevice9, gameWidth, gameHeight, NV_ENC_BUFFER_FORMAT_ARGB);
-
-		// Lossless HighPerformance encoding seems like the call for game to VR display.
-		// Works on anything 7xx series GPU and above.
-		NV_ENC_INITIALIZE_PARAMS initializeParams = { NV_ENC_INITIALIZE_PARAMS_VER };
-		NV_ENC_CONFIG encodeConfig = { NV_ENC_CONFIG_VER };
-		initializeParams.encodeConfig = &encodeConfig;
-		gEncoder->CreateDefaultEncoderParams(&initializeParams, NV_ENC_CODEC_H264_GUID, NV_ENC_PRESET_LOSSLESS_HP_GUID);
-				
-		gEncoder->CreateEncoder(&initializeParams);
+		// Setup and initialize the HW video encoder, to support encoding the
+		// pDevice9 BackBuffer.
+		SetupNvHWEncoder(pDevice9);
 
 
 		// Since we are doing setup here, also create a thread that will be used to copy
@@ -703,6 +864,7 @@ HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 
 	return hr;
 }
+
 
 
 //-----------------------------------------------------------

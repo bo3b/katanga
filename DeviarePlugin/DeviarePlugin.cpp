@@ -110,6 +110,12 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 
 	// We only expect this to be called for D3D9.DLL!Direct3DCreate9. We want to daisy chain
 	// through the call sequence to ultimately get the Present routine.
+	//
+	// ToDo: For NvCodec, the samples past 6.0.1 all create a IDirect3D9Ex factory instead.
+	//  But a regular CreateDevice, not CreateDeviceEx.
+	//	We would very much like to keep the object non-Ex to avoid a lot of 
+	//	changes needed in games, so trying this as Direct3DCreate9.  May not work
+	//	on current drivers.
 
 	IDirect3D9* pDX9 = Direct3DCreate9(D3D_SDK_VERSION);
 
