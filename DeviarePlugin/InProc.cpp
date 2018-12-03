@@ -280,8 +280,14 @@ HRESULT __stdcall Hooked_Present(IDirect3DDevice9* This,
 
 		// ToDo: is this copying data back to CPU memory...
 		// Take current frame, and encode it into the output video stream.
-		nvStatus = gEncoder->NvEncEncodeFrame(&gEncodeBuffer[buffer], NULL, 
-			gEncodeBuffer[buffer].stInputBfr.dwWidth, gEncodeBuffer[buffer].stInputBfr.dwHeight, NV_ENC_PIC_STRUCT_FRAME);
+		nvStatus = gEncoder->NvEncMapInputResource(gEncodeBuffer[buffer].stInputBfr.nvRegisteredResource, &gEncodeBuffer[buffer].stInputBfr.hInputSurface);
+		{
+			nvStatus = gEncoder->NvEncEncodeFrame(&gEncodeBuffer[buffer], NULL,
+				gEncodeBuffer[buffer].stInputBfr.dwWidth, gEncodeBuffer[buffer].stInputBfr.dwHeight, NV_ENC_PIC_STRUCT_FRAME);
+			if (FAILED(nvStatus))
+				::OutputDebugString(L"Bad EncodeFrame.\n");
+		}
+		nvStatus = gEncoder->NvEncUnmapInputResource(gEncodeBuffer[buffer].stInputBfr.hInputSurface);
 
 
 #ifdef _DEBUG
@@ -693,6 +699,16 @@ NVENCSTATUS SetupNvHWEncoder(IDirect3DDevice9* pDevice)
 		gEncodeBuffer[i].stInputBfr.dwWidth = encodeConfig.maxWidth;
 		gEncodeBuffer[i].stInputBfr.dwHeight = encodeConfig.maxHeight;
 		gEncodeBuffer[i].stInputBfr.pNV12Surface = pD3D9Surface;
+		gEncodeBuffer[i].stInputBfr.uNV12Stride = 0;  // ToDo: from 8.0 SDK
+
+		nvStatus = gEncoder->NvEncRegisterResource(NV_ENC_INPUT_RESOURCE_TYPE_DIRECTX,
+			pD3D9Surface, encodeConfig.maxWidth, encodeConfig.maxWidth,
+			gEncodeBuffer[i].stInputBfr.uNV12Stride,
+			&gEncodeBuffer[i].stInputBfr.nvRegisteredResource);
+
+		if (nvStatus != NV_ENC_SUCCESS)
+			return nvStatus;
+
 
 		//Allocate output surface, a streambuffer from nvcodec
 #define BITSTREAM_BUFFER_SIZE 2 * 1024 * 1024
