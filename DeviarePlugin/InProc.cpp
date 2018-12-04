@@ -78,14 +78,11 @@ CNktHookLib nktInProc;
 // It starts as a Texture so that it is created stereo, but is converted
 // to a Surface for use in StretchRect.
 
-IDirect3DTexture9* gGameTexture = nullptr;
-IDirect3DSurface9* gGameSurface = nullptr;	// created as a reference to Texture
-
-HANDLE gSharedThread = nullptr;				// will copy from GameSurface to SharedSurface
+//HANDLE gSharedThread = nullptr;				// will copy from GameSurface to SharedSurface
 
 HANDLE gFreshBits = nullptr;				// Synchronization Event object
 
-IDirect3DSurface9* gSharedTarget = nullptr;	// Actual shared RenderTarget
+IDirect3DSurface9* gGameBitsCopy = nullptr;	// Actual shared RenderTarget
 HANDLE gGameSharedHandle = nullptr;			// Handle to share with DX11
 
 // The nvapi stereo handle, to access the reverse blit.
@@ -245,6 +242,8 @@ HRESULT (__stdcall *pOrigPresent)(IDirect3DDevice9* This,
 // even though we are sharing the original Texture and not the target gGameSurface
 // here, we still expect it to be stereo and match the gGameSurface.
 
+// D3DXLoadSurfaceFromSurface  Maybe useful. Does conversions.
+
 HRESULT __stdcall Hooked_Present(IDirect3DDevice9* This,
 	/* [in] */ const RECT    *pSourceRect,
 	/* [in] */ const RECT    *pDestRect,
@@ -256,7 +255,7 @@ HRESULT __stdcall Hooked_Present(IDirect3DDevice9* This,
 	NVENCSTATUS nvStatus;
 
 	hr = This->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &backBuffer);
-	if (SUCCEEDED(hr) && gGameSurface > 0)
+	if (SUCCEEDED(hr) && gEncoder != nullptr)
 	{
 		// Setup for next video encode buffer to use
 		buffer = 1-buffer;
@@ -264,10 +263,9 @@ HRESULT __stdcall Hooked_Present(IDirect3DDevice9* This,
 		
 		hr = NvAPI_Stereo_ReverseStereoBlitControl(gNVAPI, true);
 		{
-			hr = This->StretchRect(backBuffer, nullptr, gGameSurface, nullptr, D3DTEXF_NONE);
+			hr = This->StretchRect(backBuffer, nullptr, gGameBitsCopy, nullptr, D3DTEXF_NONE);
 			if (FAILED(hr))
 				::OutputDebugString(L"Bad StretchRect to Texture.\n");
-			hr = This->StretchRect(gGameSurface, nullptr, gSharedTarget, nullptr, D3DTEXF_NONE);
 
 			// Copy backbuffer onto the video encoder buffer
 			hr = This->StretchRect(backBuffer, nullptr, pEncodeInputSurface, nullptr, D3DTEXF_NONE);
@@ -291,11 +289,12 @@ HRESULT __stdcall Hooked_Present(IDirect3DDevice9* This,
 
 
 #ifdef _DEBUG
-		DrawStereoOnGame(This, gSharedTarget, backBuffer);
+		DrawStereoOnGame(This, gGameBitsCopy, backBuffer);
 		// write to file?
 #endif
+
+		backBuffer->Release();
 	}
-	backBuffer->Release();
 
 	HRESULT hrp = pOrigPresent(This, pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
 
@@ -686,7 +685,7 @@ NVENCSTATUS SetupNvHWEncoder(IDirect3DDevice9* pDevice)
 
 
 	//	nvStatus = AllocateIOBuffers(encodeConfig.width, encodeConfig.height, encodeConfig.isYuv444);
-	for (uint32_t i = 0; i < 1; i++)
+	for (uint32_t i = 0; i <= 1; i++)
 	{
 		// Input surface, a DX9 surface from the game.
 		IDirect3DSurface9* pD3D9Surface;
