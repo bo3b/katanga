@@ -155,7 +155,7 @@ HANDLE WINAPI TriggerEvent(int* in)
 		{
 			LONGLONG startMS = startTriggeredTicks.QuadPart * 1000 / frequency.QuadPart;
 			swprintf_s(info, _countof(info),
-				L"SetEvent - ms: %d, frequency: %d, triggerCount: %d\n", startMS, frequency.QuadPart, triggerCount);
+				L"SetEvent - ms: %lld, frequency: %lld, triggerCount: %d\n", startMS, frequency.QuadPart, triggerCount);
 			::OutputDebugString(info);
 		}
 	}
@@ -172,7 +172,7 @@ HANDLE WINAPI TriggerEvent(int* in)
 			LONGLONG frameTicks = resetTriggerTicks.QuadPart - startTriggeredTicks.QuadPart;
 			LONGLONG endMS = frameTicks * 1000 / frequency.QuadPart;
 			swprintf_s(info, _countof(info),
-				L"ResetEvent - ms: %d\n", endMS);
+				L"ResetEvent - ms: %lld\n", endMS);
 			::OutputDebugString(info);
 		}
 	}
@@ -189,8 +189,8 @@ void DrawStereoOnGame(IDirect3DDevice9* device, IDirect3DSurface9* surface, IDir
 {
 	D3DSURFACE_DESC bufferDesc;
 	back->GetDesc(&bufferDesc);
-	RECT backBufferRect = { 0, 0, bufferDesc.Width, bufferDesc.Height };
-	RECT stereoImageRect = { 0, 0, bufferDesc.Width * 2, bufferDesc.Height };
+	RECT backBufferRect = { 0, 0, (LONG)(bufferDesc.Width), (LONG)(bufferDesc.Height) };
+	RECT stereoImageRect = { 0, 0, (LONG)(bufferDesc.Width * 2), (LONG)(bufferDesc.Height) };
 
 	int insetW = 300;
 	int insetH = (int)(300.0 * stereoImageRect.bottom / stereoImageRect.right);
@@ -205,19 +205,19 @@ void DrawStereoOnGame(IDirect3DDevice9* device, IDirect3DSurface9* surface, IDir
 // This takes as input the compressed data from the NvCodec, and draws it to the game
 // screen so we can see what it looks like.  Should still be stereo.
 
-void DrawDecodedOnGame(IDirect3DDevice9* device, IDirect3DSurface9* surface, IDirect3DSurface9* back)
-{
-	D3DSURFACE_DESC bufferDesc;
-	back->GetDesc(&bufferDesc);
-	RECT backBufferRect = { 0, 0, bufferDesc.Width, bufferDesc.Height };
-	RECT stereoImageRect = { 0, 0, bufferDesc.Width * 2, bufferDesc.Height };
-
-	int insetW = 300;
-	int insetH = (int)(300.0 * stereoImageRect.bottom / stereoImageRect.right);
-	RECT topScreen = { 5, 5, insetW, insetH };
-	device->StretchRect(surface, &stereoImageRect, back, &topScreen, D3DTEXF_NONE);
-}
-
+//void DrawDecodedOnGame(IDirect3DDevice9* device, IDirect3DSurface9* surface, IDirect3DSurface9* back)
+//{
+//	D3DSURFACE_DESC bufferDesc;
+//	back->GetDesc(&bufferDesc);
+//	RECT backBufferRect = { 0, 0, bufferDesc.Width, bufferDesc.Height };
+//	RECT stereoImageRect = { 0, 0, bufferDesc.Width * 2, bufferDesc.Height };
+//
+//	int insetW = 300;
+//	int insetH = (int)(300.0 * stereoImageRect.bottom / stereoImageRect.right);
+//	RECT topScreen = { 5, 5, insetW, insetH };
+//	device->StretchRect(surface, &stereoImageRect, back, &topScreen, D3DTEXF_NONE);
+//}
+//
 
 //-----------------------------------------------------------
 // Interface to implement the hook for IDirect3DDevice9->Present
@@ -663,8 +663,8 @@ NVENCSTATUS SetupNvHWEncoder(IDirect3DDevice9* pDevice)
 	encodeConfig.outputFileName = "encode_out.mp4";
 
 	// For Testing, output encoded file.
-	encodeConfig.fOutput = fopen(encodeConfig.outputFileName, "wb");
-	if (encodeConfig.fOutput == NULL)
+	errno_t err = fopen_s(&encodeConfig.fOutput, encodeConfig.outputFileName, "wb");
+	if (FAILED(err))
 	{
 		PRINTERR("Failed to create \"%s\"\n", encodeConfig.outputFileName);
 		return NV_ENC_ERR_INVALID_CALL;
