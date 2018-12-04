@@ -152,7 +152,7 @@ HANDLE WINAPI TriggerEvent(int* in)
 		{
 			LONGLONG startMS = startTriggeredTicks.QuadPart * 1000 / frequency.QuadPart;
 			swprintf_s(info, _countof(info),
-				L"SetEvent - ms: %d, frequency: %d, triggerCount: %d\n", startMS, frequency.QuadPart, triggerCount);
+				L"SetEvent - ms: %lld, frequency: %lld, triggerCount: %d\n", startMS, frequency.QuadPart, triggerCount);
 			::OutputDebugString(info);
 		}
 	}
@@ -169,7 +169,7 @@ HANDLE WINAPI TriggerEvent(int* in)
 			LONGLONG frameTicks = resetTriggerTicks.QuadPart - startTriggeredTicks.QuadPart;
 			LONGLONG endMS = frameTicks * 1000 / frequency.QuadPart;
 			swprintf_s(info, _countof(info),
-				L"ResetEvent - ms: %d\n", endMS);
+				L"ResetEvent - ms: %lld\n", endMS);
 			::OutputDebugString(info);
 		}
 	}
@@ -186,8 +186,8 @@ void DrawStereoOnGame(IDirect3DDevice9* device, IDirect3DSurface9* surface, IDir
 {
 	D3DSURFACE_DESC bufferDesc;
 	back->GetDesc(&bufferDesc);
-	RECT backBufferRect = { 0, 0, bufferDesc.Width, bufferDesc.Height };
-	RECT stereoImageRect = { 0, 0, bufferDesc.Width * 2, bufferDesc.Height };
+	RECT backBufferRect = { 0, 0, (LONG)(bufferDesc.Width), (LONG)(bufferDesc.Height) };
+	RECT stereoImageRect = { 0, 0, (LONG)(bufferDesc.Width * 2), (LONG)(bufferDesc.Height) };
 
 	int insetW = 300;
 	int insetH = (int)(300.0 * stereoImageRect.bottom / stereoImageRect.right);
