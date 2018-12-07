@@ -90,7 +90,7 @@ StereoHandle gNVAPI = nullptr;
 
 // The Nvidia video stream encoder object
 CNvHWEncoder* gEncoder;
-EncodeBuffer gEncodeBuffer[1];
+EncodeBuffer gEncodeBuffer[2];
 int buffer = 0;
 
 //HANDLE gameThread = nullptr;
@@ -690,7 +690,8 @@ NVENCSTATUS SetupNvHWEncoder(IDirect3DDevice9* pDevice)
 		// Input surface, a DX9 surface from the game.
 		IDirect3DSurface9* pD3D9Surface;
 		HRESULT res = S_OK;
-		res = pDevice->CreateOffscreenPlainSurface(encodeConfig.maxWidth, encodeConfig.maxHeight, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &pD3D9Surface, nullptr);
+		res = pDevice->CreateRenderTarget(encodeConfig.maxWidth, encodeConfig.maxHeight, D3DFMT_A8R8G8B8, D3DMULTISAMPLE_NONE, 0, true,
+			&pD3D9Surface, nullptr);
 		if (FAILED(res))
 			return NV_ENC_ERR_OUT_OF_MEMORY;
 
@@ -836,11 +837,23 @@ HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 		if (FAILED(res))
 			throw std::exception("Failed to NvAPI_Stereo_SetSurfaceCreationMode\n");
 
+		// Actual shared surface, as a RenderTarget. RenderTarget because its main
+		// goal at this moment is to be written to.
+		UINT width = pPresentationParameters->BackBufferWidth * 2;
+		UINT height = pPresentationParameters->BackBufferHeight;
+		D3DFORMAT format = pPresentationParameters->BackBufferFormat;
+
+		res = pDevice9->CreateRenderTarget(width, height, format, D3DMULTISAMPLE_NONE, 0, true,
+			&gGameBitsCopy, nullptr);
+		if (FAILED(res))
+			throw std::exception("Fail to CreateRenderTarget for copy of stereo Texture");
+
 
 		// Setup and initialize the HW video encoder, to support encoding the
 		// pDevice9 BackBuffer.
-		SetupNvHWEncoder(pDevice9);
-
+		NVENCSTATUS nvstatus = SetupNvHWEncoder(pDevice9);
+		if (nvstatus != NV_ENC_SUCCESS)
+			throw std::exception("Failed to create NvEncoder\n");
 
 		// Since we are doing setup here, also create a thread that will be used to copy
 		// from the stereo game surface into the shared surface.  This way the game will
