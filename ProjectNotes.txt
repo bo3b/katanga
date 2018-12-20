@@ -454,3 +454,13 @@ SDK 6.0 supports lossless encoding, which is the main goal.
 
 So for the moment, we are going with SDK 6.0.  Might change depending upon user 
 requirements.
+
+
+12-19-18
+Got a basic structure setup for using nvcodec, but it doesn't work.  Seems to require
+a source buffer of an OffscreenPlainSurface, which can be on the video card memory,
+but does not allow any normal ways of updating the surface with game bits.  StretchRect
+will not work with Offscreenplain as the destination.  Seems to only be viable for
+loads from system memory, which is pointless.
+The DX9 interop code does use an alternate path though, using a Media Foundation Layer
+from Microsoft, with a DXVA2 library.  Trying that path now.
