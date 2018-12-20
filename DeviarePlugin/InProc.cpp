@@ -64,6 +64,8 @@
 
 #include "NktHookLib.h"
 
+//#include "D3dx9tex.h"
+
 #include "nvapi.h"
 
 #include "NvCodec_6.0.1/inc/NvHWEncoder.h"
@@ -82,7 +84,9 @@ CNktHookLib nktInProc;
 
 HANDLE gFreshBits = nullptr;				// Synchronization Event object
 
-IDirect3DSurface9* gGameBitsCopy = nullptr;	// Actual shared RenderTarget
+IDirect3DTexture9* gGameBitsCopy = nullptr;	// Actual shared RenderTarget
+IDirect3DSurface9* gGameSurface = nullptr;	// created as a reference to Texture
+
 HANDLE gGameSharedHandle = nullptr;			// Handle to share with DX11
 
 // The nvapi stereo handle, to access the reverse blit.
@@ -263,7 +267,7 @@ HRESULT __stdcall Hooked_Present(IDirect3DDevice9* This,
 		
 		hr = NvAPI_Stereo_ReverseStereoBlitControl(gNVAPI, true);
 		{
-			hr = This->StretchRect(backBuffer, nullptr, gGameBitsCopy, nullptr, D3DTEXF_NONE);
+			hr = This->StretchRect(backBuffer, nullptr, gGameSurface, nullptr, D3DTEXF_NONE);
 			if (FAILED(hr))
 				::OutputDebugString(L"Bad StretchRect to Texture.\n");
 
@@ -271,6 +275,10 @@ HRESULT __stdcall Hooked_Present(IDirect3DDevice9* This,
 			hr = This->StretchRect(backBuffer, nullptr, pEncodeInputSurface, nullptr, D3DTEXF_NONE);
 			if (FAILED(hr))
 				::OutputDebugString(L"Bad StretchRect to Texture.\n");
+			// Copy backbuffer onto the video encoder buffer
+			//hr = D3DXLoadSurfaceFromSurface(gGameSurface, nullptr, pEncodeInputSurface, nullptr, D3DTEXF_NONE);
+			//if (FAILED(hr))
+			//	::OutputDebugString(L"Bad StretchRect to Texture.\n");
 
 //			SetEvent(gFreshBits);		// Signal other thread to start StretchRect
 		}
@@ -289,7 +297,7 @@ HRESULT __stdcall Hooked_Present(IDirect3DDevice9* This,
 
 
 #ifdef _DEBUG
-		DrawStereoOnGame(This, gGameBitsCopy, backBuffer);
+		DrawStereoOnGame(This, gGameSurface, backBuffer);
 		// write to file?
 #endif
 
@@ -658,7 +666,7 @@ NVENCSTATUS SetupNvHWEncoder(IDirect3DDevice9* pDevice)
 
 	//	nvStatus = m_pNvHWEncoder->ParseArguments(&encodeConfig, argc, argv);
 
-	encodeConfig.width = encodeConfig.maxWidth = 1280;
+	encodeConfig.width = encodeConfig.maxWidth = 1280 * 2;
 	encodeConfig.height = encodeConfig.maxHeight = 720;
 	encodeConfig.outputFileName = "encode_out.mp4";
 
@@ -687,28 +695,51 @@ NVENCSTATUS SetupNvHWEncoder(IDirect3DDevice9* pDevice)
 	//	nvStatus = AllocateIOBuffers(encodeConfig.width, encodeConfig.height, encodeConfig.isYuv444);
 	for (uint32_t i = 0; i <= 1; i++)
 	{
-		// Input surface, a DX9 surface from the game.
+		// Input surface, a DX9 surface from the game.  Cannot be a RenderTarget, because
+		// the nvcodec will not allow it to be mapped.
+
+		// Actual shared surface, from a Texture with RenderTarget flag. 
+
 		IDirect3DSurface9* pD3D9Surface;
+		IDirect3DTexture9* pTexture9;
 		HRESULT res = S_OK;
-		res = pDevice->CreateRenderTarget(encodeConfig.maxWidth, encodeConfig.maxHeight, D3DFMT_A8R8G8B8, D3DMULTISAMPLE_NONE, 0, true,
-			&pD3D9Surface, nullptr);
+
+		res = pDevice->CreateTexture(encodeConfig.maxWidth, encodeConfig.maxHeight, 0, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT,
+			&pTexture9, nullptr);
 		if (FAILED(res))
-			return NV_ENC_ERR_OUT_OF_MEMORY;
+			throw std::exception("Fail to create shared stereo Texture");
+
+		// The surface derived from the rendertarget texture is the actual destination
+		// of the StrectRect of game bits.
+		res = pTexture9->GetSurfaceLevel(0, &pD3D9Surface);
+		if (FAILED(res))
+			throw std::exception("Fail to GetSurfaceLevel of stereo Texture");
+
+		res = pDevice->CreateOffscreenPlainSurface(encodeConfig.maxWidth, encodeConfig.maxHeight, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &pD3D9Surface, NULL);
+		if (FAILED(res))
+			throw std::exception("Fail to GetSurfaceLevel of stereo Texture");
+
+		//res = pDevice->CreateRenderTarget(encodeConfig.maxWidth, encodeConfig.maxHeight, D3DFMT_A8R8G8B8, D3DMULTISAMPLE_NONE, 0, true,
+		//	&pD3D9Surface, nullptr);
+		//if (FAILED(res))
+		//	return NV_ENC_ERR_OUT_OF_MEMORY;
 
 		gEncodeBuffer[i].stInputBfr.bufferFmt = NV_ENC_BUFFER_FORMAT_ARGB;
 		gEncodeBuffer[i].stInputBfr.dwWidth = encodeConfig.maxWidth;
 		gEncodeBuffer[i].stInputBfr.dwHeight = encodeConfig.maxHeight;
 		gEncodeBuffer[i].stInputBfr.pNV12Surface = pD3D9Surface;
-		gEncodeBuffer[i].stInputBfr.uNV12Stride = 0;  // ToDo: from 8.0 SDK
+//		gEncodeBuffer[i].stInputBfr.uNV12Stride = 1280*2;  // ToDo:  0 from 8.0 SDK
 
 		nvStatus = gEncoder->NvEncRegisterResource(NV_ENC_INPUT_RESOURCE_TYPE_DIRECTX,
-			pD3D9Surface, encodeConfig.maxWidth, encodeConfig.maxWidth,
+			pD3D9Surface, encodeConfig.maxWidth, encodeConfig.maxHeight,
 			gEncodeBuffer[i].stInputBfr.uNV12Stride,
 			&gEncodeBuffer[i].stInputBfr.nvRegisteredResource);
 
 		if (nvStatus != NV_ENC_SUCCESS)
 			return nvStatus;
 
+		if (gEncodeBuffer[i].stInputBfr.nvRegisteredResource == nullptr)
+			throw std::exception("! Null return from NvEncRegisterResource");
 
 		//Allocate output surface, a streambuffer from nvcodec
 #define BITSTREAM_BUFFER_SIZE 2 * 1024 * 1024
@@ -843,11 +874,18 @@ HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 		UINT height = pPresentationParameters->BackBufferHeight;
 		D3DFORMAT format = pPresentationParameters->BackBufferFormat;
 
-		res = pDevice9->CreateRenderTarget(width, height, format, D3DMULTISAMPLE_NONE, 0, true,
+		res = pDevice9->CreateTexture(width, height, 0, D3DUSAGE_RENDERTARGET, format, D3DPOOL_DEFAULT,
 			&gGameBitsCopy, nullptr);
 		if (FAILED(res))
-			throw std::exception("Fail to CreateRenderTarget for copy of stereo Texture");
+			throw std::exception("Fail to create shared stereo Texture");
 
+		// The surface derived from the rendertarget texture is the actual destination
+		// of the StrectRect of game bits.
+		res = gGameBitsCopy->GetSurfaceLevel(0, &gGameSurface);
+		if (FAILED(res))
+			throw std::exception("Fail to GetSurfaceLevel of stereo Texture");
+
+	//	DebugBreak();
 
 		// Setup and initialize the HW video encoder, to support encoding the
 		// pDevice9 BackBuffer.
