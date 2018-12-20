@@ -43,7 +43,7 @@ public class DrawSBS : MonoBehaviour
         //string game = @"G:\Games\S.T.A.L.K.E.R. Shadow of Chernobyl\bin\XR_3DA.exe";
         //string game = "C:\\Program Files (x86)\\Steam\\steam.exe -applaunch 35460";
         //string game = @"C:\Program Files (x86)\Steam\steamapps\common\The Ball\Binaries\Win32\theball.exe";
-        string game = @"W:\steamlibrary\steamapps\common\Psychonauts\psychonauts.exe";
+        string game = @"g:\steamlibrary\steamapps\common\Psychonauts\psychonauts.exe";
 
         print("Running: " + game + "\n");
         
@@ -75,7 +75,7 @@ public class DrawSBS : MonoBehaviour
         if (hresult != 0)
             throw new Exception("Deviare initialization error.");
 #if DEBUG
-        _spyMgr.SettingOverride("SpyMgrDebugLevelMask", 0xCF8);
+//        _spyMgr.SettingOverride("SpyMgrDebugLevelMask", 0xCF8);
 #endif
         print("Successful SpyMgr Init");
 
