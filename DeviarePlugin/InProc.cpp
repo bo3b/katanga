@@ -70,6 +70,9 @@
 
 #include "NvCodec_6.0.1/inc/NvHWEncoder.h"
 
+#include <initguid.h>
+#include <dxva2api.h>
+
 //-----------------------------------------------------------
 
 // This is automatically instantiated by C++, so the hooking library
@@ -96,6 +99,15 @@ StereoHandle gNVAPI = nullptr;
 CNvHWEncoder* gEncoder;
 EncodeBuffer gEncodeBuffer[2];
 int buffer = 0;
+
+// The DVAX2 video support object
+IDirectXVideoProcessorService* pService = nullptr;
+IDirectXVideoProcessor *pProcessor = nullptr;
+
+DXVA2_VideoDesc gVideoDesc = {};  // Not really used?  blank?
+
+DXVA2_VideoSample gVideoSample[2];
+DXVA2_VideoProcessBltParams gBltParam[2];
 
 //HANDLE gameThread = nullptr;
 
@@ -636,6 +648,63 @@ void DumpEncodingConfig(EncodeConfig encodeConfig)
 	printf("\n");
 }
 
+
+const D3DFORMAT D3DFMT_NV12 = (D3DFORMAT)MAKEFOURCC('N', 'V', '1', '2');
+
+// Per buffer setup. Used for DVAX2 to blt into, which is then passed to nvcodec
+
+HRESULT SetupSampleAndBlitParam(int width, int height, IDirect3DSurface9* surface,
+	/* [out] */ DXVA2_VideoSample &videoSample, DXVA2_VideoProcessBltParams &bltParam)
+{
+	::OutputDebugString(L"SetupSampleAndBlitParam::\n");
+
+	RECT rect = { 0, 0, (long)width, (long)height };
+	videoSample.PlanarAlpha.ll = 0x10000;
+	videoSample.SrcSurface = surface;
+	videoSample.SrcRect = rect;
+	videoSample.DstRect = rect;
+	videoSample.SampleFormat.SampleFormat = DXVA2_SampleProgressiveFrame;
+	videoSample.SampleFormat.VideoChromaSubsampling = DXVA2_VideoChromaSubsampling_MPEG2;
+	videoSample.SampleFormat.NominalRange = DXVA2_NominalRange_0_255;
+	videoSample.SampleFormat.VideoTransferMatrix = DXVA2_VideoTransferMatrix_BT601;
+
+	bltParam.TargetRect = rect;
+	bltParam.DestFormat = videoSample.SampleFormat;
+	bltParam.DestFormat.SampleFormat = DXVA2_SampleProgressiveFrame;
+	bltParam.Alpha.ll = 0x10000;
+	bltParam.TargetFrame = videoSample.Start;
+	bltParam.BackgroundColor.Y = 0x1000;
+	bltParam.BackgroundColor.Cb = 0x8000;
+	bltParam.BackgroundColor.Cr = 0x8000;
+	bltParam.BackgroundColor.Alpha = 0xffff;
+
+	DXVA2_ValueRange vr;
+	HRESULT err;
+
+	err = pService->GetProcAmpRange(DXVA2_VideoProcProgressiveDevice, &gVideoDesc, D3DFMT_NV12, DXVA2_ProcAmp_Brightness, &vr);
+	if (FAILED(err)) goto errOut;
+	bltParam.ProcAmpValues.Brightness = vr.DefaultValue;
+
+	err = pService->GetProcAmpRange(DXVA2_VideoProcProgressiveDevice, &gVideoDesc, D3DFMT_NV12, DXVA2_ProcAmp_Contrast, &vr);
+	if (FAILED(err)) goto errOut;
+	bltParam.ProcAmpValues.Contrast = vr.DefaultValue;
+
+	err = pService->GetProcAmpRange(DXVA2_VideoProcProgressiveDevice, &gVideoDesc, D3DFMT_NV12, DXVA2_ProcAmp_Hue, &vr);
+	if (FAILED(err)) goto errOut;
+	bltParam.ProcAmpValues.Hue = vr.DefaultValue;
+
+	err = pService->GetProcAmpRange(DXVA2_VideoProcProgressiveDevice, &gVideoDesc, D3DFMT_NV12, DXVA2_ProcAmp_Saturation, &vr);
+	if (FAILED(err)) goto errOut;
+	bltParam.ProcAmpValues.Saturation = vr.DefaultValue;
+
+	return NOERROR;
+
+errOut:
+	PRINTERR("Failed to create NV12 CreateVideoProcessor for DVAX2\n");
+	return NV_ENC_ERR_INVALID_CALL;
+}
+
+
 // Create and initialize the HW Encoder as specfied in the SDK.
 // Simplified from the sample code, and using the Lossless HP Preset.
 // Follows same setup sequence as 6.0.1 SDK NvEncoder app.
@@ -643,6 +712,9 @@ void DumpEncodingConfig(EncodeConfig encodeConfig)
 NVENCSTATUS SetupNvHWEncoder(IDirect3DDevice9* pDevice)
 {
 	NVENCSTATUS nvStatus;
+	HRESULT res = S_OK;
+
+	::OutputDebugString(L"SetupNvHWEncoder::\n");
 
 	gEncoder = new CNvHWEncoder;
 
@@ -692,37 +764,49 @@ NVENCSTATUS SetupNvHWEncoder(IDirect3DDevice9* pDevice)
 		return nvStatus;
 
 
+	res = DXVA2CreateVideoService(pDevice, __uuidof(IDirectXVideoProcessorService), (void **)&pService);
+	if (FAILED(res))
+	{
+		PRINTERR("Failed to create DXVA2CreateVideoService\n");
+		return NV_ENC_ERR_INVALID_CALL;
+	}
+
+
+	res = pService->CreateVideoProcessor(DXVA2_VideoProcProgressiveDevice, &gVideoDesc, D3DFMT_NV12, 0, &pProcessor);
+	if (FAILED(res))
+	{
+		PRINTERR("Failed to create NV12 CreateVideoProcessor for DVAX2\n");
+		return NV_ENC_ERR_INVALID_CALL;
+	}
+
+
+
 	//	nvStatus = AllocateIOBuffers(encodeConfig.width, encodeConfig.height, encodeConfig.isYuv444);
 	for (uint32_t i = 0; i <= 1; i++)
 	{
 		// Input surface, a DX9 surface from the game.  Cannot be a RenderTarget, because
 		// the nvcodec will not allow it to be mapped.
 
-		// Actual shared surface, from a Texture with RenderTarget flag. 
+		// Creating as a DXVA2 surface, like samples.
 
 		IDirect3DSurface9* pD3D9Surface;
-		IDirect3DTexture9* pTexture9;
-		HRESULT res = S_OK;
 
-		res = pDevice->CreateTexture(encodeConfig.maxWidth, encodeConfig.maxHeight, 0, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT,
-			&pTexture9, nullptr);
+		res = pService->CreateSurface(encodeConfig.maxWidth, encodeConfig.maxHeight, 0, D3DFMT_A8R8G8B8,
+			D3DPOOL_DEFAULT, 0, DXVA2_VideoProcessorRenderTarget, &pD3D9Surface, nullptr);
 		if (FAILED(res))
-			throw std::exception("Fail to create shared stereo Texture");
+		{
+			PRINTERR("Failed to CreateSurface for DVAX2\n");
+			return NV_ENC_ERR_INVALID_CALL;
+		}
 
-		// The surface derived from the rendertarget texture is the actual destination
-		// of the StrectRect of game bits.
-		res = pTexture9->GetSurfaceLevel(0, &pD3D9Surface);
+		res = SetupSampleAndBlitParam(encodeConfig.maxWidth, encodeConfig.maxHeight, pD3D9Surface,
+			gVideoSample[i], gBltParam[i]);
 		if (FAILED(res))
-			throw std::exception("Fail to GetSurfaceLevel of stereo Texture");
+		{
+			PRINTERR("Failed to SetupSampleAndBlitParam for DVAX2 buffer\n");
+			return NV_ENC_ERR_INVALID_CALL;
+		}
 
-		res = pDevice->CreateOffscreenPlainSurface(encodeConfig.maxWidth, encodeConfig.maxHeight, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &pD3D9Surface, NULL);
-		if (FAILED(res))
-			throw std::exception("Fail to GetSurfaceLevel of stereo Texture");
-
-		//res = pDevice->CreateRenderTarget(encodeConfig.maxWidth, encodeConfig.maxHeight, D3DFMT_A8R8G8B8, D3DMULTISAMPLE_NONE, 0, true,
-		//	&pD3D9Surface, nullptr);
-		//if (FAILED(res))
-		//	return NV_ENC_ERR_OUT_OF_MEMORY;
 
 		gEncodeBuffer[i].stInputBfr.bufferFmt = NV_ENC_BUFFER_FORMAT_ARGB;
 		gEncodeBuffer[i].stInputBfr.dwWidth = encodeConfig.maxWidth;
