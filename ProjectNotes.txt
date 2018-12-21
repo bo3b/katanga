@@ -464,3 +464,7 @@ will not work with Offscreenplain as the destination.  Seems to only be viable f
 loads from system memory, which is pointless.
 The DX9 interop code does use an alternate path though, using a Media Foundation Layer
 from Microsoft, with a DXVA2 library.  Trying that path now.
+
+One strange thing is launching Steam games. The steam launcher will often interfere, and
+throw up the error 5:65432 error.  This can be bypassed most times with a file named
+'steam_appid.txt' with the appid in the file.  Doesn't seem to work with The Ball though.
