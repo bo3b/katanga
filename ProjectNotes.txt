@@ -428,6 +428,10 @@ interfering with HelixMod, or it is, and no longer hooks the game and fixes the 
 This combined with all the tweaks needed to get Ex variant working seems like a hint
 this isn't the right approach.  
 
+Also worth noting, using the tweaks to different calls may not work properly under
+HelixMod, because of his own hooks.  So, the workarounds could introduce problems.
+Could make an automatic upgrade to last version HelixMod however.
+
 This seems like as good a time as any to try to use the Encode/Decode chip that is 
 built into all GPUs now.  We can convert the game data to a video stream, and pass
 that to the VR/Unity side to Decode.  Pretty sure this is how BigScreen works.
@@ -468,3 +472,29 @@ from Microsoft, with a DXVA2 library.  Trying that path now.
 One strange thing is launching Steam games. The steam launcher will often interfere, and
 throw up the error 5:65432 error.  This can be bypassed most times with a file named
 'steam_appid.txt' with the appid in the file.  Doesn't seem to work with The Ball though.
+
+
+1-7-19
+Got basic code working, and can see an encoded sample program.  Backed up a bit, and 
+integrated the Katanga code into the StereoUnproject sample, as a test of encoding a
+DX9 stereo backbuffer.  The code works, and encodes a video to disk.  Colors are wrong, 
+but basic data is there, and probably something off with the interminable settings in
+the nvcodec.  This uses the DXVA2 interface, which apparently is required to allow us 
+to copy the backbuffer onto something the nvcodec can accept.  Using StretchRect is not
+possible.  Hard.
+
+Next up is decoding the stream.  As near as I can tell, it requires the use of Cuda, and
+cannot use a DXVA2 variant.  Giant mess here, seems like only one path actually works, the
+rest is just broken.  Begs the question of using Cuda though- if we can share via a 
+Cuda surface, there is no need to use the encode/decode.  Still in investigation after 
+2 years of development.  Christ.  
+
+
+Also worth noting that the performance problem seen above, happens because the VR app is
+in the background.  That's allowing the game to block the VR app and cause stalls.  Probably
+not an issue, but might be for more demanding games.  Could be solved by putting the VR
+generation in the game process space itself, and not use Unity.  Might be necessary and/or
+worthwhile.  
+
+This is a separate problem from getting bits to the VR app.  That requires surface sharing
+or the video encode/decode, or possibly cuda.  That needs to be solved regardless.
