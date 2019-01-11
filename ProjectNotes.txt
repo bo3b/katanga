@@ -498,3 +498,40 @@ worthwhile.
 
 This is a separate problem from getting bits to the VR app.  That requires surface sharing
 or the video encode/decode, or possibly cuda.  That needs to be solved regardless.
+
+
+1-11-19
+Tested another scenario that is worth writing down as a possible solution.  While setting up
+for the DVAX2 surface sharing, it's surprising that it allows the nvcodec to access the
+surface, and seems to be the way the samples all work.  So, I made a test case (checked-in) of
+using a decode destination surface as the target for a StrechtRect, then take that surface
+and StretchRect back to the backbuffer.  This works.  This was with standard DX9 factory, not
+the DX9Ex factory, so would require no changes to the game setup.
+
+So, that means it should be possible to use this as a sharing technique, without needing to
+modify everything for DX9Ex.  Might be useful.
+
+Still, does not seem like the way to go, because we actually need to go from DX9 to DX11 in 
+order to draw in VR.  This DXVA2 buffer can possibly be setup as a surface share by itself,
+and thus not require game changes, but have not tested.  This is still suboptimal though, 
+because we want to be able to beam to Oculus Go/Quest as well, for a larger market. The only
+way to beam to those will be using the video encoder/decoder for a smaller bitstream.
+
+
+After some research it also looks likely that we could just use Cuda directly.  It has direct
+access to DX11 and DX9 surfaces, and a way to copy from one to the other, closer to a memcopy
+than the freakish DX stuff.  And keep it all on the GPU.  For a local-only mode, this seems
+like a much better path, because Cuda is a general purpose compute, not laden down with all
+the graphics restrictions of DX.  
+
+Should be fairly simple to just use Cuda to copy a registered DX9 buffer directly to a DX11
+buffer.  There does not appear to be any Device restrictions there, but like always, hard to
+say until you try it.  
+
+Still, this is local-only, and a good backup plan, but does not get a stream out to Quest.  Not
+sure that is important, but it would also allow us to get to Cardboard devices.  Maybe no one
+cares. Probably.  But, unless there are limitations to the streaming approach, like terrible
+latency or quality, this is a more general solution.
+
+Of course... the streaming decode *also* requires Cuda for the decode.  But heading that way
+now, to make a DX11 device that will receive the stream, decode it, and draw it.  Wish me luck.
