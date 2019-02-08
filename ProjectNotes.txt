@@ -498,3 +498,42 @@ worthwhile.
 
 This is a separate problem from getting bits to the VR app.  That requires surface sharing
 or the video encode/decode, or possibly cuda.  That needs to be solved regardless.
+
+
+2-8-19
+Finally, finally, figured out the nvcodec and and their SDK.  Took much longer than desired,
+and motivation was low, but I finally did it.  The problem is that the decoder *requires* 
+a file.  They do not expose the internal stream buffer they use to decode, and their API
+is oriented around the sole concept of files.  This is remarkably stupid, but there are no
+versions, not even the latest, that use anything as an input except files.  Everything is
+opaque.  Sheeeet.
+
+This is bad because that means that the only way to get the compressed bits to the DX11
+side is to go through system RAM.  We can map a file to memory to avoid hard drive slowness, 
+but that's RAM, not GPU memory.  This may or may not matter though, depending upon the 
+performance. The H.264 encoder can drop the 2M pixels (8MB) of 1080p down to roughly 500K
+at good quality.  PCI express can do something like 8MB/frame (500MB/60 frames).  That's quite
+a bit more than needed, probably.  Pencils out, but real world will no doubt... vary.
+
+Given the huge advantage of being able to stream off device to something like Go/Quest,
+it's probably still worth finishing the sample using memory mapped file I/O.  Especially for
+DX9, the games themselves will not be as demanding, so some overhead is going to be OK.
+
+
+Next up was an investigation into Cuda copies.  Like everything I've looked at, this seems
+like the way to go.  Probably get boned in the end too.  But, there is a direct interop
+support for DX9 and DX11 in Cuda, for copying surface to surface, and it does not rely
+upon Microsoft's lame surface sharing, it's GPU based using Cuda processor code. Closer to
+a GPU memcpy.  
+
+Initial look says this will work without too much trouble, and the API doesn't totally suck,
+which is a refreshing change of pace.   Copying from backbuffer seems problematic, but from
+a non-rendertarget it looks fine.  And keeps everything on the GPU like desired.
+
+The only small gotcha is that the DX9 device *must* be an Ex device.  Otherwise the cuda calls
+fail.  Even using an old SDK on modern hardware.  But, old SDK using just the change to
+Direct3DCreate9Ex works.  The 'simpleD3D9' works, from the 7.0 cuda SDK, using non-Ex calls
+for all the remaining pieces.  This maps directly to being able to switch to Ex call at init
+for a given game, but no other change, which allows the game to run without all the glitched
+APIs.
+
