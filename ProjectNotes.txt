@@ -596,3 +596,23 @@ for all the remaining pieces.  This maps directly to being able to switch to Ex 
 for a given game, but no other change, which allows the game to run without all the glitched
 APIs.
 
+
+2-24-19
+OK, finally, some real progress.  Going down the path of encode video to decode was a dead
+end.  The stupid nvcodec *requires* a file to decode.  There is no support for a buffer 
+based decode, which means that the data has to be sent back across PCI to the CPU to get to
+the DX11 side.  This is maybe OK, performance of the compressed data can conceivably be OK,
+especially by using a memory mapped file so it avoids HD hits.  But, lame.  
+
+Given that, took a look at Cuda to see if it could do inter-op in any sensible fashion.  
+APIs are 100x better than nvcodec, and SDK was usable instead of a piece of shit.  Looked
+doable, so I built up a sample program from the stereounproject.  Same one as for nvcodec,
+DX9 cubes being drawn, to a DX11 output window.  Made a new branch for the different approach.
+
+Works!  Got it fully working, showing the DX9 game/app drawing the red cubes, and then making
+a copy into a DX9 Surface, which is then cuda copied into a DX11 Texture2D.  Since both of 
+those are mapped at once, it does an cudaMemcpyArrayToArray to get all the bits across.  From
+there, the Texture2D is drawn to the Quad.  Fully functional, all data kept on the GPU.  A 
+couple of extra copies using StretchRect, but that's not going to sting.
+
+Now moving into incorporating this sample code into Katanga.
