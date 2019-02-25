@@ -56,9 +56,17 @@
 // runtime environment makes it hard to debug as well.  Careful with that axe, Eugene,
 // this is all pretty fragile.
 
+
+// Next up, trying to use cuda copies to share surfaces.  This DX9 side will only set
+// up the resources, not actually copy.  The only thing needed on this side is the
+// copy of the stereo bits, but as a cudaResource. That will be shared through IPC
+// to the DX11 side, where it can be copied using cudaMemcpyArrayToArray into 
+// a DX11 Texture2D.
+
 //-----------------------------------------------------------
 
 #include <thread>
+#include <stdexcept>>
 
 #include "DeviarePlugin.h"
 
@@ -68,8 +76,6 @@
 
 #include "nvapi.h"
 
-#include <initguid.h>
-#include <dxva2api.h>
 
 //-----------------------------------------------------------
 
@@ -330,241 +336,6 @@ HRESULT __stdcall Hooked_Present(IDirect3DDevice9* This,
 //}
 
 
-//-----------------------------------------------------------
-// Interface to implement the hook for IDirect3DDevice9->CreateTexture
-
-// This declaration serves a dual purpose of defining the interface routine as required by
-// DX9, and also is the storage for the original call, returned by nktInProc.Hook
-
-HRESULT(__stdcall *pOrigCreateTexture)(IDirect3DDevice9* This,
-	/* [in] */          UINT              Width,
-	/* [in] */          UINT              Height,
-	/* [in] */          UINT              Levels,
-	/* [in] */          DWORD             Usage,
-	/* [in] */          D3DFORMAT         Format,
-	/* [in] */          D3DPOOL           Pool,
-	/* [out, retval] */ IDirect3DTexture9 **ppTexture,
-	/* [in] */          HANDLE            *pSharedHandle
-	) = nullptr;
-
-
-// We need to implement a hook on CreateTexture, because the game
-// will create this after we return the IDirect3DDevice9Ex Device,
-// and the debug layer crashes with:
-// Direct3D9: (ERROR) : D3DPOOL_MANAGED is not valid with IDirect3DDevice9Ex
-// Then:
-// Direct3D9: (ERROR) : Lock is not supported for textures allocated with POOL_DEFAULT unless they are marked D3DUSAGE_DYNAMIC.
-// Then:
-// Direct3D9: (ERROR) :Dynamic textures cannot be rendertargets or depth/stencils.
-
-HRESULT __stdcall Hooked_CreateTexture(IDirect3DDevice9* This,
-	/* [in] */          UINT              Width,
-	/* [in] */          UINT              Height,
-	/* [in] */          UINT              Levels,
-	/* [in] */          DWORD             Usage,
-	/* [in] */          D3DFORMAT         Format,
-	/* [in] */          D3DPOOL           Pool,
-	/* [out, retval] */ IDirect3DTexture9 **ppTexture,
-	/* [in] */          HANDLE            *pSharedHandle)
-{
-#ifdef _DEBUG
-	wchar_t info[512];
-	swprintf_s(info, _countof(info),
-		L"NativePlugin::Hooked_CreateTexture - Levels: %d, Usage: %x, Format: %d, Pool: %d\n",
-		Levels, Usage, Format, Pool);
-	::OutputDebugString(info);
-#endif
-
-	// Force Managed_Pool to always be default, the only possibility on DX9Ex.
-	// D3DPOOL_SYSTEMMEM is still valid however, and should not be tweaked.
-	if (Pool == D3DPOOL_MANAGED)
-		Pool = D3DPOOL_DEFAULT;
-
-	// Any texture not used as RenderTarget or as a DepthStencil needs to be
-	// made dynamic, otherwise we get a POOL_DEFAULT error.
-	int renderOrStencil = Usage & (D3DUSAGE_RENDERTARGET | D3DUSAGE_DEPTHSTENCIL);
-	if (!renderOrStencil)
-		Usage |= D3DUSAGE_DYNAMIC;
-
-	HRESULT hr = pOrigCreateTexture(This, Width, Height, Levels, Usage, Format, Pool,
-		ppTexture, pSharedHandle);
-	if (FAILED(hr))
-		::OutputDebugStringA("Failed to call pOrigCreateTexture\n");
-
-	return hr;
-}
-
-//-----------------------------------------------------------
-// Interface to implement the hook for IDirect3DDevice9->CreateCubeTexture
-
-// This declaration serves a dual purpose of defining the interface routine as required by
-// DX9, and also is the storage for the original call, returned by nktInProc.Hook
-
-HRESULT(__stdcall *pOrigCreateCubeTexture)(IDirect3DDevice9* This,
-	/* [in] */          UINT                  EdgeLength,
-	/* [in] */          UINT                  Levels,
-	/* [in] */          DWORD                 Usage,
-	/* [in] */          D3DFORMAT             Format,
-	/* [in] */          D3DPOOL               Pool,
-	/* [out, retval] */ IDirect3DCubeTexture9 **ppCubeTexture,
-	/* [in] */          HANDLE                *pSharedHandle
-	) = nullptr;
-
-
-// We need to implement a hook on CreateCubeTexture, because the game
-// will create this after we return the IDirect3DDevice9Ex Device,
-// and the debug layer crashes with:
-// Direct3D9: (ERROR) : D3DPOOL_MANAGED is not valid with IDirect3DDevice9Ex
-// Then:
-// Direct3D9: (ERROR) :Lock is not supported for textures allocated with POOL_DEFAULT unless they are marked D3DUSAGE_DYNAMIC.
-
-HRESULT __stdcall Hooked_CreateCubeTexture(IDirect3DDevice9* This,
-	/* [in] */          UINT                  EdgeLength,
-	/* [in] */          UINT                  Levels,
-	/* [in] */          DWORD                 Usage,
-	/* [in] */          D3DFORMAT             Format,
-	/* [in] */          D3DPOOL               Pool,
-	/* [out, retval] */ IDirect3DCubeTexture9 **ppCubeTexture,
-	/* [in] */          HANDLE                *pSharedHandle)
-{
-#ifdef _DEBUG
-	wchar_t info[512];
-	swprintf_s(info, _countof(info),
-		L"NativePlugin::Hooked_CreateTexture - Levels: %d, Usage: %x, Format: %d, Pool: %d\n",
-		Levels, Usage, Format, Pool);
-	::OutputDebugString(info);
-#endif
-
-	// Force Managed_Pool to always be default, the only possibility on DX9Ex.
-	// D3DPOOL_SYSTEMMEM is still valid however, and should not be tweaked.
-	if (Pool == D3DPOOL_MANAGED)
-		Pool = D3DPOOL_DEFAULT;
-
-	// Any texture not used as RenderTarget or as a DepthStencil needs to be
-	// made dynamic, otherwise we get a POOL_DEFAULT error.
-	int renderOrStencil = Usage & (D3DUSAGE_RENDERTARGET | D3DUSAGE_DEPTHSTENCIL);
-	if (!renderOrStencil)
-		Usage |= D3DUSAGE_DYNAMIC;
-
-	HRESULT hr = pOrigCreateCubeTexture(This, EdgeLength, Levels, Usage, Format, Pool,
-		ppCubeTexture, pSharedHandle);
-	if (FAILED(hr))
-		::OutputDebugStringA("Failed to call pOrigCreateCubeTexture\n");
-
-	return hr;
-}
-
-//-----------------------------------------------------------
-// Interface to implement the hook for IDirect3DDevice9->CreateVertexBuffer
-
-// This declaration serves a dual purpose of defining the interface routine as required by
-// DX9, and also is the storage for the original call, returned by nktInProc.Hook
-
-HRESULT(__stdcall *pOrigCreateVertexBuffer)(IDirect3DDevice9* This,
-	/* [in] */          UINT                   Length,
-	/* [in] */          DWORD                  Usage,
-	/* [in] */          DWORD                  FVF,
-	/* [in] */          D3DPOOL                Pool,
-	/* [out, retval] */ IDirect3DVertexBuffer9 **ppVertexBuffer,
-	/* [in] */          HANDLE                 *pSharedHandle
-	) = nullptr;
-
-
-// We need to implement a hook on CreateVertexBuffer, because the game
-// will create this after we return the IDirect3DDevice9Ex Device,
-// and the debug layer crashes with:
-// Direct3D9: (ERROR) : D3DPOOL_MANAGED is not valid with IDirect3DDevice9Ex
-// Then:
-// Direct3D9: (WARN) : Vertexbuffer created with POOL_DEFAULT but WRITEONLY not set.Performance penalty could be severe.
-// I don't think it can be set to writeonly, but setting it to dynamic like the
-// the other texture buffers should work, based on:
-// https://msdn.microsoft.com/en-us/library/windows/desktop/bb147263(v=vs.85).aspx#Using_Dynamic_Vertex_and_Index_Buffers
-
-HRESULT __stdcall Hooked_CreateVertexBuffer(IDirect3DDevice9* This,
-	/* [in] */          UINT                   Length,
-	/* [in] */          DWORD                  Usage,
-	/* [in] */          DWORD                  FVF,
-	/* [in] */          D3DPOOL                Pool,
-	/* [out, retval] */ IDirect3DVertexBuffer9 **ppVertexBuffer,
-	/* [in] */          HANDLE                 *pSharedHandle)
-{
-#ifdef _DEBUG
-	wchar_t info[512];
-	swprintf_s(info, _countof(info),
-		L"NativePlugin::Hooked_CreateVertexBuffer -  Usage: %x, Pool: %d\n",
-		Usage, Pool);
-	::OutputDebugString(info);
-#endif
-
-	// Force Managed_Pool to always be default, the only possibility on DX9Ex.
-	// D3DPOOL_SYSTEMMEM is still valid however, and should not be tweaked.
-	if (Pool == D3DPOOL_MANAGED)
-		Pool = D3DPOOL_DEFAULT;
-
-	// Never used as Stencil or Target, so just make it dynamic because it's default pool.
-	Usage |= D3DUSAGE_DYNAMIC;
-
-	HRESULT hr = pOrigCreateVertexBuffer(This, Length, Usage, FVF, Pool,
-		ppVertexBuffer, pSharedHandle);
-	if (FAILED(hr))
-		::OutputDebugStringA("Failed to call pOrigCreateVertexBuffer\n");
-
-	return hr;
-}
-
-//-----------------------------------------------------------
-// Interface to implement the hook for IDirect3DDevice9->CreateIndexBuffer
-
-// This declaration serves a dual purpose of defining the interface routine as required by
-// DX9, and also is the storage for the original call, returned by nktInProc.Hook
-
-HRESULT(__stdcall *pOrigCreateIndexBuffer)(IDirect3DDevice9* This,
-	/* [in] */          UINT                  Length,
-	/* [in] */          DWORD                 Usage,
-	/* [in] */          D3DFORMAT             Format,
-	/* [in] */          D3DPOOL               Pool,
-	/* [out, retval] */ IDirect3DIndexBuffer9 **ppIndexBuffer,
-	/* [in] */          HANDLE                *pSharedHandle
-	) = nullptr;
-
-
-// We need to implement a hook on CreateIndexBuffer, because the game
-// will create this after we return the IDirect3DDevice9Ex Device,
-// and the debug layer crashes with:
-// Direct3D9: (ERROR) : D3DPOOL_MANAGED is not valid with IDirect3DDevice9Ex
-
-HRESULT __stdcall Hooked_CreateIndexBuffer(IDirect3DDevice9* This,
-	/* [in] */          UINT                  Length,
-	/* [in] */          DWORD                 Usage,
-	/* [in] */          D3DFORMAT             Format,
-	/* [in] */          D3DPOOL               Pool,
-	/* [out, retval] */ IDirect3DIndexBuffer9 **ppIndexBuffer,
-	/* [in] */          HANDLE                *pSharedHandle)
-{
-#ifdef _DEBUG
-	wchar_t info[512];
-	swprintf_s(info, _countof(info),
-		L"NativePlugin::Hooked_CreateIndexBuffer -  Usage: %x, Format: %d, Pool: %d\n",
-		Usage, Format, Pool);
-	::OutputDebugString(info);
-#endif
-
-	// Force Managed_Pool to always be default, the only possibility on DX9Ex.
-	// D3DPOOL_SYSTEMMEM is still valid however, and should not be tweaked.
-	if (Pool == D3DPOOL_MANAGED)
-		Pool = D3DPOOL_DEFAULT;
-
-	// Never used as Stencil or Target, so just make it dynamic because it's default pool.
-	Usage |= D3DUSAGE_DYNAMIC;
-
-	HRESULT hr = pOrigCreateIndexBuffer(This, Length, Usage, Format, Pool,
-		ppIndexBuffer, pSharedHandle);
-	if (FAILED(hr))
-		::OutputDebugStringA("Failed to call pOrigCreateIndexBuffer\n");
-
-	return hr;
-}
-
 
 
 //-----------------------------------------------------------
@@ -643,23 +414,23 @@ HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 		dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigPresent,
 			lpvtbl_Present(pDevice9), Hooked_Present, 0);
 		if (FAILED(dwOsErr))
-			::OutputDebugStringA("Failed to hook IDirect3DDevice9::Present\n");
+			::OutputDebugStringA("Failed to hook IDirect3DDevice9::Present");
 
 
 		// We still need the NvAPI to fetch the stereo backbuffer, so init it here.
 
 		HRESULT res = NvAPI_Initialize();
 		if (FAILED(res))
-			throw std::exception("Failed to NvAPI_Initialize\n");
+			throw std::exception("Failed to NvAPI_Initialize");
 
 		// ToDo: need to handle stereo disabled...
 		res = NvAPI_Stereo_CreateHandleFromIUnknown(pDevice9, &gNVAPI);
 		if (FAILED(res))
-			throw std::exception("Failed to NvAPI_Stereo_CreateHandleFromIUnknown\n");
+			throw std::exception("Failed to NvAPI_Stereo_CreateHandleFromIUnknown");
 
 		res = NvAPI_Stereo_SetSurfaceCreationMode(__in gNVAPI, __in NVAPI_STEREO_SURFACECREATEMODE_FORCESTEREO);
 		if (FAILED(res))
-			throw std::exception("Failed to NvAPI_Stereo_SetSurfaceCreationMode\n");
+			throw std::exception("Failed to NvAPI_Stereo_SetSurfaceCreationMode");
 
 		// Actual shared surface, as a RenderTarget. RenderTarget because its main
 		// goal at this moment is to be written to.
@@ -712,9 +483,6 @@ HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 		//HANDLE thread = GetCurrentThread();
 		//DuplicateHandle(GetCurrentProcess(), thread, GetCurrentProcess(), &gameThread, 0, TRUE, DUPLICATE_SAME_ACCESS);
 	}
-
-	// We are returning the IDirect3DDevice9Ex object, because the Device the game
-	// is going to use needs to be Ex type, so we can share from its backbuffer.
 
 	return hr;
 }
