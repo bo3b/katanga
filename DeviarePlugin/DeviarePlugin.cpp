@@ -83,14 +83,21 @@ VOID WINAPI OnHookRemoved(__in INktHookInfo *lpHookInfo, __in DWORD dwChainIndex
 // can get the Ex interface.  We need the Ex objects in order to share surfaces
 // outside of the game Device.  This was a long uphill struggle to understand
 // exactly what it takes.  There is no way to share surfaces with just DX9 itself,
-// it must be DX9Ex.
+// it must be DX9Ex.  
+// Still true, using cuda copies, cuda requires DX9Ex or will throw an error. However,
+// using Cuda we no longer need follow on calls like CreateDevice be CreateDeviceEx,
+// which was causing problems.
 //
 // We will return the Ex interface created, and do SkipCall on the original.
 
-// Original API:
+// Original APIs:
 //	IDirect3D9* Direct3DCreate9(
 //		UINT SDKVersion
 //	);
+// HRESULT WINAPI Direct3DCreate9Ex(
+//		UINT SDKVersion, IDirect3D9Ex**
+// );
+
 
 HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainIndex,
 	__in INktHookCallInfoPlugin *lpHookCallInfoPlugin)
@@ -110,17 +117,7 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 
 	// We only expect this to be called for D3D9.DLL!Direct3DCreate9. We want to daisy chain
 	// through the call sequence to ultimately get the Present routine.
-	//
-	// ToDo: For NvCodec, the samples past 6.0.1 all create a IDirect3D9Ex factory instead.
-	//  But a regular CreateDevice, not CreateDeviceEx.
-	//	We would very much like to keep the object non-Ex to avoid a lot of 
-	//	changes needed in games, so trying this as Direct3DCreate9.  May not work
-	//	on current drivers.
 
-//	IDirect3D9* pDX9 = Direct3DCreate9(D3D_SDK_VERSION);
-
-	// Experimental, always create 9Ex factory, even though only used
-	// as 9.  For nvcodec.
 	hr = Direct3DCreate9Ex(D3D_SDK_VERSION, &pDX9Ex);
 	if (FAILED(hr))
 		throw std::exception("Failed Direct3DCreate9Ex");
@@ -134,7 +131,7 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 	HookCreateDevice(pDX9Ex);
 
 	// The result of the Direct3DCreate9 function is the IDirect3D9 object, which you 
-	// can think of as DX9 itself. 
+	// can think of as DX9 itself. They never call it a DX9 factory, but it is.
 	//
 	// We want to skip the original call to Direct3DCreate9, because we want to just
 	// return this IDirect3D9 object.  This will tell Nektra to skip it.
@@ -144,7 +141,7 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 		throw std::exception("Failed SkipCall");
 
 	// However, we still need a proper return result from this call, so we set the 
-	// Nektra Result to be our IDirect3D9 object.  This will ultimately return to
+	// Nektra Result to be our IDirect3D9Ex object.  This will ultimately return to
 	// game, and be used as its IDirect3D9.
 
 	hr = lpHookCallInfoPlugin->Result(&nktResult);
