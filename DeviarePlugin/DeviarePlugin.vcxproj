@@ -199,7 +199,6 @@
     <ClInclude Include="nvapi\nvapi_lite_sli.h" />
     <ClInclude Include="nvapi\nvapi_lite_stereo.h" />
     <ClInclude Include="nvapi\nvapi_lite_surround.h" />
-    <ClInclude Include="NvCodec_6.0.1\inc\NvHWEncoder.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Addresses.c" />
@@ -218,7 +217,6 @@
       </PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="DeviarePlugin.cpp" />
-    <ClCompile Include="NvCodec_6.0.1\src\NvHWEncoder.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="DeviarePlugin.def" />
