@@ -68,8 +68,6 @@
 
 #include "nvapi.h"
 
-#include "NvCodec_6.0.1/inc/NvHWEncoder.h"
-
 #include <initguid.h>
 #include <dxva2api.h>
 
@@ -95,19 +93,6 @@ HANDLE gGameSharedHandle = nullptr;			// Handle to share with DX11
 // The nvapi stereo handle, to access the reverse blit.
 StereoHandle gNVAPI = nullptr;
 
-// The Nvidia video stream encoder object
-CNvHWEncoder* gEncoder;
-EncodeBuffer gEncodeBuffer[2];
-int buffer = 0;
-
-// The DVAX2 video support object
-IDirectXVideoProcessorService* pService = nullptr;
-IDirectXVideoProcessor *pProcessor = nullptr;
-
-DXVA2_VideoDesc gVideoDesc = {};  // Not really used?  blank?
-
-DXVA2_VideoSample gVideoSample[2];
-DXVA2_VideoProcessBltParams gBltParam[2];
 
 //HANDLE gameThread = nullptr;
 
@@ -268,49 +253,22 @@ HRESULT __stdcall Hooked_Present(IDirect3DDevice9* This,
 {
 	HRESULT hr;
 	IDirect3DSurface9* backBuffer;
-	NVENCSTATUS nvStatus;
 
 	hr = This->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &backBuffer);
-	if (SUCCEEDED(hr) && gEncoder != nullptr)
+	if (SUCCEEDED(hr))
 	{
-		// Setup for next video encode buffer to use
-		buffer = 1-buffer;
-		IDirect3DSurface9* pEncodeInputSurface = gEncodeBuffer[buffer].stInputBfr.pNV12Surface;
-		
 		hr = NvAPI_Stereo_ReverseStereoBlitControl(gNVAPI, true);
 		{
 			hr = This->StretchRect(backBuffer, nullptr, gGameSurface, nullptr, D3DTEXF_NONE);
 			if (FAILED(hr))
 				::OutputDebugString(L"Bad StretchRect to Texture.\n");
 
-			// Copy backbuffer onto the video encoder buffer
-			hr = This->StretchRect(backBuffer, nullptr, pEncodeInputSurface, nullptr, D3DTEXF_NONE);
-			if (FAILED(hr))
-				::OutputDebugString(L"Bad StretchRect to Texture.\n");
-			// Copy backbuffer onto the video encoder buffer
-			//hr = D3DXLoadSurfaceFromSurface(gGameSurface, nullptr, pEncodeInputSurface, nullptr, D3DTEXF_NONE);
-			//if (FAILED(hr))
-			//	::OutputDebugString(L"Bad StretchRect to Texture.\n");
-
 //			SetEvent(gFreshBits);		// Signal other thread to start StretchRect
 		}
 		hr = NvAPI_Stereo_ReverseStereoBlitControl(gNVAPI, false);
 
-		// ToDo: is this copying data back to CPU memory...
-		// Take current frame, and encode it into the output video stream.
-		nvStatus = gEncoder->NvEncMapInputResource(gEncodeBuffer[buffer].stInputBfr.nvRegisteredResource, &gEncodeBuffer[buffer].stInputBfr.hInputSurface);
-		{
-			nvStatus = gEncoder->NvEncEncodeFrame(&gEncodeBuffer[buffer], NULL,
-				gEncodeBuffer[buffer].stInputBfr.dwWidth, gEncodeBuffer[buffer].stInputBfr.dwHeight, NV_ENC_PIC_STRUCT_FRAME);
-			if (FAILED(nvStatus))
-				::OutputDebugString(L"Bad EncodeFrame.\n");
-		}
-		nvStatus = gEncoder->NvEncUnmapInputResource(gEncodeBuffer[buffer].stInputBfr.hInputSurface);
-
-
 #ifdef _DEBUG
 		DrawStereoOnGame(This, gGameSurface, backBuffer);
-		// write to file?
 #endif
 
 		backBuffer->Release();
@@ -609,255 +567,6 @@ HRESULT __stdcall Hooked_CreateIndexBuffer(IDirect3DDevice9* This,
 
 
 
-
-void DumpEncodingConfig(EncodeConfig encodeConfig)
-{
-	printf("Encoding input           : \"%s\"\n", encodeConfig.inputFileName);
-	printf("         output          : \"%s\"\n", encodeConfig.outputFileName);
-	printf("         codec           : \"%s\"\n", encodeConfig.codec == NV_ENC_HEVC ? "HEVC" : "H264");
-	printf("         size            : %dx%d\n", encodeConfig.width, encodeConfig.height);
-	printf("         bitrate         : %d bits/sec\n", encodeConfig.bitrate);
-	printf("         vbvMaxBitrate   : %d bits/sec\n", encodeConfig.vbvMaxBitrate);
-	printf("         vbvSize         : %d bits\n", encodeConfig.vbvSize);
-	printf("         fps             : %d frames/sec\n", encodeConfig.fps);
-	printf("         rcMode          : %s\n", encodeConfig.rcMode == NV_ENC_PARAMS_RC_CONSTQP ? "CONSTQP" :
-		encodeConfig.rcMode == NV_ENC_PARAMS_RC_VBR ? "VBR" :
-		encodeConfig.rcMode == NV_ENC_PARAMS_RC_CBR ? "CBR" :
-		encodeConfig.rcMode == NV_ENC_PARAMS_RC_VBR_MINQP ? "VBR MINQP" :
-		encodeConfig.rcMode == NV_ENC_PARAMS_RC_2_PASS_QUALITY ? "TWO_PASS_QUALITY" :
-		encodeConfig.rcMode == NV_ENC_PARAMS_RC_2_PASS_FRAMESIZE_CAP ? "TWO_PASS_FRAMESIZE_CAP" :
-		encodeConfig.rcMode == NV_ENC_PARAMS_RC_2_PASS_VBR ? "TWO_PASS_VBR" : "UNKNOWN");
-	if (encodeConfig.gopLength == NVENC_INFINITE_GOPLENGTH)
-		printf("         goplength       : INFINITE GOP \n");
-	else
-		printf("         goplength       : %d \n", encodeConfig.gopLength);
-	printf("         B frames        : %d \n", encodeConfig.numB);
-	printf("         QP              : %d \n", encodeConfig.qp);
-	printf("       Input Format      : %s\n", encodeConfig.isYuv444 ? "YUV 444" : "YUV 420");
-	printf("         preset          : %s\n", (encodeConfig.presetGUID == NV_ENC_PRESET_LOW_LATENCY_HQ_GUID) ? "LOW_LATENCY_HQ" :
-		(encodeConfig.presetGUID == NV_ENC_PRESET_LOW_LATENCY_HP_GUID) ? "LOW_LATENCY_HP" :
-		(encodeConfig.presetGUID == NV_ENC_PRESET_HQ_GUID) ? "HQ_PRESET" :
-		(encodeConfig.presetGUID == NV_ENC_PRESET_HP_GUID) ? "HP_PRESET" :
-		(encodeConfig.presetGUID == NV_ENC_PRESET_LOSSLESS_HP_GUID) ? "LOSSLESS_HP" :
-		(encodeConfig.presetGUID == NV_ENC_PRESET_LOW_LATENCY_DEFAULT_GUID) ? "LOW_LATENCY_DEFAULT" : "DEFAULT");
-	printf("  Picture Structure      : %s\n", (encodeConfig.pictureStruct == NV_ENC_PIC_STRUCT_FRAME) ? "Frame Mode" :
-		(encodeConfig.pictureStruct == NV_ENC_PIC_STRUCT_FIELD_TOP_BOTTOM) ? "Top Field first" :
-		(encodeConfig.pictureStruct == NV_ENC_PIC_STRUCT_FIELD_BOTTOM_TOP) ? "Bottom Field first" : "INVALID");
-	printf("         devicetype      : %s\n", "DX9");
-
-	printf("\n");
-}
-
-
-const D3DFORMAT D3DFMT_NV12 = (D3DFORMAT)MAKEFOURCC('N', 'V', '1', '2');
-
-// Per buffer setup. Used for DVAX2 to blt into, which is then passed to nvcodec
-
-HRESULT SetupSampleAndBlitParam(int width, int height, IDirect3DSurface9* surface,
-	/* [out] */ DXVA2_VideoSample &videoSample, DXVA2_VideoProcessBltParams &bltParam)
-{
-	::OutputDebugString(L"SetupSampleAndBlitParam::\n");
-
-	RECT rect = { 0, 0, (long)width, (long)height };
-	videoSample.PlanarAlpha.ll = 0x10000;
-	videoSample.SrcSurface = surface;
-	videoSample.SrcRect = rect;
-	videoSample.DstRect = rect;
-	videoSample.SampleFormat.SampleFormat = DXVA2_SampleProgressiveFrame;
-	videoSample.SampleFormat.VideoChromaSubsampling = DXVA2_VideoChromaSubsampling_MPEG2;
-	videoSample.SampleFormat.NominalRange = DXVA2_NominalRange_0_255;
-	videoSample.SampleFormat.VideoTransferMatrix = DXVA2_VideoTransferMatrix_BT601;
-
-	bltParam.TargetRect = rect;
-	bltParam.DestFormat = videoSample.SampleFormat;
-	bltParam.DestFormat.SampleFormat = DXVA2_SampleProgressiveFrame;
-	bltParam.Alpha.ll = 0x10000;
-	bltParam.TargetFrame = videoSample.Start;
-	bltParam.BackgroundColor.Y = 0x1000;
-	bltParam.BackgroundColor.Cb = 0x8000;
-	bltParam.BackgroundColor.Cr = 0x8000;
-	bltParam.BackgroundColor.Alpha = 0xffff;
-
-	DXVA2_ValueRange vr;
-	HRESULT err;
-
-	err = pService->GetProcAmpRange(DXVA2_VideoProcProgressiveDevice, &gVideoDesc, D3DFMT_NV12, DXVA2_ProcAmp_Brightness, &vr);
-	if (FAILED(err)) goto errOut;
-	bltParam.ProcAmpValues.Brightness = vr.DefaultValue;
-
-	err = pService->GetProcAmpRange(DXVA2_VideoProcProgressiveDevice, &gVideoDesc, D3DFMT_NV12, DXVA2_ProcAmp_Contrast, &vr);
-	if (FAILED(err)) goto errOut;
-	bltParam.ProcAmpValues.Contrast = vr.DefaultValue;
-
-	err = pService->GetProcAmpRange(DXVA2_VideoProcProgressiveDevice, &gVideoDesc, D3DFMT_NV12, DXVA2_ProcAmp_Hue, &vr);
-	if (FAILED(err)) goto errOut;
-	bltParam.ProcAmpValues.Hue = vr.DefaultValue;
-
-	err = pService->GetProcAmpRange(DXVA2_VideoProcProgressiveDevice, &gVideoDesc, D3DFMT_NV12, DXVA2_ProcAmp_Saturation, &vr);
-	if (FAILED(err)) goto errOut;
-	bltParam.ProcAmpValues.Saturation = vr.DefaultValue;
-
-	return NOERROR;
-
-errOut:
-	PRINTERR("Failed to create NV12 CreateVideoProcessor for DVAX2\n");
-	return NV_ENC_ERR_INVALID_CALL;
-}
-
-
-// Create and initialize the HW Encoder as specfied in the SDK.
-// Simplified from the sample code, and using the Lossless HP Preset.
-// Follows same setup sequence as 6.0.1 SDK NvEncoder app.
-
-NVENCSTATUS SetupNvHWEncoder(IDirect3DDevice9* pDevice)
-{
-	NVENCSTATUS nvStatus;
-	HRESULT res = S_OK;
-
-	::OutputDebugString(L"SetupNvHWEncoder::\n");
-
-	gEncoder = new CNvHWEncoder;
-
-	EncodeConfig encodeConfig = { 0 };
-
-	encodeConfig.endFrameIdx = INT_MAX;
-	encodeConfig.bitrate = 5000000;
-	encodeConfig.rcMode = NV_ENC_PARAMS_RC_CONSTQP;
-	encodeConfig.gopLength = NVENC_INFINITE_GOPLENGTH;
-	encodeConfig.deviceType = NV_ENC_DEVICE_TYPE_DIRECTX;
-	encodeConfig.codec = NV_ENC_H264;
-	encodeConfig.fps = 30;
-	encodeConfig.qp = 28;
-	encodeConfig.i_quant_factor = DEFAULT_I_QFACTOR;
-	encodeConfig.b_quant_factor = DEFAULT_B_QFACTOR;
-	encodeConfig.i_quant_offset = DEFAULT_I_QOFFSET;
-	encodeConfig.b_quant_offset = DEFAULT_B_QOFFSET;
-	encodeConfig.presetGUID = NV_ENC_PRESET_DEFAULT_GUID;
-	encodeConfig.pictureStruct = NV_ENC_PIC_STRUCT_FRAME;
-	encodeConfig.isYuv444 = 0;
-
-	//	nvStatus = m_pNvHWEncoder->ParseArguments(&encodeConfig, argc, argv);
-
-	encodeConfig.width = encodeConfig.maxWidth = 1280 * 2;
-	encodeConfig.height = encodeConfig.maxHeight = 720;
-	encodeConfig.outputFileName = "encode_out.mp4";
-
-	// For Testing, output encoded file.
-	errno_t err = fopen_s(&encodeConfig.fOutput, encodeConfig.outputFileName, "wb");
-	if (FAILED(err))
-	{
-		PRINTERR("Failed to create \"%s\"\n", encodeConfig.outputFileName);
-		return NV_ENC_ERR_INVALID_CALL;
-	}
-
-	//	hInput = nvOpenFile(encodeConfig.inputFileName);  skipped, as coming from game
-
-	nvStatus = gEncoder->Initialize(pDevice, NV_ENC_DEVICE_TYPE_DIRECTX);
-
-	encodeConfig.presetGUID = gEncoder->GetPresetGUID("lossless", NV_ENC_H264);
-
-	DumpEncodingConfig(encodeConfig);
-
-
-	nvStatus = gEncoder->CreateEncoder(&encodeConfig);
-	if (nvStatus != NV_ENC_SUCCESS)
-		return nvStatus;
-
-
-	res = DXVA2CreateVideoService(pDevice, __uuidof(IDirectXVideoProcessorService), (void **)&pService);
-	if (FAILED(res))
-	{
-		PRINTERR("Failed to create DXVA2CreateVideoService\n");
-		return NV_ENC_ERR_INVALID_CALL;
-	}
-
-
-	res = pService->CreateVideoProcessor(DXVA2_VideoProcProgressiveDevice, &gVideoDesc, D3DFMT_NV12, 0, &pProcessor);
-	if (FAILED(res))
-	{
-		PRINTERR("Failed to create NV12 CreateVideoProcessor for DVAX2\n");
-		return NV_ENC_ERR_INVALID_CALL;
-	}
-
-
-
-	//	nvStatus = AllocateIOBuffers(encodeConfig.width, encodeConfig.height, encodeConfig.isYuv444);
-	for (uint32_t i = 0; i <= 1; i++)
-	{
-		// Input surface, a DX9 surface from the game.  Cannot be a RenderTarget, because
-		// the nvcodec will not allow it to be mapped.
-
-		// Creating as a DXVA2 surface, like samples.
-
-		IDirect3DSurface9* pD3D9Surface;
-
-		res = pService->CreateSurface(encodeConfig.maxWidth, encodeConfig.maxHeight, 0, D3DFMT_A8R8G8B8,
-			D3DPOOL_DEFAULT, 0, DXVA2_VideoProcessorRenderTarget, &pD3D9Surface, nullptr);
-		if (FAILED(res))
-		{
-			PRINTERR("Failed to CreateSurface for DVAX2\n");
-			return NV_ENC_ERR_INVALID_CALL;
-		}
-
-		res = SetupSampleAndBlitParam(encodeConfig.maxWidth, encodeConfig.maxHeight, pD3D9Surface,
-			gVideoSample[i], gBltParam[i]);
-		if (FAILED(res))
-		{
-			PRINTERR("Failed to SetupSampleAndBlitParam for DVAX2 buffer\n");
-			return NV_ENC_ERR_INVALID_CALL;
-		}
-
-
-		gEncodeBuffer[i].stInputBfr.bufferFmt = NV_ENC_BUFFER_FORMAT_ARGB;
-		gEncodeBuffer[i].stInputBfr.dwWidth = encodeConfig.maxWidth;
-		gEncodeBuffer[i].stInputBfr.dwHeight = encodeConfig.maxHeight;
-		gEncodeBuffer[i].stInputBfr.pNV12Surface = pD3D9Surface;
-//		gEncodeBuffer[i].stInputBfr.uNV12Stride = 1280*2;  // ToDo:  0 from 8.0 SDK
-
-		nvStatus = gEncoder->NvEncRegisterResource(NV_ENC_INPUT_RESOURCE_TYPE_DIRECTX,
-			pD3D9Surface, encodeConfig.maxWidth, encodeConfig.maxHeight,
-			gEncodeBuffer[i].stInputBfr.uNV12Stride,
-			&gEncodeBuffer[i].stInputBfr.nvRegisteredResource);
-
-		if (nvStatus != NV_ENC_SUCCESS)
-			return nvStatus;
-
-		if (gEncodeBuffer[i].stInputBfr.nvRegisteredResource == nullptr)
-			throw std::exception("! Null return from NvEncRegisterResource");
-
-		//Allocate output surface, a streambuffer from nvcodec
-#define BITSTREAM_BUFFER_SIZE 2 * 1024 * 1024
-		nvStatus = gEncoder->NvEncCreateBitstreamBuffer(BITSTREAM_BUFFER_SIZE, &gEncodeBuffer[i].stOutputBfr.hBitstreamBuffer);
-		if (nvStatus != NV_ENC_SUCCESS)
-			return nvStatus;
-		gEncodeBuffer[i].stOutputBfr.dwBitstreamBufferSize = BITSTREAM_BUFFER_SIZE;
-
-		nvStatus = gEncoder->NvEncRegisterAsyncEvent(&gEncodeBuffer[i].stOutputBfr.hOutputEvent);
-		if (nvStatus != NV_ENC_SUCCESS)
-			return nvStatus;
-		gEncodeBuffer[i].stOutputBfr.bWaitOnEvent = true;
-	}
-
-	return NV_ENC_SUCCESS;
-
-	// Some YUV setup junk I think only on input
-
-	// EncodeFrame for every input from their file
-	// Flush output
-
-	// Close output, close input.
-	// Deinitialize
-
-
-		// ARGB would not seem to match the game BGRA format, but maybe the encoder is big-endian.
-
-		//gEncoder = new NvEncoderD3D9(pDevice9, gameWidth, gameHeight, NV_ENC_BUFFER_FORMAT_ARGB);
-
-		// Lossless HighPerformance encoding seems like the call for game to VR display.
-		// Works on anything 7xx series GPU and above.
-}
-
-
 //-----------------------------------------------------------
 // Interface to implement the hook for IDirect3D9->CreateDevice
 
@@ -969,13 +678,8 @@ HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 		if (FAILED(res))
 			throw std::exception("Fail to GetSurfaceLevel of stereo Texture");
 
-	//	DebugBreak();
 
-		// Setup and initialize the HW video encoder, to support encoding the
-		// pDevice9 BackBuffer.
-		NVENCSTATUS nvstatus = SetupNvHWEncoder(pDevice9);
-		if (nvstatus != NV_ENC_SUCCESS)
-			throw std::exception("Failed to create NvEncoder\n");
+	//	DebugBreak();
 
 		// Since we are doing setup here, also create a thread that will be used to copy
 		// from the stereo game surface into the shared surface.  This way the game will
