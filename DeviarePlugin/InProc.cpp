@@ -66,7 +66,6 @@
 //-----------------------------------------------------------
 
 #include <thread>
-#include <stdexcept>>
 
 #include "DeviarePlugin.h"
 
@@ -75,6 +74,7 @@
 //#include "D3dx9tex.h"
 
 #include "nvapi.h"
+#include <cuda_d3d9_interop.h>
 
 
 //-----------------------------------------------------------
@@ -94,10 +94,14 @@ HANDLE gFreshBits = nullptr;				// Synchronization Event object
 IDirect3DTexture9* gGameBitsCopy = nullptr;	// Actual shared RenderTarget
 IDirect3DSurface9* gGameSurface = nullptr;	// created as a reference to Texture
 
-HANDLE gGameSharedHandle = nullptr;			// Handle to share with DX11
 
 // The nvapi stereo handle, to access the reverse blit.
 StereoHandle gNVAPI = nullptr;
+
+// RenderTarget, will be copy of stereo bits 
+IDirect3DSurface9* g_cudaStereoRT = NULL;
+// Only reference shared across Nektra IPC to DX11 side
+cudaGraphicsResource* g_cudaStereoResource = NULL;
 
 
 //HANDLE gameThread = nullptr;
@@ -112,14 +116,17 @@ static unsigned long triggerCount = 0;
 // using Deviare access routines.
 
 
-// Return the current value of the gGameSurfaceShare.  This is the HANDLE
-// that is necessary to share from DX9Ex here to DX11 in the VR app.
+// Return the current value of the g_cudaStereoResource. This is the cuda
+// graphic resource that has been registered.  Through the cudaInterop, this
+// is the IDirect3DSurface9* g_cudaStereoRT.
+// On the other side, in DX11 land, it will take that cudaGraphicsResource,
+// Map it, then do an array copy into the DX11 Texture2D.
 
 HANDLE WINAPI GetSharedHandle(int* in)
 {
 	::OutputDebugString(L"GetSharedHandle::\n");
 
-	return gGameSharedHandle;
+	return g_cudaStereoResource;
 }
 
 // Shared Event object that is the notification that the VR side
@@ -277,6 +284,9 @@ HRESULT __stdcall Hooked_Present(IDirect3DDevice9* This,
 		DrawStereoOnGame(This, gGameSurface, backBuffer);
 #endif
 
+		// Copy the stereo bits into the cuda RenderTarget
+		hr = This->StretchRect(backBuffer, nullptr, g_cudaStereoRT, nullptr, D3DTEXF_NONE);
+
 		backBuffer->Release();
 	}
 
@@ -388,8 +398,7 @@ HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 	// But, we are doing multithreaded StretchRect now, so let's add this.  Otherwise we get a
 	// a crash.  Not certain this is best, said to slow things down.
 
-	// According to docs, also need a couple of other flags, for the NvCodec to work.
-	BehaviorFlags |= D3DCREATE_MULTITHREADED | D3DCREATE_FPU_PRESERVE | D3DCREATE_HARDWARE_VERTEXPROCESSING;
+	BehaviorFlags |= D3DCREATE_MULTITHREADED;
 	   
 
 	// Run original call game is expecting.
@@ -410,7 +419,7 @@ HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 	{
 		SIZE_T hook_id;
 		DWORD dwOsErr;
-		
+
 		dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigPresent,
 			lpvtbl_Present(pDevice9), Hooked_Present, 0);
 		if (FAILED(dwOsErr))
@@ -419,7 +428,7 @@ HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 
 		// We still need the NvAPI to fetch the stereo backbuffer, so init it here.
 
-		HRESULT res = NvAPI_Initialize();
+		NvAPI_Status res = NvAPI_Initialize();
 		if (FAILED(res))
 			throw std::exception("Failed to NvAPI_Initialize");
 
@@ -432,22 +441,42 @@ HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 		if (FAILED(res))
 			throw std::exception("Failed to NvAPI_Stereo_SetSurfaceCreationMode");
 
-		// Actual shared surface, as a RenderTarget. RenderTarget because its main
-		// goal at this moment is to be written to.
+
+		// In between bits for stereo game data.  This must be a RenderTargetTexture,
+		// and cannot be a RenderTarget, because ReverseStereoBlit will only copy one
+		// eye for RT.
 		UINT width = pPresentationParameters->BackBufferWidth * 2;
 		UINT height = pPresentationParameters->BackBufferHeight;
 		D3DFORMAT format = pPresentationParameters->BackBufferFormat;
 
-		res = pDevice9->CreateTexture(width, height, 0, D3DUSAGE_RENDERTARGET, format, D3DPOOL_DEFAULT,
+		hr = pDevice9->CreateTexture(width, height, 0, D3DUSAGE_RENDERTARGET, format, D3DPOOL_DEFAULT,
 			&gGameBitsCopy, nullptr);
-		if (FAILED(res))
+		if (FAILED(hr))
 			throw std::exception("Fail to create shared stereo Texture");
 
 		// The surface derived from the rendertarget texture is the actual destination
 		// of the StrectRect of game bits.
-		res = gGameBitsCopy->GetSurfaceLevel(0, &gGameSurface);
-		if (FAILED(res))
+		hr = gGameBitsCopy->GetSurfaceLevel(0, &gGameSurface);
+		if (FAILED(hr))
 			throw std::exception("Fail to GetSurfaceLevel of stereo Texture");
+
+
+		// Create RenderTarget for the stereo copy to be shared via cuda.
+		// Oddly, this must be RT, and cannot be a RenderTargetTexture,
+		// or cuda throws an error.
+		hr = pDevice9->CreateRenderTarget(width, height, format, D3DMULTISAMPLE_NONE, 0, false, 
+			&g_cudaStereoRT, nullptr);
+		if (FAILED(hr))
+			throw std::exception("Fail to CreateRenderTarget of stereo cuda Texture");
+
+		// Set up the DX9 copy to be readable by Cuda.
+		// This is the only reference we need to IPC.
+		cudaError cuErr = cudaD3D9SetDirect3DDevice(pDevice9);
+		if (cuErr != cudaSuccess)
+			throw std::exception("Fail to cudaD3D9SetDirect3DDevice");
+		cuErr = cudaGraphicsD3D9RegisterResource(&g_cudaStereoResource, g_cudaStereoRT, cudaGraphicsRegisterFlagsNone);
+		if (cuErr != cudaSuccess)
+			throw std::exception("g_StereoSurface cudaGraphicsD3D9RegisterResource failed");
 
 
 	//	DebugBreak();

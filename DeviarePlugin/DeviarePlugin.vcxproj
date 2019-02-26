@@ -69,11 +69,11 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>$(SolutionDir)UnityScreenApp\Assets\Dependencies;$(IncludePath)</IncludePath>
+    <IncludePath>$(SolutionDir)UnityScreenApp\Assets\Dependencies;$(CUDA_PATH_V7_0)\include;$(IncludePath)</IncludePath>
     <OutDir>$(SolutionDir)UnityScreenApp\Assets\Plugins\</OutDir>
     <IntDir>$(PlatformShortName)\</IntDir>
     <TargetName>$(ProjectName)</TargetName>
-    <LibraryPath>$(ProjectDir)nvapi;$(LibraryPath)</LibraryPath>
+    <LibraryPath>$(ProjectDir)nvapi;$(CUDA_PATH_V7_0)\lib\$(Platform);$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>false</LinkIncremental>
@@ -115,7 +115,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>d3d9.lib;dxva2.lib;NktHookLib.lib;nvapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>legacy_stdio_definitions.lib;d3d9.lib;cudart_static.lib;NktHookLib.lib;nvapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ModuleDefinitionFile>DeviarePlugin.def</ModuleDefinitionFile>
     </Link>
   </ItemDefinitionGroup>
