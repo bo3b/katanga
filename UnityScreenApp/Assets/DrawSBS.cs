@@ -142,51 +142,51 @@ public class DrawSBS : MonoBehaviour
         // game to call through to CreateDevice, so that we can create the shared surface.
         // Let's yield until that happens.
 
-        StartCoroutine("WaitForSharedSurface");
+        StartCoroutine("WaitForCudaResource");
     }
 
 
     // Our x64 Native DLL allows us direct access to DX11 in order to take
-    // the shared handle and turn it into a ID3D11ShaderResourceView for Unity.
+    // the shared cudaGraphicsResource and turn it into a ID3D11ShaderResourceView for Unity.
     [DllImport("UnityNativePlugin64")]
-    private static extern IntPtr CreateSharedTexture(int sharedHandle);
+    private static extern IntPtr CreateSharedTexture(int sharedCudaResource);
 
-    // WaitForSharedSurface will just wait until the CreateDevice has been called in 
-    // DeviarePlugin, and thus we have created a shared surface for copying game bits into.
+    // WaitForCudaResource will just wait until the CreateDevice has been called in 
+    // DeviarePlugin, and thus we have created a cudaGraphicsResource for copying game bits into.
     // This is asynchronous because it's in the game world, and we don't know when
     // it will happen.
     //
     // Once the GetSharedSurface returns with non-null, we are ready to continue
     // with the VR side of showing those bits.
 
-    private IEnumerator WaitForSharedSurface()
+    private IEnumerator WaitForCudaResource()
     {
-        System.Int32 gameSharedHandle = 0;
+        System.Int32 gameSharedCudaResource = 0;
 
-        while (gameSharedHandle == 0)
+        while (gameSharedCudaResource == 0)
         {
             // Check-in every 200ms.
             yield return new WaitForSecondsRealtime(0.2f);
 
-            print("... WaitForSharedSurface");
+            print("... WaitForCudaResource");
 
             // ToDo: To work, we need to pass in a parameter? 
-            // This will call to DeviarePlugin native DLL routine to fetch current gGameSurfaceShare HANDLE.
+            // This will call to DeviarePlugin native DLL routine to fetch current g_cudaStereoResource pointer.
             System.Int32 native = 0; // (int)_tex.GetNativeTexturePtr();
             object parm = native;
-            gameSharedHandle = _spyMgr.CallCustomApi(_gameProcess, _nativeDLLName, "GetSharedHandle", ref parm, true);
+            gameSharedCudaResource = _spyMgr.CallCustomApi(_gameProcess, _nativeDLLName, "GetSharedCudaResource", ref parm, true);
         }
 
         // We finally have a valid gGameSurfaceShare as a DX11 HANDLE.  
         // We can thus finish up the init.
 
-        print("-> Got shared handle: " + gameSharedHandle.ToString("x"));
+        print("-> Got shared resource: " + gameSharedCudaResource.ToString("x"));
 
 
         // Call into the x64 UnityNativePlugin DLL for DX11 access, in order to create a ID3D11ShaderResourceView.
         // You'd expect this to be a IDX11Texture2D, but that's not what Unity wants.
 
-        IntPtr shared = CreateSharedTexture(gameSharedHandle);
+        IntPtr shared = CreateSharedTexture(gameSharedCudaResource);
 
         // This is the Unity Texture2D, double width texture, with right eye on the left half.
         // It will always be up to date with latest game image, because we pass in 'shared'.

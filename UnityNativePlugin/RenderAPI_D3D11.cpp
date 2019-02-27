@@ -5,11 +5,16 @@
 
 #if SUPPORT_D3D11
 
+#include <exception>
 #include <assert.h>
 #include <d3d11.h>
 #include "Unity/IUnityGraphicsD3D11.h"
 
 #include <stdio.h>
+
+#include <cuda_runtime_api.h>
+#include <cuda_d3d11_interop.h>
+
 
 
 class RenderAPI_D3D11 : public RenderAPI
@@ -25,7 +30,7 @@ public:
 	virtual void* BeginModifyTexture(void* textureHandle, int textureWidth, int textureHeight, int* outRowPitch);
 	virtual void EndModifyTexture(void* textureHandle, int textureWidth, int textureHeight, int rowPitch, void* dataPtr);
 
-	virtual ID3D11ShaderResourceView* CreateSharedSurface(HANDLE shared);
+	virtual ID3D11ShaderResourceView* CreateSharedSurface(cudaGraphicsResource* shared);
 
 private:
 	void CreateResources();
@@ -42,7 +47,19 @@ private:
 	ID3D11BlendState* m_BlendState;
 	ID3D11DepthStencilState* m_DepthState;
 
-	//ID3D11Texture2D* m_SharedSurface;	// Same as DX9Ex surface
+	// Data structure for 2D texture shared between DX11 and CUDA
+	// This will be the source of the data drawn to the DX11 window.
+	struct
+	{
+		ID3D11Texture2D*			pTexture;
+		ID3D11ShaderResourceView*	pSRView;
+		cudaGraphicsResource*		cudaResource;
+		void*						cudaLinearMemory;
+		size_t						pitch;
+		int							width;
+		int							height;
+		int							offsetInShader;
+	} g_texture_2d;
 };
 
 
@@ -235,48 +252,97 @@ void RenderAPI_D3D11::EndModifyTexture(void* textureHandle, int textureWidth, in
 }
 
 
-// Get the shared surface specified by the input HANDLE.  This will be from 
-// the game side, in DX9Ex. This technique is specified in the documentation:
-// https://msdn.microsoft.com/en-us/library/windows/desktop/ff476531(v=vs.85).aspx
-// https://msdn.microsoft.com/en-us/library/windows/desktop/ee913554(v=vs.85).aspx
+// Use the shared cudaGraphicsResource to create the DX11 SRV that Unity desires.
 
-ID3D11ShaderResourceView* RenderAPI_D3D11::CreateSharedSurface(HANDLE shared)
+ID3D11ShaderResourceView* RenderAPI_D3D11::CreateSharedSurface(cudaGraphicsResource* shared)
 {
 	HRESULT hr;
-	ID3D11Resource* resource;
-	ID3D11Texture2D* texture;
-	ID3D11ShaderResourceView* pSRView;
+	cudaError cuErr;
 
-	// Bump priority for this Device, it's VR and must be tops.
+	// ToDo: Need to get the dimensions dynamically.  Hard code for now.
+	// Probably pass that in a separate call to DeviarePlugin.
+	// Can't use the Texture2D or Surface9 because they are not shared.
 
-	IDXGIDevice* pDXGIDevice;
-	hr = m_Device->QueryInterface(__uuidof(IDXGIDevice), (void**)(&pDXGIDevice));
+	int width = 1600 * 2;
+	int height = 900;
+
+	// create the DX11 resources we'll be using
+	//
+	// 2D texture which will be destination of cuda copy.
+	g_texture_2d.width = width;
+	g_texture_2d.height = height;
+
+	D3D11_TEXTURE2D_DESC desc;
+	ZeroMemory(&desc, sizeof(D3D11_TEXTURE2D_DESC));
+	desc.Width = g_texture_2d.width;
+	desc.Height = g_texture_2d.height;
+	desc.MipLevels = 1;
+	desc.ArraySize = 1;
+	desc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+	desc.SampleDesc.Count = 1;
+	desc.Usage = D3D11_USAGE_DEFAULT;
+	desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+
+	hr = m_Device->CreateTexture2D(&desc, NULL, &g_texture_2d.pTexture);
 	if (FAILED(hr))
-		__debugbreak();
-	hr = pDXGIDevice->SetGPUThreadPriority(7);
-	if (FAILED(hr))
-		__debugbreak();
+		throw std::exception("Fail to CreateTexture2D for DX11");
 
-	hr = m_Device->OpenSharedResource(shared, __uuidof(ID3D11Resource), (void**)(&resource));
+	// Might need:
+	//D3D11_SHADER_RESOURCE_VIEW_DESC desc;
+	//desc.Format = DXGI_FORMAT_B8G8R8A8_TYPELESS;
+	//desc.ViewDimension = D3D_SRV_DIMENSION_TEXTURE2D;
+	//desc.Texture2D.MipLevels = 0;
+	//desc.Texture2D.MostDetailedMip = -1;  // Pathetic design- defined as UINT, requires -1.
+
+	hr = m_Device->CreateShaderResourceView(g_texture_2d.pTexture, NULL, &g_texture_2d.pSRView);
+	if (FAILED(hr))
+		throw std::exception("Fail to CreateShaderResourceView for DX11");
+
+	// register the Direct3D resources that we'll use
+	// we'll read to and write from g_texture_2d, so don't set any special map flags for it
+	cuErr = cudaGraphicsD3D11RegisterResource(&g_texture_2d.cudaResource, g_texture_2d.pTexture, cudaGraphicsRegisterFlagsNone);
+	if (cuErr != cudaSuccess)
+		throw std::exception("Fail to cudaGraphicsD3D11RegisterResource DX11");
+
+
+
+	// With those two cudaGraphicsResources, we can now copy from the DX9 one,
+	// into the DX11 one.
+
+	cuErr = cudaGraphicsMapResources(1, &shared);
+	if (cuErr != cudaSuccess)
+		throw std::exception("cudaGraphicsMapResources DX9 failed");
+	cuErr = cudaGraphicsMapResources(1, &g_texture_2d.cudaResource);
+	if (cuErr != cudaSuccess)
+		throw std::exception("cudaGraphicsMapResources DX11 failed");
 	{
-		if (FAILED(hr))
-			__debugbreak();
+		cudaArray* cuArrayDX9;
+		cudaArray* cuArrayDX11;
+		cuErr = cudaGraphicsSubResourceGetMappedArray(&cuArrayDX9, shared, 0, 0);
+		if (cuErr != cudaSuccess)
+			throw std::exception("cudaGraphicsSubResourceGetMappedArray (DX9->cuda_texture_2d) failed");
+		cuErr = cudaGraphicsSubResourceGetMappedArray(&cuArrayDX11, g_texture_2d.cudaResource, 0, 0);
+		if (cuErr != cudaSuccess)
+			throw std::exception("cudaGraphicsSubResourceGetMappedArray (DX11->cuda_texture_2d) failed");
 
-		// Even though the input shared surface is a RenderTarget Surface, this
-		// Query for Texture still works.  Not sure if it is good or bad.
-		hr = resource->QueryInterface(__uuidof(ID3D11Texture2D), (void**)(&texture));
-		if (FAILED(hr))
-			__debugbreak();
-
-		D3D11_TEXTURE2D_DESC tdesc;
-		texture->GetDesc(&tdesc);
-		wchar_t info[512];
-		swprintf_s(info, _countof(info),
-			L"RenderAPI_D3D11::CreateSharedSurface - Width: %d, Height: %d, Format: %d\n",
-			tdesc.Width, tdesc.Height, tdesc.Format);
-		::OutputDebugString(info);
+		// then we want to copy cudaLinearMemory to the D3D texture, via its mapped form : cudaArray
+		cuErr = cudaMemcpyArrayToArray(
+			cuArrayDX11,	// dst array
+			0, 0,	// offset
+			cuArrayDX9,	// src array
+			0, 0,	// offset
+			width * height * 4,	// count
+			cudaMemcpyDeviceToDevice); // kind
+		if (cuErr != cudaSuccess)
+			throw std::exception("cudaMemcpy2DToArray failed");
 	}
-	resource->Release();
+	cuErr = cudaGraphicsUnmapResources(1, &shared);
+	if (cuErr != cudaSuccess)
+		throw std::exception("cudaGraphicsUnmapResources DX9 failed");
+	cuErr = cudaGraphicsUnmapResources(1, &g_texture_2d.cudaResource);
+	if (cuErr != cudaSuccess)
+		throw std::exception("cudaGraphicsUnmapResources DX11 failed");
+
 
 	// now use ID3D11Texture2D with DX11  
 	// This is theoretically the exact same surface in the video card memory,
@@ -285,17 +351,18 @@ ID3D11ShaderResourceView* RenderAPI_D3D11::CreateSharedSurface(HANDLE shared)
 	// Now we need to create a ShaderResourceView using this, because that
 	// is what Unity requires for its CreateExternalTexture.
 	// ToDo: Need to pass format and dimensions too.
-	D3D11_SHADER_RESOURCE_VIEW_DESC desc;
-	desc.Format = DXGI_FORMAT_B8G8R8A8_TYPELESS;
-	desc.ViewDimension = D3D_SRV_DIMENSION_TEXTURE2D;
-	desc.Texture2D.MipLevels = 0;
-	desc.Texture2D.MostDetailedMip = -1;  // Pathetic design- defined as UINT, requires -1.
+// don't need this because we made a SRV above, for cuda copy
+	//D3D11_SHADER_RESOURCE_VIEW_DESC desc;
+	//desc.Format = DXGI_FORMAT_B8G8R8A8_TYPELESS;
+	//desc.ViewDimension = D3D_SRV_DIMENSION_TEXTURE2D;
+	//desc.Texture2D.MipLevels = 0;
+	//desc.Texture2D.MostDetailedMip = -1;  // Pathetic design- defined as UINT, requires -1.
 
-	hr = m_Device->CreateShaderResourceView(texture, NULL, &pSRView);
-	if (FAILED(hr))
-		__debugbreak();
+	//hr = m_Device->CreateShaderResourceView(texture, NULL, &pSRView);
+	//if (FAILED(hr))
+	//	__debugbreak();
 
-	return pSRView;
+	return g_texture_2d.pSRView;
 }
 
 #endif // #if SUPPORT_D3D11

@@ -122,7 +122,7 @@ static unsigned long triggerCount = 0;
 // On the other side, in DX11 land, it will take that cudaGraphicsResource,
 // Map it, then do an array copy into the DX11 Texture2D.
 
-HANDLE WINAPI GetSharedHandle(int* in)
+cudaGraphicsResource* WINAPI GetSharedCudaResource(int* in)
 {
 	::OutputDebugString(L"GetSharedHandle::\n");
 
