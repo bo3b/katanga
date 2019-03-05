@@ -34,6 +34,8 @@
 
 void HookCreateDevice(IDirect3D9* pDX9);
 
+void CreateStereoTarget(IDirect3DDevice9 * pDevice9, HRESULT &hr, const UINT &width, const UINT &height, const D3DFORMAT &format);
+
 
 // These need to be declared as extern "C" so that the names are not mangled.
 // They are coming from the straight C compilation unit.

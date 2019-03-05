@@ -5,4 +5,5 @@ EXPORTS
   OnHookRemoved  @4
   OnFunctionCall @5
   GetSharedCudaResource  @101
-  TriggerEvent	 @102
+  GetSharedCudaContext  @102
+  TriggerEvent	 @103
