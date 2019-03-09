@@ -616,3 +616,35 @@ there, the Texture2D is drawn to the Quad.  Fully functional, all data kept on t
 couple of extra copies using StretchRect, but that's not going to sting.
 
 Now moving into incorporating this sample code into Katanga.
+
+
+3-4-19
+Got a crash after integrating the test app code, the DX9 source does not seem to be available
+to the DX11 side, using a different context, because it's a different process.  That's not a 
+huge surprise.  The surprise is that there doesn't seem to be any nvidia context management
+while using their CudaRuntime API.  That meant going back to the test app, and switching out
+all the calls to use the CudaDriver API instead, which does support context management.
+
+3-8-19
+Fail, fail, fail.  Finished working out the StereoUnproject app, to create a second app via
+CreateProcess.  That's a DX11 environment outside of the original.  Inside the original game/app
+the cuda share works.  Outside in a different process, it does not work, because the cuda
+context apparently cannot be shared across processes.  The app use MemoryMappedFile sharing
+for IPC and shares the setup struct.  Even in x32->x32 sharing, this does not work.
+
+So...  Cannot work in the Unity launches game scenario using cuda, because it's cross process.
+
+Options are:
+1) to build the VR environment into the game itself, which would remove a lot of sick
+complexity from the Unity/C# side, and also solve the performance problem of the VR environment
+getting stalled by a busy game.  This would make adding a Steam workshop harder, and lots of
+manual effort to build an environment.  No UI help from Unity.
+2) Try to get the video sharing working.  This goes cross process and x86-x64 without any 
+problems, because it goes back to main RAM for the video stream.  Using MMF, this would be
+doable.  Only question is whether performance takes a hit by shuffling all the data across
+the PCI bus.  And, would still have VR environment stalls if game is busy.
+
+It's worth noting that the x86 game could create an x86 VR environment, it does not require
+x64 for the VR world.  It requires x64 OS, but not runtime.  That means we could build the 
+DX11 environment as x86 for the VR world.  I know this works for sure, because that's how
+the Alien Isolation injector worked, and it's an x86 game.
