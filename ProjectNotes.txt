@@ -417,3 +417,234 @@ Like avoiding the Steam sublaunch for hooking.  If I follow:
 https://stackoverflow.com/questions/9624629/debug-games-from-steam-with-pix
 and create a steamapp_id.txt file with 35460 in it, I can successfully launch
 the Steam version of TheBall without any problems.
+
+
+10-7-18
+Switching gears here.  Tried to hookup to Psychonauts, and was successful at running
+in VR as well.  Then tried to add HelixMod and discovered the old versions do not
+support the CreateDeviceEx call, so when it's installed, there is no hook available.
+Tried to work around it by calling out to System32 specifically, but something is
+interfering with HelixMod, or it is, and no longer hooks the game and fixes the shaders.
+This combined with all the tweaks needed to get Ex variant working seems like a hint
+this isn't the right approach.  
+
+Also worth noting, using the tweaks to different calls may not work properly under
+HelixMod, because of his own hooks.  So, the workarounds could introduce problems.
+Could make an automatic upgrade to last version HelixMod however.
+
+This seems like as good a time as any to try to use the Encode/Decode chip that is 
+built into all GPUs now.  We can convert the game data to a video stream, and pass
+that to the VR/Unity side to Decode.  Pretty sure this is how BigScreen works.
+It can work lossless video, which was a big concern.  Only real question is whether
+it is fast enough.  Probably not as good as surface sharing, but maybe that doesn't 
+matter.  Should be more reliable and simpler to implement.  Should also make it 
+much easier to connect with DX11 games, as the decode part would not change.
+
+Hopefully the encode/decode does not require going to system memory, which would
+be a big killer to this approach.
+
+
+11-7-18
+Setting up to use nvcodec is challenging, because of the many, many versions.  The 
+latest version is probably not the right choice, because it requires an up to date
+driver.  As of the moment, SDK 8.2 requires driver 397.93 or higher.  That's quite a
+bit higher than we'd want to require, because older cards and games can run better
+on older drivers.  Sometimes we need those older drivers.
+Using that idea, going back to SDK 6.0 is not unreasonable.  Requires driver 358.xx or 
+higher, which is after GTX 980ti, but before GTX 1080.  Not as far back as we'd like,
+but better than nothing.  SDK 5.0 requires driver 347.09 or better, but also requires
+installing the CUDA toolkit, which we'd rather not do.  
+SDK 6.0 supports lossless encoding, which is the main goal.
+
+So for the moment, we are going with SDK 6.0.  Might change depending upon user 
+requirements.
+
+
+12-19-18
+Got a basic structure setup for using nvcodec, but it doesn't work.  Seems to require
+a source buffer of an OffscreenPlainSurface, which can be on the video card memory,
+but does not allow any normal ways of updating the surface with game bits.  StretchRect
+will not work with Offscreenplain as the destination.  Seems to only be viable for
+loads from system memory, which is pointless.
+The DX9 interop code does use an alternate path though, using a Media Foundation Layer
+from Microsoft, with a DXVA2 library.  Trying that path now.
+
+One strange thing is launching Steam games. The steam launcher will often interfere, and
+throw up the error 5:65432 error.  This can be bypassed most times with a file named
+'steam_appid.txt' with the appid in the file.  Doesn't seem to work with The Ball though.
+
+
+1-7-19
+Got basic code working, and can see an encoded sample program.  Backed up a bit, and 
+integrated the Katanga code into the StereoUnproject sample, as a test of encoding a
+DX9 stereo backbuffer.  The code works, and encodes a video to disk.  Colors are wrong, 
+but basic data is there, and probably something off with the interminable settings in
+the nvcodec.  This uses the DXVA2 interface, which apparently is required to allow us 
+to copy the backbuffer onto something the nvcodec can accept.  Using StretchRect is not
+possible.  Hard.
+
+Next up is decoding the stream.  As near as I can tell, it requires the use of Cuda, and
+cannot use a DXVA2 variant.  Giant mess here, seems like only one path actually works, the
+rest is just broken.  Begs the question of using Cuda though- if we can share via a 
+Cuda surface, there is no need to use the encode/decode.  Still in investigation after 
+2 years of development.  Christ.  
+
+
+Also worth noting that the performance problem seen above, happens because the VR app is
+in the background.  That's allowing the game to block the VR app and cause stalls.  Probably
+not an issue, but might be for more demanding games.  Could be solved by putting the VR
+generation in the game process space itself, and not use Unity.  Might be necessary and/or
+worthwhile.  
+
+This is a separate problem from getting bits to the VR app.  That requires surface sharing
+or the video encode/decode, or possibly cuda.  That needs to be solved regardless.
+
+
+1-11-19
+Tested another scenario that is worth writing down as a possible solution.  While setting up
+for the DVAX2 surface sharing, it's surprising that it allows the nvcodec to access the
+surface, and seems to be the way the samples all work.  So, I made a test case (checked-in) of
+using a decode destination surface as the target for a StrechtRect, then take that surface
+and StretchRect back to the backbuffer.  This works.  This was with standard DX9 factory, not
+the DX9Ex factory, so would require no changes to the game setup.
+
+So, that means it should be possible to use this as a sharing technique, without needing to
+modify everything for DX9Ex.  Might be useful.
+
+Still, does not seem like the way to go, because we actually need to go from DX9 to DX11 in 
+order to draw in VR.  This DXVA2 buffer can possibly be setup as a surface share by itself,
+and thus not require game changes, but have not tested.  This is still suboptimal though, 
+because we want to be able to beam to Oculus Go/Quest as well, for a larger market. The only
+way to beam to those will be using the video encoder/decoder for a smaller bitstream.
+
+
+After some research it also looks likely that we could just use Cuda directly.  It has direct
+access to DX11 and DX9 surfaces, and a way to copy from one to the other, closer to a memcopy
+than the freakish DX stuff.  And keep it all on the GPU.  For a local-only mode, this seems
+like a much better path, because Cuda is a general purpose compute, not laden down with all
+the graphics restrictions of DX.  
+
+Should be fairly simple to just use Cuda to copy a registered DX9 buffer directly to a DX11
+buffer.  There does not appear to be any Device restrictions there, but like always, hard to
+say until you try it.  
+
+Still, this is local-only, and a good backup plan, but does not get a stream out to Quest.  Not
+sure that is important, but it would also allow us to get to Cardboard devices.  Maybe no one
+cares. Probably.  But, unless there are limitations to the streaming approach, like terrible
+latency or quality, this is a more general solution.
+
+Of course... the streaming decode *also* requires Cuda for the decode.  But heading that way
+now, to make a DX11 device that will receive the stream, decode it, and draw it.  Wish me luck.
+
+
+1-17-19
+Also worth considering is that the process space gets priority for the GPU.  In my Ball case,
+the VR app was not getting GPU priority, because Ball was in front.  If I launch the VR app
+in the same space, then it would get the same priority and no preemption.
+
+This looks like it might be possible.  The OpenVR and OculusSDK can run as 32 bit applications.
+They require x64 OS, but not for app.  That suggests we could create a VR runtime output
+directly in the game process, and thus have it be at same priority as the game itself, and
+avoid the attendant game launching problems.  
+
+I have proven with the StereoUnproject modified test sample, that I can create DX9 and DX11
+environments in the same app, without any problems.  Sharing data across the DX is non-trivial,
+and currently am looking at nvcodec for this.  It looks like it might be possible to use
+SharedSurfaces via the DXVA2 however, which is a fallback approach if nvcodec fails.  nvcodec
+is a better approach, because we can then beam off device to wireless headsets as well. Performance
+is the only real question for whether to use it or not.
+
+If I launch a VR output in the game process space, that will be a standalone environment, and no
+Unity support. That's partly bad because Unity brings UI features and Steam Workshop integration
+for free.  It would simplify the runtime dramatically however.  This Deviare launch is weird. 
+
+
+2-8-19
+Finally, finally, figured out the nvcodec and and their SDK.  Took much longer than desired,
+and motivation was low, but I finally did it.  The problem is that the decoder *requires* 
+a file.  They do not expose the internal stream buffer they use to decode, and their API
+is oriented around the sole concept of files.  This is remarkably stupid, but there are no
+versions, not even the latest, that use anything as an input except files.  Everything is
+opaque.  Sheeeet.
+
+This is bad because that means that the only way to get the compressed bits to the DX11
+side is to go through system RAM.  We can map a file to memory to avoid hard drive slowness, 
+but that's RAM, not GPU memory.  This may or may not matter though, depending upon the 
+performance. The H.264 encoder can drop the 2M pixels (8MB) of 1080p down to roughly 500K
+at good quality.  PCI express can do something like 8MB/frame (500MB/60 frames).  That's quite
+a bit more than needed, probably.  Pencils out, but real world will no doubt... vary.
+
+Given the huge advantage of being able to stream off device to something like Go/Quest,
+it's probably still worth finishing the sample using memory mapped file I/O.  Especially for
+DX9, the games themselves will not be as demanding, so some overhead is going to be OK.
+
+
+Next up was an investigation into Cuda copies.  Like everything I've looked at, this seems
+like the way to go.  Probably get boned in the end too.  But, there is a direct interop
+support for DX9 and DX11 in Cuda, for copying surface to surface, and it does not rely
+upon Microsoft's lame surface sharing, it's GPU based using Cuda processor code. Closer to
+a GPU memcpy.  
+
+Initial look says this will work without too much trouble, and the API doesn't totally suck,
+which is a refreshing change of pace.   Copying from backbuffer seems problematic, but from
+a non-rendertarget it looks fine.  And keeps everything on the GPU like desired.
+
+The only small gotcha is that the DX9 device *must* be an Ex device.  Otherwise the cuda calls
+fail.  Even using an old SDK on modern hardware.  But, old SDK using just the change to
+Direct3DCreate9Ex works.  The 'simpleD3D9' works, from the 7.0 cuda SDK, using non-Ex calls
+for all the remaining pieces.  This maps directly to being able to switch to Ex call at init
+for a given game, but no other change, which allows the game to run without all the glitched
+APIs.
+
+
+2-24-19
+OK, finally, some real progress.  Going down the path of encode video to decode was a dead
+end.  The stupid nvcodec *requires* a file to decode.  There is no support for a buffer 
+based decode, which means that the data has to be sent back across PCI to the CPU to get to
+the DX11 side.  This is maybe OK, performance of the compressed data can conceivably be OK,
+especially by using a memory mapped file so it avoids HD hits.  But, lame.  
+
+Given that, took a look at Cuda to see if it could do inter-op in any sensible fashion.  
+APIs are 100x better than nvcodec, and SDK was usable instead of a piece of shit.  Looked
+doable, so I built up a sample program from the stereounproject.  Same one as for nvcodec,
+DX9 cubes being drawn, to a DX11 output window.  Made a new branch for the different approach.
+
+Works!  Got it fully working, showing the DX9 game/app drawing the red cubes, and then making
+a copy into a DX9 Surface, which is then cuda copied into a DX11 Texture2D.  Since both of 
+those are mapped at once, it does an cudaMemcpyArrayToArray to get all the bits across.  From
+there, the Texture2D is drawn to the Quad.  Fully functional, all data kept on the GPU.  A 
+couple of extra copies using StretchRect, but that's not going to sting.
+
+Now moving into incorporating this sample code into Katanga.
+
+
+3-4-19
+Got a crash after integrating the test app code, the DX9 source does not seem to be available
+to the DX11 side, using a different context, because it's a different process.  That's not a 
+huge surprise.  The surprise is that there doesn't seem to be any nvidia context management
+while using their CudaRuntime API.  That meant going back to the test app, and switching out
+all the calls to use the CudaDriver API instead, which does support context management.
+
+3-8-19
+Fail, fail, fail.  Finished working out the StereoUnproject app, to create a second app via
+CreateProcess.  That's a DX11 environment outside of the original.  Inside the original game/app
+the cuda share works.  Outside in a different process, it does not work, because the cuda
+context apparently cannot be shared across processes.  The app use MemoryMappedFile sharing
+for IPC and shares the setup struct.  Even in x32->x32 sharing, this does not work.
+
+So...  Cannot work in the Unity launches game scenario using cuda, because it's cross process.
+
+Options are:
+1) to build the VR environment into the game itself, which would remove a lot of sick
+complexity from the Unity/C# side, and also solve the performance problem of the VR environment
+getting stalled by a busy game.  This would make adding a Steam workshop harder, and lots of
+manual effort to build an environment.  No UI help from Unity.
+2) Try to get the video sharing working.  This goes cross process and x86-x64 without any 
+problems, because it goes back to main RAM for the video stream.  Using MMF, this would be
+doable.  Only question is whether performance takes a hit by shuffling all the data across
+the PCI bus.  And, would still have VR environment stalls if game is busy.
+
+It's worth noting that the x86 game could create an x86 VR environment, it does not require
+x64 for the VR world.  It requires x64 OS, but not runtime.  That means we could build the 
+DX11 environment as x86 for the VR world.  I know this works for sure, because that's how
+the Alien Isolation injector worked, and it's an x86 game.
