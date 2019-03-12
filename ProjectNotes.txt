@@ -648,3 +648,19 @@ It's worth noting that the x86 game could create an x86 VR environment, it does 
 x64 for the VR world.  It requires x64 OS, but not runtime.  That means we could build the 
 DX11 environment as x86 for the VR world.  I know this works for sure, because that's how
 the Alien Isolation injector worked, and it's an x86 game.
+
+
+3-11-19
+NVidia announced end of life for 3D Vision.  Last driver standing will be one year. 
+That means that we are out of time here.  No one will buy this thing if it requires an
+old stale driver.  
+
+So... switching gears yet again.  Now it's time to get something working that can maybe
+be sold or at least is useful.  That means taking the simplest path, not solving the 
+hardest problem (DX9 support).  
+
+So, not going to nvcodec at present, but will move back to the SurfaceSharing approach.  
+But, this will be DX11 specific and skip DX9 for now.  This is the easist path, should
+be able to just create new projects, and get DX11 shared surfaces.  Should also be 
+most popular, as DX11 and modern games are really the interest nowadays. 
+
