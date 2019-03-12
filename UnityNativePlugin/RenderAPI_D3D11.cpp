@@ -12,9 +12,8 @@
 
 #include <stdio.h>
 
-#include <cuda_runtime_api.h>
-#include <cuda_d3d11_interop.h>
-
+#include <cuda.h>
+#include <cudaD3D11.h>
 
 
 class RenderAPI_D3D11 : public RenderAPI
@@ -30,7 +29,7 @@ public:
 	virtual void* BeginModifyTexture(void* textureHandle, int textureWidth, int textureHeight, int* outRowPitch);
 	virtual void EndModifyTexture(void* textureHandle, int textureWidth, int textureHeight, int rowPitch, void* dataPtr);
 
-	virtual ID3D11ShaderResourceView* CreateSharedSurface(cudaGraphicsResource* shared);
+	virtual ID3D11ShaderResourceView* CreateSharedSurface(CUcontext cuContext, CUgraphicsResource cuResource);
 
 private:
 	void CreateResources();
@@ -53,7 +52,7 @@ private:
 	{
 		ID3D11Texture2D*			pTexture;
 		ID3D11ShaderResourceView*	pSRView;
-		cudaGraphicsResource*		cudaResource;
+		CUgraphicsResource			cudaResource;
 		void*						cudaLinearMemory;
 		size_t						pitch;
 		int							width;
@@ -254,10 +253,10 @@ void RenderAPI_D3D11::EndModifyTexture(void* textureHandle, int textureWidth, in
 
 // Use the shared cudaGraphicsResource to create the DX11 SRV that Unity desires.
 
-ID3D11ShaderResourceView* RenderAPI_D3D11::CreateSharedSurface(cudaGraphicsResource* shared)
+ID3D11ShaderResourceView* RenderAPI_D3D11::CreateSharedSurface(CUcontext cuContext, CUgraphicsResource cuResource)
 {
 	HRESULT hr;
-	cudaError cuErr;
+	CUresult cuErr;
 
 	// ToDo: Need to get the dimensions dynamically.  Hard code for now.
 	// Probably pass that in a separate call to DeviarePlugin.
@@ -298,50 +297,59 @@ ID3D11ShaderResourceView* RenderAPI_D3D11::CreateSharedSurface(cudaGraphicsResou
 	if (FAILED(hr))
 		throw std::exception("Fail to CreateShaderResourceView for DX11");
 
-	// register the Direct3D resources that we'll use
-	// we'll read to and write from g_texture_2d, so don't set any special map flags for it
-	cuErr = cudaGraphicsD3D11RegisterResource(&g_texture_2d.cudaResource, g_texture_2d.pTexture, cudaGraphicsRegisterFlagsNone);
-	if (cuErr != cudaSuccess)
-		throw std::exception("Fail to cudaGraphicsD3D11RegisterResource DX11");
+
+	cuErr = cuInit(0);
+	if (cuErr != CUDA_SUCCESS)
+		throw std::exception("Fail to init cuda for DX11");
+
+	cuErr = cuCtxSetCurrent(cuContext);
+	if (cuErr != CUDA_SUCCESS)
+		throw std::exception("Fail to cuCtxSetCurrent for DX11");
+
+	// register that Direct3D resources that we'll use
+	// we'll write to g_texture_2d.pTexture, so don't set any special map flags for it
+	cuErr = cuGraphicsD3D11RegisterResource(&g_texture_2d.cudaResource, g_texture_2d.pTexture, CU_GRAPHICS_REGISTER_FLAGS_NONE);
+	if (cuErr != CUDA_SUCCESS)
+		throw std::exception("Fail to cudaGraphicsD3D11RegisterResource for DX11");
 
 
 
 	// With those two cudaGraphicsResources, we can now copy from the DX9 one,
 	// into the DX11 one.
 
-	cuErr = cudaGraphicsMapResources(1, &shared);
-	if (cuErr != cudaSuccess)
-		throw std::exception("cudaGraphicsMapResources DX9 failed");
-	cuErr = cudaGraphicsMapResources(1, &g_texture_2d.cudaResource);
-	if (cuErr != cudaSuccess)
-		throw std::exception("cudaGraphicsMapResources DX11 failed");
-	{
-		cudaArray* cuArrayDX9;
-		cudaArray* cuArrayDX11;
-		cuErr = cudaGraphicsSubResourceGetMappedArray(&cuArrayDX9, shared, 0, 0);
-		if (cuErr != cudaSuccess)
-			throw std::exception("cudaGraphicsSubResourceGetMappedArray (DX9->cuda_texture_2d) failed");
-		cuErr = cudaGraphicsSubResourceGetMappedArray(&cuArrayDX11, g_texture_2d.cudaResource, 0, 0);
-		if (cuErr != cudaSuccess)
-			throw std::exception("cudaGraphicsSubResourceGetMappedArray (DX11->cuda_texture_2d) failed");
+	//cuErr = cudaGraphicsMapResources(1, &shared);
+	//if (cuErr != cudaSuccess)
+	//	throw std::exception("cudaGraphicsMapResources DX9 failed");
+	//cuErr = cudaGraphicsMapResources(1, &g_texture_2d.cudaResource);
+	//if (cuErr != cudaSuccess)
+	//	throw std::exception("cudaGraphicsMapResources DX11 failed");
+	//{
+	//	cudaArray* cuArrayDX9;
+	//	cudaArray* cuArrayDX11;
+	//	cuErr = cudaGraphicsSubResourceGetMappedArray(&cuArrayDX9, shared, 0, 0);
+	//	if (cuErr != cudaSuccess)
+	//		throw std::exception("cudaGraphicsSubResourceGetMappedArray (DX9->cuda_texture_2d) failed");
+	//	cuErr = cudaGraphicsSubResourceGetMappedArray(&cuArrayDX11, g_texture_2d.cudaResource, 0, 0);
+	//	if (cuErr != cudaSuccess)
+	//		throw std::exception("cudaGraphicsSubResourceGetMappedArray (DX11->cuda_texture_2d) failed");
 
-		// then we want to copy cudaLinearMemory to the D3D texture, via its mapped form : cudaArray
-		cuErr = cudaMemcpyArrayToArray(
-			cuArrayDX11,	// dst array
-			0, 0,	// offset
-			cuArrayDX9,	// src array
-			0, 0,	// offset
-			width * height * 4,	// count
-			cudaMemcpyDeviceToDevice); // kind
-		if (cuErr != cudaSuccess)
-			throw std::exception("cudaMemcpy2DToArray failed");
-	}
-	cuErr = cudaGraphicsUnmapResources(1, &shared);
-	if (cuErr != cudaSuccess)
-		throw std::exception("cudaGraphicsUnmapResources DX9 failed");
-	cuErr = cudaGraphicsUnmapResources(1, &g_texture_2d.cudaResource);
-	if (cuErr != cudaSuccess)
-		throw std::exception("cudaGraphicsUnmapResources DX11 failed");
+	//	// then we want to copy cudaLinearMemory to the D3D texture, via its mapped form : cudaArray
+	//	cuErr = cudaMemcpyArrayToArray(
+	//		cuArrayDX11,	// dst array
+	//		0, 0,	// offset
+	//		cuArrayDX9,	// src array
+	//		0, 0,	// offset
+	//		width * height * 4,	// count
+	//		cudaMemcpyDeviceToDevice); // kind
+	//	if (cuErr != cudaSuccess)
+	//		throw std::exception("cudaMemcpy2DToArray failed");
+	//}
+	//cuErr = cudaGraphicsUnmapResources(1, &shared);
+	//if (cuErr != cudaSuccess)
+	//	throw std::exception("cudaGraphicsUnmapResources DX9 failed");
+	//cuErr = cudaGraphicsUnmapResources(1, &g_texture_2d.cudaResource);
+	//if (cuErr != cudaSuccess)
+	//	throw std::exception("cudaGraphicsUnmapResources DX11 failed");
 
 
 	// now use ID3D11Texture2D with DX11  

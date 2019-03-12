@@ -580,7 +580,7 @@ void HookCreateDevice(IDirect3D9* pDX9)
 	if (pOrigCreateDevice == nullptr && pDX9 != nullptr)
 	{
 #ifdef _DEBUG 
-		nktInProc.SetEnableDebugOutput(TRUE);
+//		nktInProc.SetEnableDebugOutput(TRUE);
 #endif
 
 		// If we are here, we want to now hook the IDirect3D9::CreateDevice

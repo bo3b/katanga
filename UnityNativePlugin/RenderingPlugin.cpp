@@ -9,7 +9,10 @@
 #include <vector>
 
 #include <d3d11.h>
-#include <cuda_d3d11_interop.h>
+
+#include <cuda.h>
+#include <cudaD3D11.h>
+
 
 // --------------------------------------------------------------------------
 // SetTimeFromUnity, an example function we export which is called by one of the scripts.
@@ -116,9 +119,9 @@ static void UNITY_INTERFACE_API OnGraphicsDeviceEvent(UnityGfxDeviceEventType ev
 // because this is the notification that we should request the DX11 plugin to
 // should create and save the shared texture reference.
 
-extern "C" UNITY_INTERFACE_EXPORT ID3D11ShaderResourceView* UNITY_INTERFACE_API CreateSharedTexture(cudaGraphicsResource* sharedHandle)
+extern "C" UNITY_INTERFACE_EXPORT ID3D11ShaderResourceView* UNITY_INTERFACE_API CreateSharedTexture(CUcontext cuContext, CUgraphicsResource cuResource)
 {
-	return s_CurrentAPI->CreateSharedSurface(sharedHandle);
+	return s_CurrentAPI->CreateSharedSurface(cuContext, cuResource);
 }
 
 

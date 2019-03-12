@@ -29,6 +29,12 @@ public class DrawSBS : MonoBehaviour
     static int ResetEvent = 0;
     static int SetEvent = 1;
 
+    struct sharing
+    {
+        System.Int32 gameSharedCudaResource;
+        System.Int32 gameSharedCudaContext;
+    }
+
     // -----------------------------------------------------------------------------
 
     [DllImport("UnityNativePlugin64")]
@@ -42,8 +48,8 @@ public class DrawSBS : MonoBehaviour
         _nativeDLLName = Application.dataPath + "/Plugins/DeviarePlugin.dll";
         //string game = @"G:\Games\S.T.A.L.K.E.R. Shadow of Chernobyl\bin\XR_3DA.exe";
         //string game = "C:\\Program Files (x86)\\Steam\\steam.exe -applaunch 35460";
-        //string game = @"C:\Program Files (x86)\Steam\steamapps\common\The Ball\Binaries\Win32\theball.exe";
-        string game = @"g:\steamlibrary\steamapps\common\Psychonauts\psychonauts.exe";
+        string game = @"W:\Games\The Ball\Binaries\Win32\theball.exe";
+        //string game = @"g:\steamlibrary\steamapps\common\Psychonauts\psychonauts.exe";
 
         print("Running: " + game + "\n");
         
@@ -75,7 +81,7 @@ public class DrawSBS : MonoBehaviour
         if (hresult != 0)
             throw new Exception("Deviare initialization error.");
 #if DEBUG
-//        _spyMgr.SettingOverride("SpyMgrDebugLevelMask", 0xCF8);
+        _spyMgr.SettingOverride("SpyMgrDebugLevelMask", 0xCF8);
 #endif
         print("Successful SpyMgr Init");
 
@@ -96,6 +102,7 @@ public class DrawSBS : MonoBehaviour
             if (_gameProcess == null)
                 throw new Exception("Game launch failed.");
 
+            Debugger.Break();
 
             // Load the NativePlugin for the C++ side.  The NativePlugin must be in this app folder.
             // The Agent supports the use of Deviare in the CustomDLL, but does not respond to hooks.
@@ -105,6 +112,11 @@ public class DrawSBS : MonoBehaviour
             int result = _spyMgr.LoadCustomDll(_gameProcess, _nativeDLLName, false, true);
             if (result != 1)
                 throw new Exception("Could not load NativePlugin DLL.");
+
+            // Allocate memory in the game, that we can still access.
+            IntPtr sizing = new IntPtr(Marshal.SizeOf(gameSharedCudaContext));
+            NktProcessMemory processMemory = _spyMgr.ProcessMemory(_gameProcess);
+            IntPtr stowed = processMemory.AllocMem(sizing, false);
 
             // Hook the primary DX9 creation call of Direct3DCreate9, which is a direct export of 
             // the d3d9 DLL.  All DX9 games must call this interface, or the Direct3DCreate9Ex.
@@ -149,7 +161,7 @@ public class DrawSBS : MonoBehaviour
     // Our x64 Native DLL allows us direct access to DX11 in order to take
     // the shared cudaGraphicsResource and turn it into a ID3D11ShaderResourceView for Unity.
     [DllImport("UnityNativePlugin64")]
-    private static extern IntPtr CreateSharedTexture(int sharedCudaResource);
+    private static extern IntPtr CreateSharedTexture(int cuContext, int cuResource);
 
     // WaitForCudaResource will just wait until the CreateDevice has been called in 
     // DeviarePlugin, and thus we have created a cudaGraphicsResource for copying game bits into.
@@ -159,9 +171,13 @@ public class DrawSBS : MonoBehaviour
     // Once the GetSharedSurface returns with non-null, we are ready to continue
     // with the VR side of showing those bits.
 
+    System.Int32 gameSharedCudaResource = 0;
+    System.Int32 gameSharedCudaContext = 0;
+
     private IEnumerator WaitForCudaResource()
     {
-        System.Int32 gameSharedCudaResource = 0;
+        System.Int32 native = 0; // (int)_tex.GetNativeTexturePtr();
+        object parm = native;
 
         while (gameSharedCudaResource == 0)
         {
@@ -172,8 +188,6 @@ public class DrawSBS : MonoBehaviour
 
             // ToDo: To work, we need to pass in a parameter? 
             // This will call to DeviarePlugin native DLL routine to fetch current g_cudaStereoResource pointer.
-            System.Int32 native = 0; // (int)_tex.GetNativeTexturePtr();
-            object parm = native;
             gameSharedCudaResource = _spyMgr.CallCustomApi(_gameProcess, _nativeDLLName, "GetSharedCudaResource", ref parm, true);
         }
 
@@ -183,10 +197,12 @@ public class DrawSBS : MonoBehaviour
         print("-> Got shared resource: " + gameSharedCudaResource.ToString("x"));
 
 
+        gameSharedCudaContext = _spyMgr.CallCustomApi(_gameProcess, _nativeDLLName, "GetSharedCudaContext", ref parm, true);
+
         // Call into the x64 UnityNativePlugin DLL for DX11 access, in order to create a ID3D11ShaderResourceView.
         // You'd expect this to be a IDX11Texture2D, but that's not what Unity wants.
 
-        IntPtr shared = CreateSharedTexture(gameSharedCudaResource);
+        IntPtr shared = CreateSharedTexture(gameSharedCudaContext, gameSharedCudaResource);
 
         // This is the Unity Texture2D, double width texture, with right eye on the left half.
         // It will always be up to date with latest game image, because we pass in 'shared'.

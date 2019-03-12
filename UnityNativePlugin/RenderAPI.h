@@ -6,7 +6,9 @@
 
 #include <Windows.h>
 #include <d3d11.h>
-#include <cuda_d3d11_interop.h>
+
+#include <cuda.h>
+#include <cudaD3D11.h>
 
 struct IUnityInterfaces;
 
@@ -39,7 +41,7 @@ public:
 	virtual void EndModifyTexture(void* textureHandle, int textureWidth, int textureHeight, int rowPitch, void* dataPtr) = 0;
 
 	// These are generic APIs, not DX specific.
-	virtual ID3D11ShaderResourceView* CreateSharedSurface(cudaGraphicsResource* shared) = 0;
+	virtual ID3D11ShaderResourceView* CreateSharedSurface(CUcontext cuContext, CUgraphicsResource cuResource) = 0;
 };
 
 
