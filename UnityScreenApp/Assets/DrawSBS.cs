@@ -40,10 +40,8 @@ public class DrawSBS : MonoBehaviour
         object continueevent;
         string drawSBS_directory = Environment.CurrentDirectory;
         _nativeDLLName = Application.dataPath + "/Plugins/DeviarePlugin.dll";
-        //string game = @"G:\Games\S.T.A.L.K.E.R. Shadow of Chernobyl\bin\XR_3DA.exe";
-        //string game = "C:\\Program Files (x86)\\Steam\\steam.exe -applaunch 35460";
-        //string game = @"C:\Program Files (x86)\Steam\steamapps\common\The Ball\Binaries\Win32\theball.exe";
-        string game = @"W:\steamlibrary\steamapps\common\Psychonauts\psychonauts.exe";
+
+        string game = @"W:\SteamLibrary\steamapps\common\Alien Isolation\ai.exe";
 
         print("Running: " + game + "\n");
         
@@ -106,14 +104,13 @@ public class DrawSBS : MonoBehaviour
             if (result != 1)
                 throw new Exception("Could not load NativePlugin DLL.");
 
-            // Hook the primary DX9 creation call of Direct3DCreate9, which is a direct export of 
-            // the d3d9 DLL.  All DX9 games must call this interface, or the Direct3DCreate9Ex.
-            // We set this to flgOnlyPreCall, because we want to always create the IDirect3D9Ex object.
+            // Hook the primary DX11 creation call of CreateDXGIFactory1, which is a direct export of 
+            // the dxgi DLL.  All DX11 games must call this interface, or possibly CreateDeviceAndSwapChain.
 
-            print("Hook the D3D9.DLL!Direct3DCreate9...");
-            NktHook d3dHook = _spyMgr.CreateHook("D3D9.DLL!Direct3DCreate9", (int)eNktHookFlags.flgOnlyPostCall);
+            print("Hook the DXGI.DLL!CreateDXGIFactory1...");
+            NktHook d3dHook = _spyMgr.CreateHook("DXGI.DLL!CreateDXGIFactory1", (int)eNktHookFlags.flgOnlyPostCall);
             if (d3dHook == null)
-                throw new Exception("Failed to hook D3D9.DLL!Direct3DCreate9");
+                throw new Exception("Failed to hook DXGI.DLL!CreateDXGIFactory1");
 
             // Make sure the CustomHandler in the NativePlugin at OnFunctionCall gets called when this 
             // object is created. At that point, the native code will take over.
