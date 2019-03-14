@@ -440,3 +440,70 @@ void HookCreateSwapChain(IDXGIFactory1* dDXGIFactory)
 }
 
 
+
+// Here we want to hook IDXGISwapChain::Present
+//
+// In this path, the sequence a game will use is:
+//   D3D11!CreateDeviceAndSwapChain(device, pIDXGISwapChain);
+//   pIDXGISwapChain->Present
+//
+// This hook call is called from the Deviare side, to continue the 
+// daisy-chain to IDXGISwapChain::Present.
+
+void HookPresent(ID3D11Device* pDevice, IDXGISwapChain* pSwapChain)
+{
+	// This can be called multiple times by a game, so let's be sure to
+	// only hook once.
+	if (pOrigPresent == nullptr && pSwapChain != nullptr)
+	{
+#ifdef _DEBUG 
+		nktInProc.SetEnableDebugOutput(TRUE);
+#endif
+
+		SIZE_T hook_id;
+		DWORD dwOsErr;
+		ID3D11Device* pDevice;
+		HRESULT hres;
+
+		dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigPresent,
+			lpvtbl_Present(pSwapChain), Hooked_Present, 0);
+		if (FAILED(dwOsErr))
+			::OutputDebugStringA("Failed to hook IDXGISwapChain::Present\n");
+
+		// ToDo: not needed
+		hres = pSwapChain->GetDevice(__uuidof(ID3D11Device), (void**)&pDevice);
+		if (FAILED(hres))
+			throw std::exception("Failed to GetDevice");
+
+		NvAPI_Status res = NvAPI_Initialize();
+		if (res != NVAPI_OK)
+			throw std::exception("Failed to NvAPI_Initialize\n");
+
+		// ToDo: need to handle stereo disabled...
+		res = NvAPI_Stereo_CreateHandleFromIUnknown(pDevice, &gNVAPI);
+		if (res != NVAPI_OK)
+			throw std::exception("Failed to NvAPI_Stereo_CreateHandleFromIUnknown\n");
+
+
+		// Now that we have a proper SwapChain from the game, let's also make a 
+		// DX11 Texture2D, so that we can snapshot the game output.  This texture needs to
+		// use the Shared flag, so that we can share it to another Device.  Because
+		// these are all DX11 objects, the share will work.
+
+		DXGI_SWAP_CHAIN_DESC pDesc;
+		hres = pSwapChain->GetDesc(&pDesc);
+		if (FAILED(hres))
+			throw std::exception("Failed to GetDesc");
+
+		D3D11_TEXTURE2D_DESC desc = { 0 };
+		desc.Width = pDesc.BufferDesc.Width * 2;
+		desc.Height = pDesc.BufferDesc.Height;
+		desc.Format = pDesc.BufferDesc.Format;
+		desc.Usage = D3D11_USAGE_DEFAULT;
+		desc.MiscFlags = D3D11_RESOURCE_MISC_SHARED;  // maybe D3D11_RESOURCE_MISC_SHARED_KEYEDMUTEX is better
+
+		hres = pDevice->CreateTexture2D(&desc, NULL, &gGameTexture);
+		if (FAILED(hres))
+			throw std::exception("Fail to create shared stereo Texture");
+	}
+}

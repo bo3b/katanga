@@ -107,10 +107,10 @@ public class DrawSBS : MonoBehaviour
             // Hook the primary DX11 creation call of CreateDXGIFactory1, which is a direct export of 
             // the dxgi DLL.  All DX11 games must call this interface, or possibly CreateDeviceAndSwapChain.
 
-            print("Hook the DXGI.DLL!CreateDXGIFactory1...");
-            NktHook d3dHook = _spyMgr.CreateHook("DXGI.DLL!CreateDXGIFactory1", (int)eNktHookFlags.flgOnlyPostCall);
+            print("Hook the D3D11.DLL!D3D11CreateDeviceAndSwapChain...");
+            NktHook d3dHook = _spyMgr.CreateHook("D3D11.DLL!D3D11CreateDeviceAndSwapChain", (int)eNktHookFlags.flgOnlyPostCall);
             if (d3dHook == null)
-                throw new Exception("Failed to hook DXGI.DLL!CreateDXGIFactory1");
+                throw new Exception("Failed to hook D3D11.DLL!D3D11CreateDeviceAndSwapChain");
 
             // Make sure the CustomHandler in the NativePlugin at OnFunctionCall gets called when this 
             // object is created. At that point, the native code will take over.

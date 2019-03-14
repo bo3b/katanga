@@ -8,6 +8,9 @@
 
 #include "DeviarePlugin.h"
 
+#include <atlbase.h>
+
+
 // We need the Deviare interface though, to be able to provide the OnLoad,
 // OnFunctionCalled interfaces, and to be able to LoadCustomDLL this DLL from
 // the C# app.
@@ -100,33 +103,101 @@ VOID WINAPI OnHookRemoved(__in INktHookInfo *lpHookInfo, __in DWORD dwChainIndex
 //	void   **ppFactory
 // );
 
+// Original API:
+//HRESULT WINAPI D3D11CreateDeviceAndSwapChain(
+//	_In_opt_ IDXGIAdapter* pAdapter,
+//	D3D_DRIVER_TYPE DriverType,
+//	HMODULE Software,
+//	UINT Flags,
+//	_In_reads_opt_(FeatureLevels) CONST D3D_FEATURE_LEVEL* pFeatureLevels,
+//	UINT FeatureLevels,
+//	UINT SDKVersion,
+//	_In_opt_ CONST DXGI_SWAP_CHAIN_DESC* pSwapChainDesc,
+//	_COM_Outptr_opt_ IDXGISwapChain** ppSwapChain,
+//	_COM_Outptr_opt_ ID3D11Device** ppDevice,
+//	_Out_opt_ D3D_FEATURE_LEVEL* pFeatureLevel,
+//	_COM_Outptr_opt_ ID3D11DeviceContext** ppImmediateContext);
+
+#if defined _M_IX86
+#define my_ssize_t long
+#define my_size_t unsigned long
+#elif defined _M_X64
+#define my_ssize_t __int64
+#define my_size_t unsigned __int64
+#endif
 
 HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainIndex,
 	__in INktHookCallInfoPlugin *lpHookCallInfoPlugin)
 {
-	BSTR name;
-	INktParam* nktResult;
 	HRESULT hr;
+	IDXGISwapChain* pSwapChain = nullptr;
+	ID3D11Device* pDevice = nullptr;
+	
+	CComBSTR name;
+	my_ssize_t address;
+	CHAR szBufA[1024];
 
 	hr = lpHookInfo->get_FunctionName(&name);
 	if (FAILED(hr))
 		throw std::exception("Failed GetFunctionName");
-
-	::OutputDebugString(L"NativePlugin::OnFunctionCall called for ");
-	::OutputDebugString(name);
-	::OutputDebugString(L"\n");
+	lpHookInfo->get_Address(&address);
+	sprintf_s(szBufA, 1024, "DeviarePlugin::OnFunctionCall called [Hook: %S @ 0x%IX / Chain:%lu]",
+		name, address, dwChainIndex);
+	::OutputDebugStringA(szBufA);
 
 
 	// We only expect this to be called for DXGI.DLL!CreateDXGIFactory1. We want to daisy chain
 	// through the call sequence to ultimately get the Present routine.
 	// At this moment we are right after the call has finished.
 
-	hr = lpHookCallInfoPlugin->Result(&nktResult);
+	CComPtr<INktParamsEnum> paramsEnum;
+	long paramCount;
+
+	hr = lpHookCallInfoPlugin->Params(&paramsEnum);
 	if (FAILED(hr))
-		throw std::exception("Failed Get NktResult");
-	hr = nktResult->get_PointerVal((__int64*)&pDXGIFactory);
+		throw std::exception("Failed Nektra lpHookCallInfoPlugin->Params");
+
+	hr = paramsEnum->get_Count(&paramCount);
 	if (FAILED(hr))
-		throw std::exception("Failed put pointer");
+		throw std::exception("Failed Nektra paramsEnum->get_Count");
+
+
+	CComPtr<INktParam> param;
+	my_ssize_t pointeraddress;
+	
+	if (paramCount >= 9)
+	{
+		// Param 8 is returned _COM_Outptr_opt_ IDXGISwapChain** ppSwapChain
+		hr = paramsEnum->GetAt(8, &param);
+		if (FAILED(hr))
+			throw std::exception("Failed Nektra paramsEnum->GetAt(8)");
+		hr = param->get_PointerVal(&pointeraddress);
+		if (FAILED(hr))
+			throw std::exception("Failed Nektra param->get_PointerVal");
+		pSwapChain = reinterpret_cast<IDXGISwapChain*>(pointeraddress);
+
+		// Param 9 is returned _COM_Outptr_opt_ ID3D11Device** ppDevice
+		hr = paramsEnum->GetAt(9, &param);
+		if (FAILED(hr))
+			throw std::exception("Failed Nektra paramsEnum->GetAt(9)");
+		hr = param->get_PointerVal(&pointeraddress);
+		if (FAILED(hr))
+			throw std::exception("Failed Nektra param->get_PointerVal");
+		pDevice = reinterpret_cast<ID3D11Device*>(pointeraddress);
+	}
+
+
+
+
+
+	// ToDo: wrong get I think for CreateDXGIFactory
+	//INktParam* nktResult;
+	//hr = lpHookCallInfoPlugin->Result(&nktResult);
+	//if (FAILED(hr))
+	//	throw std::exception("Failed Get NktResult");
+	//hr = nktResult->get_PointerVal((__int64*)&pDXGIFactory);
+	//if (FAILED(hr))
+	//	throw std::exception("Failed put pointer");
 
 	// At this point, we are going to switch from using Deviare style calls
 	// to In-Proc style calls, because the routines we need to hook are not
@@ -134,7 +205,9 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 	// and then rebuilding it, but In-Proc works alongside Deviare so this
 	// approach is simpler.
 
-	HookCreateSwapChain(pDXGIFactory);
+	// HookCreateSwapChain(pDXGIFactory);
+
+	HookPresent(pDevice, pSwapChain);
 
 	return S_OK;
 }

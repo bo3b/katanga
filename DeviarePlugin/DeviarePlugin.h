@@ -33,6 +33,7 @@
 
 
 void HookCreateSwapChain(IDXGIFactory1* dDXGIFactory);
+void HookPresent(ID3D11Device* pDevice, IDXGISwapChain* pSwapChain);
 
 
 // These need to be declared as extern "C" so that the names are not mangled.
