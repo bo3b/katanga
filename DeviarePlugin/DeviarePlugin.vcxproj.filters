@@ -20,4 +20,7 @@
   <ItemGroup>
     <None Include="DeviarePlugin.def" />
   </ItemGroup>
+  <ItemGroup>
+    <Text Include="..\ProjectNotes.txt" />
+  </ItemGroup>
 </Project>

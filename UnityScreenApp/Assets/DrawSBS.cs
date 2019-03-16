@@ -108,20 +108,29 @@ public class DrawSBS : MonoBehaviour
             // the dxgi DLL.  All DX11 games must call this interface, or possibly CreateDeviceAndSwapChain.
 
             print("Hook the D3D11.DLL!D3D11CreateDeviceAndSwapChain...");
-            NktHook d3dHook = _spyMgr.CreateHook("D3D11.DLL!D3D11CreateDeviceAndSwapChain", (int)eNktHookFlags.flgOnlyPostCall);
+            NktHook d3dHook = _spyMgr.CreateHook("D3D11.DLL!D3D11CreateDeviceAndSwapChain", 0); // (int)eNktHookFlags.flgOnlyPostCall);
             if (d3dHook == null)
                 throw new Exception("Failed to hook D3D11.DLL!D3D11CreateDeviceAndSwapChain");
+
+            print("Hook the DXGI.DLL!CreateDXGIFactory1...");
+            NktHook dxgiHook = _spyMgr.CreateHook("DXGI.DLL!CreateDXGIFactory1", 0); // (int)eNktHookFlags.flgOnlyPostCall);
+            if (d3dHook == null)
+                throw new Exception("Failed to hook DXGI.DLL!CreateDXGIFactory1");
+
 
             // Make sure the CustomHandler in the NativePlugin at OnFunctionCall gets called when this 
             // object is created. At that point, the native code will take over.
 
             d3dHook.AddCustomHandler(_nativeDLLName, 0, "");
+            dxgiHook.AddCustomHandler(_nativeDLLName, 0, "");
 
 
             // Finally attach and activate the hook in the still suspended game process.
 
             d3dHook.Attach(_gameProcess, true);
             d3dHook.Hook(true);
+            dxgiHook.Attach(_gameProcess, true);
+            dxgiHook.Hook(true);
 
 
             // Ready to go.  Let the game startup.  When it calls Direct3DCreate9, we'll be

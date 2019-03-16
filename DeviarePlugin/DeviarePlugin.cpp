@@ -15,7 +15,15 @@
 // OnFunctionCalled interfaces, and to be able to LoadCustomDLL this DLL from
 // the C# app.
 
+#if defined _M_IX86
+#import "DeviareCOM.dll" raw_interfaces_only, named_guids, raw_dispinterfaces, auto_rename
+#define my_ssize_t long
+#define my_size_t unsigned long
+#elif defined _M_X64
 #import "DeviareCOM64.dll" raw_interfaces_only, named_guids, raw_dispinterfaces, auto_rename
+#define my_ssize_t __int64
+#define my_size_t unsigned __int64
+#endif
 
 
 
@@ -117,14 +125,6 @@ VOID WINAPI OnHookRemoved(__in INktHookInfo *lpHookInfo, __in DWORD dwChainIndex
 //	_COM_Outptr_opt_ ID3D11Device** ppDevice,
 //	_Out_opt_ D3D_FEATURE_LEVEL* pFeatureLevel,
 //	_COM_Outptr_opt_ ID3D11DeviceContext** ppImmediateContext);
-
-#if defined _M_IX86
-#define my_ssize_t long
-#define my_size_t unsigned long
-#elif defined _M_X64
-#define my_ssize_t __int64
-#define my_size_t unsigned __int64
-#endif
 
 HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainIndex,
 	__in INktHookCallInfoPlugin *lpHookCallInfoPlugin)
