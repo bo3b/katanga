@@ -39,9 +39,13 @@ public class DrawSBS : MonoBehaviour
         int hresult;
         object continueevent;
         string drawSBS_directory = Environment.CurrentDirectory;
-        _nativeDLLName = Application.dataPath + "/Plugins/DeviarePlugin.dll";
+        _nativeDLLName = Application.dataPath + "/Plugins/DeviarePlugin64.dll";
 
-        string game = @"W:\SteamLibrary\steamapps\common\Alien Isolation\ai.exe";
+        //string game = @"W:\SteamLibrary\steamapps\common\Alien Isolation\ai.exe";
+        //string game = @"W:\Games\Opus Magnum\Lightning.exe";
+        string game = @"W:\Games\The Witcher 3 Wild Hunt\bin\x64\witcher3.exe";
+
+        //  string game = @"W:\Games\The Ball\Binaries\Win32\theball.exe";
 
         print("Running: " + game + "\n");
         
@@ -73,7 +77,8 @@ public class DrawSBS : MonoBehaviour
         if (hresult != 0)
             throw new Exception("Deviare initialization error.");
 #if DEBUG
-        _spyMgr.SettingOverride("SpyMgrDebugLevelMask", 0xCF8);
+        _spyMgr.SettingOverride("SpyMgrDebugLevelMask", 0x2FF8);
+       // _spyMgr.SettingOverride("SpyMgrAgentLevelMask", 0x040);
 #endif
         print("Successful SpyMgr Init");
 
@@ -107,14 +112,24 @@ public class DrawSBS : MonoBehaviour
             // Hook the primary DX11 creation call of CreateDXGIFactory1, which is a direct export of 
             // the dxgi DLL.  All DX11 games must call this interface, or possibly CreateDeviceAndSwapChain.
 
-            print("Hook the D3D11.DLL!D3D11CreateDeviceAndSwapChain...");
-            NktHook d3dHook = _spyMgr.CreateHook("D3D11.DLL!D3D11CreateDeviceAndSwapChain", 0); // (int)eNktHookFlags.flgOnlyPostCall);
+            print("Hook the D3D11.DLL!D3D11CreateDevice...");
+            NktHook d3dHook = _spyMgr.CreateHook("D3D11.DLL!D3D11CreateDevice", (int)eNktHookFlags.flgOnlyPostCall);
             if (d3dHook == null)
+                throw new Exception("Failed to hook D3D11.DLL!D3D11CreateDevice");
+
+            print("Hook the D3D11.DLL!D3D11CreateDeviceAndSwapChain...");
+            NktHook d3dHook1 = _spyMgr.CreateHook("D3D11.DLL!D3D11CreateDeviceAndSwapChain", 0); // (int)eNktHookFlags.flgOnlyPostCall);
+            if (d3dHook1 == null)
                 throw new Exception("Failed to hook D3D11.DLL!D3D11CreateDeviceAndSwapChain");
 
+            print("Hook the DXGI.DLL!CreateDXGIFactory...");
+            NktHook dxgiHook = _spyMgr.CreateHook("DXGI.DLL!CreateDXGIFactory", (int)eNktHookFlags.flgOnlyPostCall);
+            if (dxgiHook == null)
+                throw new Exception("Failed to hook DXGI.DLL!CreateDXGIFactory");
+
             print("Hook the DXGI.DLL!CreateDXGIFactory1...");
-            NktHook dxgiHook = _spyMgr.CreateHook("DXGI.DLL!CreateDXGIFactory1", 0); // (int)eNktHookFlags.flgOnlyPostCall);
-            if (d3dHook == null)
+            NktHook dxgiHook1 = _spyMgr.CreateHook("DXGI.DLL!CreateDXGIFactory1",    0); // (int)eNktHookFlags.flgOnlyPostCall);
+            if (dxgiHook1 == null)
                 throw new Exception("Failed to hook DXGI.DLL!CreateDXGIFactory1");
 
 
@@ -122,15 +137,20 @@ public class DrawSBS : MonoBehaviour
             // object is created. At that point, the native code will take over.
 
             d3dHook.AddCustomHandler(_nativeDLLName, 0, "");
+            d3dHook1.AddCustomHandler(_nativeDLLName, 0, "");
             dxgiHook.AddCustomHandler(_nativeDLLName, 0, "");
-
+            dxgiHook1.AddCustomHandler(_nativeDLLName, 0, "");
 
             // Finally attach and activate the hook in the still suspended game process.
 
             d3dHook.Attach(_gameProcess, true);
             d3dHook.Hook(true);
+            d3dHook1.Attach(_gameProcess, true);
+            d3dHook1.Hook(true);
             dxgiHook.Attach(_gameProcess, true);
             dxgiHook.Hook(true);
+            dxgiHook1.Attach(_gameProcess, true);
+            dxgiHook1.Hook(true);
 
 
             // Ready to go.  Let the game startup.  When it calls Direct3DCreate9, we'll be

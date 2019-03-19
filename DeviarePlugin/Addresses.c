@@ -23,11 +23,8 @@
 #include <d3d11.h>
 
 
-// Input object must be IDirect3D9.  If it is the subclass of IDirect3D9Ex, 
-// then it will fetch the wrong address, because the header file is wrong.
-// It is OK to pass in an IDirect3D9Ex, but any references here must be the subclass.
 
-LPVOID lpvtbl_CreateSwapChain(IDXGIFactory1* pDXGIFactory)
+LPVOID lpvtbl_CreateSwapChain(IDXGIFactory* pDXGIFactory)
 {
 	if (!pDXGIFactory)
 		return NULL;
@@ -36,8 +33,6 @@ LPVOID lpvtbl_CreateSwapChain(IDXGIFactory1* pDXGIFactory)
 }
 
 
-// OK to pass in an IDirect3DDevice9Ex object, but usage here must be
-// as the subclass IDirect3DDevice9.
 
 LPVOID lpvtbl_Present(IDXGISwapChain* pSwapChain)
 {

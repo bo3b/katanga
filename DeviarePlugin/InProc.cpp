@@ -201,6 +201,7 @@ HRESULT __stdcall Hooked_Present(IDXGISwapChain * This,
 		{
 			srcBox.left = srcBox.top = srcBox.front = 0;
 			srcBox.right = pDesc.Width * 2;
+			srcBox.bottom = pDesc.Height;
 			srcBox.back = 1;
 			pContext->CopySubresourceRegion(gGameTexture, 0, 0, 0, 0, backBuffer, 0, &srcBox);
 
@@ -350,8 +351,12 @@ HRESULT __stdcall Hooked_CreateSwapChain(IDXGIFactory1 * This,
 		D3D11_TEXTURE2D_DESC desc = { 0 };
 		desc.Width = pDesc->BufferDesc.Width * 2;
 		desc.Height = pDesc->BufferDesc.Height;
+		desc.MipLevels = 1;
+		desc.ArraySize = 1;
 		desc.Format = pDesc->BufferDesc.Format;
+		desc.SampleDesc.Count = 1;	// No AA
 		desc.Usage = D3D11_USAGE_DEFAULT;
+		desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
 		desc.MiscFlags = D3D11_RESOURCE_MISC_SHARED;  // maybe D3D11_RESOURCE_MISC_SHARED_KEYEDMUTEX is better
 
 		hres = pDevice->CreateTexture2D(&desc, NULL, &gGameTexture);
@@ -411,7 +416,7 @@ HRESULT __stdcall Hooked_CreateSwapChain(IDXGIFactory1 * This,
 // This hook call is called from the Deviare side, to continue the 
 // daisy-chain to IDXGISwapChain::Present.
 
-void HookCreateSwapChain(IDXGIFactory1* dDXGIFactory)
+void HookCreateSwapChain(IDXGIFactory* dDXGIFactory)
 {
 	// This can be called multiple times by a game, so let's be sure to
 	// only hook once.
@@ -421,7 +426,7 @@ void HookCreateSwapChain(IDXGIFactory1* dDXGIFactory)
 		nktInProc.SetEnableDebugOutput(TRUE);
 #endif
 
-		// If we are here, we want to now hook the IDXGIFactory1::CreateSwapChain
+		// If we are here, we want to now hook the IDXGIFactory::CreateSwapChain
 		// routine, as that will be the next thing the game does, and we
 		// need access to the IDXGISwapChain.
 		// This can't be done directly, because this is a vtable based API
@@ -434,7 +439,7 @@ void HookCreateSwapChain(IDXGIFactory1* dDXGIFactory)
 		DWORD dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigCreateSwapChain,
 			lpvtbl_CreateSwapChain(dDXGIFactory), Hooked_CreateSwapChain, 0);
 
-		if (FAILED(dwOsErr))
+		if (dwOsErr != S_OK)
 			throw std::exception("Failed to hook IDXGIFactory1::CreateSwapChain");
 	}
 }

@@ -28,7 +28,8 @@
 
 
 // Reference to the game's dxgifactory interface, that we want global scope.
-IDXGIFactory1* pDXGIFactory = nullptr;
+ID3D11Device* pDevice = nullptr;
+IDXGIFactory* pDXGIFactory = nullptr;
 
 
 // --------------------------------------------------------------------------------------------------
@@ -60,6 +61,8 @@ HRESULT WINAPI OnLoad()
 	// COM here.
 	::CoInitializeEx(NULL, COINIT_MULTITHREADED);
 
+	// bump ref count.  keep it loaded.
+	LoadLibrary(L"d3d11.dll");
 	return S_OK;
 }
 
@@ -75,14 +78,36 @@ VOID WINAPI OnUnload()
 HRESULT WINAPI OnHookAdded(__in INktHookInfo *lpHookInfo, __in DWORD dwChainIndex,
 	__in LPCWSTR szParametersW)
 {
-	::OutputDebugStringA("NativePlugin::OnHookAdded called\n");
+	CComBSTR name;
+	my_ssize_t address;
+	CHAR szBufA[1024];
+
+	HRESULT hr = lpHookInfo->get_FunctionName(&name);
+	if (FAILED(hr))
+		throw std::exception("Failed GetFunctionName");
+	lpHookInfo->get_Address(&address);
+	sprintf_s(szBufA, 1024, "DeviarePlugin::OnHookAdded called [Hook: %S @ 0x%IX / Chain:%lu]\n",
+		name, address, dwChainIndex);
+	::OutputDebugStringA(szBufA);
+
 	return S_OK;
 }
 
 
 VOID WINAPI OnHookRemoved(__in INktHookInfo *lpHookInfo, __in DWORD dwChainIndex)
 {
-	::OutputDebugStringA("NativePlugin::OnHookRemoved called\n");
+	CComBSTR name;
+	my_ssize_t address;
+	CHAR szBufA[1024];
+
+	HRESULT hr = lpHookInfo->get_FunctionName(&name);
+	if (FAILED(hr))
+		throw std::exception("Failed GetFunctionName");
+	lpHookInfo->get_Address(&address);
+	sprintf_s(szBufA, 1024, "DeviarePlugin::OnHookRemoved called [Hook: %S @ 0x%IX / Chain:%lu]\n",
+		name, address, dwChainIndex);
+	::OutputDebugStringA(szBufA);
+
 	return;
 }
 
@@ -141,7 +166,7 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 	if (FAILED(hr))
 		throw std::exception("Failed GetFunctionName");
 	lpHookInfo->get_Address(&address);
-	sprintf_s(szBufA, 1024, "DeviarePlugin::OnFunctionCall called [Hook: %S @ 0x%IX / Chain:%lu]",
+	sprintf_s(szBufA, 1024, "DeviarePlugin::OnFunctionCall called [Hook: %S @ 0x%IX / Chain:%lu]\n",
 		name, address, dwChainIndex);
 	::OutputDebugStringA(szBufA);
 
@@ -164,30 +189,106 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 
 	CComPtr<INktParam> param;
 	my_ssize_t pointeraddress;
-	
-	if (paramCount >= 9)
+	VARIANT_BOOL notNull;
+
+	if (wcscmp(name, L"D3D11.DLL!D3D11CreateDeviceAndSwapChain") == 0)
 	{
 		// Param 8 is returned _COM_Outptr_opt_ IDXGISwapChain** ppSwapChain
 		hr = paramsEnum->GetAt(8, &param);
 		if (FAILED(hr))
 			throw std::exception("Failed Nektra paramsEnum->GetAt(8)");
-		hr = param->get_PointerVal(&pointeraddress);
+		hr = param->get_IsNullPointer(&notNull);
 		if (FAILED(hr))
-			throw std::exception("Failed Nektra param->get_PointerVal");
-		pSwapChain = reinterpret_cast<IDXGISwapChain*>(pointeraddress);
-
+			throw std::exception("Failed Nektra param->get_IsNullPointer");
+		if (notNull)
+		{
+			hr = param->Evaluate(&param);
+			if (FAILED(hr))
+				throw std::exception("Failed Nektra param->Evaluate");
+			hr = param->get_PointerVal(&pointeraddress);
+			if (FAILED(hr))
+				throw std::exception("Failed Nektra param->get_PointerVal");
+			pSwapChain = reinterpret_cast<IDXGISwapChain*>(pointeraddress);
+		}
 		// Param 9 is returned _COM_Outptr_opt_ ID3D11Device** ppDevice
 		hr = paramsEnum->GetAt(9, &param);
 		if (FAILED(hr))
 			throw std::exception("Failed Nektra paramsEnum->GetAt(9)");
-		hr = param->get_PointerVal(&pointeraddress);
+		hr = param->get_IsNullPointer(&notNull);
 		if (FAILED(hr))
-			throw std::exception("Failed Nektra param->get_PointerVal");
-		pDevice = reinterpret_cast<ID3D11Device*>(pointeraddress);
+			throw std::exception("Failed Nektra param->get_IsNullPointer");
+		if (notNull)
+		{
+			hr = param->Evaluate(&param);
+			if (FAILED(hr))
+				throw std::exception("Failed Nektra param->Evaluate");
+			hr = param->get_PointerVal(&pointeraddress);
+			if (FAILED(hr))
+				throw std::exception("Failed Nektra param->get_PointerVal");
+			pDevice = reinterpret_cast<ID3D11Device*>(pointeraddress);
+		}
 	}
 
 
+	// If it's CreateDXGIFactory, let's fetch the 2nd parameter, which is
+	// the returned ppFactory from this Post call.
+	//HRESULT CreateDXGIFactory(
+	//	REFIID riid,
+	//	void   **ppFactory
+	//);
+	if (wcscmp(name, L"DXGI.DLL!CreateDXGIFactory") == 0)
+	{
+		hr = paramsEnum->GetAt(1, &param);
+		if (FAILED(hr))
+			throw std::exception("Failed Nektra paramsEnum->GetAt(1)");
+		hr = param->Evaluate(&param);
+		if (FAILED(hr))
+			throw std::exception("Failed Nektra param->Evaluate");
+		hr = param->get_PointerVal(&pointeraddress);
+		if (FAILED(hr))
+			throw std::exception("Failed Nektra param->get_PointerVal");
+		pDXGIFactory = reinterpret_cast<IDXGIFactory*>(pointeraddress);
+		IDXGIFactory1* pDXGIDevice;
+		//hr = pDXGIFactory->QueryInterface(__uuidof(IDXGIFactory2), (void **)&pDXGIDevice);
+		//if (FAILED(hr))
+		//	throw std::exception("Failed Nektra param->get_PointerVal");
 
+		HookCreateSwapChain(pDXGIFactory);
+	}
+
+	// If it's CreateDevice, let's fetch the 7th parameter, which is
+	// the returned ppDevice from this Post call.
+	//HRESULT D3D11CreateDevice(
+	//	IDXGIAdapter            *pAdapter,
+	//	D3D_DRIVER_TYPE         DriverType,
+	//	HMODULE                 Software,
+	//	UINT                    Flags,
+	//	const D3D_FEATURE_LEVEL *pFeatureLevels,
+	//	UINT                    FeatureLevels,
+	//	UINT                    SDKVersion,
+	//	ID3D11Device            **ppDevice,
+	//	D3D_FEATURE_LEVEL       *pFeatureLevel,
+	//	ID3D11DeviceContext     **ppImmediateContext
+	//);
+	if (wcscmp(name, L"D3D11.DLL!D3D11CreateDevice") == 0)
+	{
+		hr = paramsEnum->GetAt(7, &param);
+		if (FAILED(hr))
+			throw std::exception("Failed Nektra paramsEnum->GetAt(7)");
+		hr = param->get_IsNullPointer(&notNull);
+		if (FAILED(hr))
+			throw std::exception("Failed Nektra param->get_IsNullPointer");
+		if (notNull)
+		{
+			hr = param->Evaluate(&param);
+			if (FAILED(hr))
+				throw std::exception("Failed Nektra param->Evaluate");
+			hr = param->get_PointerVal(&pointeraddress);
+			if (FAILED(hr))
+				throw std::exception("Failed Nektra param->get_PointerVal");
+			pDevice = reinterpret_cast<ID3D11Device*>(pointeraddress);
+		}
+	}
 
 
 	// ToDo: wrong get I think for CreateDXGIFactory

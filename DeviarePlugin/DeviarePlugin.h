@@ -32,13 +32,13 @@
 #include <exception>
 
 
-void HookCreateSwapChain(IDXGIFactory1* dDXGIFactory);
+void HookCreateSwapChain(IDXGIFactory* dDXGIFactory);
 void HookPresent(ID3D11Device* pDevice, IDXGISwapChain* pSwapChain);
 
 
 // These need to be declared as extern "C" so that the names are not mangled.
 // They are coming from the straight C compilation unit.
 
-extern "C" LPVOID lpvtbl_CreateSwapChain(IDXGIFactory1* dDXGIFactory);
+extern "C" LPVOID lpvtbl_CreateSwapChain(IDXGIFactory* dDXGIFactory);
 
 extern "C" LPVOID lpvtbl_Present(IDXGISwapChain* pSwapChain);
