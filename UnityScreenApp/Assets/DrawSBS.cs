@@ -113,7 +113,7 @@ public class DrawSBS : MonoBehaviour
             // the dxgi DLL.  All DX11 games must call this interface, or possibly CreateDeviceAndSwapChain.
 
             print("Hook the D3D11.DLL!D3D11CreateDevice...");
-            NktHook d3dHook = _spyMgr.CreateHook("D3D11.DLL!D3D11CreateDevice", (int)eNktHookFlags.flgOnlyPostCall);
+            NktHook d3dHook = _spyMgr.CreateHook("D3D11.DLL!D3D11CreateDevice", 0); // (int)eNktHookFlags.flgOnlyPostCall);
             if (d3dHook == null)
                 throw new Exception("Failed to hook D3D11.DLL!D3D11CreateDevice");
 

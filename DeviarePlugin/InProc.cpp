@@ -148,18 +148,11 @@ HANDLE WINAPI TriggerEvent(int* in)
 // StretchRect the stereo snapshot back onto the backbuffer so we can see what we got.
 // Keep aspect ratio intact, because we want to see if it's a stretched image.
 
-//void DrawStereoOnGame(IDirect3DDevice9* device, IDirect3DSurface9* surface, IDirect3DSurface9* back)
-//{
-//	D3DSURFACE_DESC bufferDesc;
-//	back->GetDesc(&bufferDesc);
-//	RECT backBufferRect = { 0, 0, (LONG)(bufferDesc.Width), (LONG)(bufferDesc.Height) };
-//	RECT stereoImageRect = { 0, 0, (LONG)(bufferDesc.Width * 2), (LONG)(bufferDesc.Height) };
-//
-//	int insetW = 300;
-//	int insetH = (int)(300.0 * stereoImageRect.bottom / stereoImageRect.right);
-//	RECT topScreen = { 5, 5, insetW, insetH };
-//	device->StretchRect(surface, &stereoImageRect, back, &topScreen, D3DTEXF_NONE);
-//}
+void DrawStereoOnGame(ID3D11DeviceContext* pContext, ID3D11Texture2D* surface, ID3D11Texture2D* back)
+{
+	D3D11_BOX srcBox = { 300, 0, 0, 1600+300, 900, 1};
+	pContext->CopySubresourceRegion(back, 0, 0, 0, 0, surface, 0, &srcBox);
+}
 
 
 //-----------------------------------------------------------
@@ -188,7 +181,6 @@ HRESULT __stdcall Hooked_Present(IDXGISwapChain * This,
 	D3D11_TEXTURE2D_DESC pDesc;
 	ID3D11Device* pDevice = nullptr;
 	ID3D11DeviceContext* pContext = nullptr;
-	D3D11_BOX srcBox;
 
 	hr = This->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&backBuffer);
 	if (SUCCEEDED(hr) && gGameTexture > 0)
@@ -199,22 +191,17 @@ HRESULT __stdcall Hooked_Present(IDXGISwapChain * This,
 
 		hr = NvAPI_Stereo_ReverseStereoBlitControl(gNVAPI, true);
 		{
-			srcBox.left = srcBox.top = srcBox.front = 0;
-			srcBox.right = pDesc.Width * 2;
-			srcBox.bottom = pDesc.Height;
-			srcBox.back = 1;
-			pContext->CopySubresourceRegion(gGameTexture, 0, 0, 0, 0, backBuffer, 0, &srcBox);
+			pContext->CopySubresourceRegion(gGameTexture, 0, 0, 0, 0, backBuffer, 0, nullptr);
 
 //			SetEvent(gFreshBits);		// Signal other thread to start StretchRect
 		}
 		hr = NvAPI_Stereo_ReverseStereoBlitControl(gNVAPI, false);
 
+#ifdef _DEBUG
+		DrawStereoOnGame(pContext, gGameTexture, backBuffer);
+#endif
 		pContext->Release();
 		pDevice->Release();
-
-#ifdef _DEBUG
-		//DrawStereoOnGame(This, gSharedTarget, backBuffer);
-#endif
 	}
 	backBuffer->Release();
 
@@ -347,22 +334,34 @@ HRESULT __stdcall Hooked_CreateSwapChain(IDXGIFactory1 * This,
 		// DX11 Texture2D, so that we can snapshot the game output.  This texture needs to
 		// use the Shared flag, so that we can share it to another Device.  Because
 		// these are all DX11 objects, the share will work.
+		// Make it exactly match the backbuffer.
 
-		D3D11_TEXTURE2D_DESC desc = { 0 };
-		desc.Width = pDesc->BufferDesc.Width * 2;
-		desc.Height = pDesc->BufferDesc.Height;
-		desc.MipLevels = 1;
-		desc.ArraySize = 1;
-		desc.Format = pDesc->BufferDesc.Format;
-		desc.SampleDesc.Count = 1;	// No AA
-		desc.Usage = D3D11_USAGE_DEFAULT;
-		desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+		ID3D11Texture2D* backBuffer;
+		D3D11_TEXTURE2D_DESC desc;
+
+		hr = (*ppSwapChain)->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&backBuffer);
+		if (FAILED(hr))
+			throw std::exception("Fail to get backbuffer");
+
+		backBuffer->GetDesc(&desc);
+		backBuffer->Release();
+
+		desc.Width *= 2;
 		desc.MiscFlags = D3D11_RESOURCE_MISC_SHARED;  // maybe D3D11_RESOURCE_MISC_SHARED_KEYEDMUTEX is better
 
 		hres = pDevice->CreateTexture2D(&desc, NULL, &gGameTexture);
 		if (FAILED(hres))
 			throw std::exception("Fail to create shared stereo Texture");
 	
+		IDXGIResource* pDXGIResource = NULL;
+		gGameTexture->QueryInterface(__uuidof(IDXGIResource), (LPVOID*)&pDXGIResource);
+
+		// obtain handle to IDXGIResource object.
+		pDXGIResource->GetSharedHandle(&gGameSharedHandle);
+		pDXGIResource->Release();
+		if (gGameSharedHandle == nullptr)
+			throw std::exception("Fail to create gGameSharedHandle");
+
 
 		// Since we are doing setup here, also create a thread that will be used to copy
 		// from the stereo game surface into the shared surface.  This way the game will
