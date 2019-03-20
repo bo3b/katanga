@@ -74,6 +74,7 @@ VOID WINAPI OnUnload()
 	return;
 }
 
+long gGamePID;
 
 HRESULT WINAPI OnHookAdded(__in INktHookInfo *lpHookInfo, __in DWORD dwChainIndex,
 	__in LPCWSTR szParametersW)
@@ -81,6 +82,7 @@ HRESULT WINAPI OnHookAdded(__in INktHookInfo *lpHookInfo, __in DWORD dwChainInde
 	CComBSTR name;
 	my_ssize_t address;
 	CHAR szBufA[1024];
+	INktProcess* pProc;
 
 	HRESULT hr = lpHookInfo->get_FunctionName(&name);
 	if (FAILED(hr))
@@ -89,6 +91,13 @@ HRESULT WINAPI OnHookAdded(__in INktHookInfo *lpHookInfo, __in DWORD dwChainInde
 	sprintf_s(szBufA, 1024, "DeviarePlugin::OnHookAdded called [Hook: %S @ 0x%IX / Chain:%lu]\n",
 		name, address, dwChainIndex);
 	::OutputDebugStringA(szBufA);
+
+	hr = lpHookInfo->CurrentProcess(&pProc);
+	if (FAILED(hr))
+		throw std::exception("Failed CurrentProcess");
+	hr = pProc->get_Id(&gGamePID);
+	if (FAILED(hr))
+		throw std::exception("Failed get_Id");
 
 	return S_OK;
 }
@@ -130,26 +139,7 @@ VOID WINAPI OnHookRemoved(__in INktHookInfo *lpHookInfo, __in DWORD dwChainIndex
 //    3Dmigoto receives IDXGIFactory1, and saves it for wrapping use.
 //   3Dmigoto returns IDXGIFactory1 to game, which uses it to CreateSwapChain.
 
-// Original API:
-// HRESULT CreateDXGIFactory1(
-//	REFIID riid,
-//	void   **ppFactory
-// );
 
-// Original API:
-//HRESULT WINAPI D3D11CreateDeviceAndSwapChain(
-//	_In_opt_ IDXGIAdapter* pAdapter,
-//	D3D_DRIVER_TYPE DriverType,
-//	HMODULE Software,
-//	UINT Flags,
-//	_In_reads_opt_(FeatureLevels) CONST D3D_FEATURE_LEVEL* pFeatureLevels,
-//	UINT FeatureLevels,
-//	UINT SDKVersion,
-//	_In_opt_ CONST DXGI_SWAP_CHAIN_DESC* pSwapChainDesc,
-//	_COM_Outptr_opt_ IDXGISwapChain** ppSwapChain,
-//	_COM_Outptr_opt_ ID3D11Device** ppDevice,
-//	_Out_opt_ D3D_FEATURE_LEVEL* pFeatureLevel,
-//	_COM_Outptr_opt_ ID3D11DeviceContext** ppImmediateContext);
 
 HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainIndex,
 	__in INktHookCallInfoPlugin *lpHookCallInfoPlugin)
@@ -157,7 +147,7 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 	HRESULT hr;
 	IDXGISwapChain* pSwapChain = nullptr;
 	ID3D11Device* pDevice = nullptr;
-	
+
 	CComBSTR name;
 	my_ssize_t address;
 	CHAR szBufA[1024];
@@ -191,8 +181,47 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 	my_ssize_t pointeraddress;
 	VARIANT_BOOL notNull;
 
+	//HRESULT WINAPI D3D11CreateDeviceAndSwapChain(
+	//	_In_opt_ IDXGIAdapter* pAdapter,
+	//	D3D_DRIVER_TYPE DriverType,
+	//	HMODULE Software,
+	//	UINT Flags,
+	//	_In_reads_opt_(FeatureLevels) CONST D3D_FEATURE_LEVEL* pFeatureLevels,
+	//	UINT FeatureLevels,
+	//	UINT SDKVersion,
+	//	_In_opt_ CONST DXGI_SWAP_CHAIN_DESC* pSwapChainDesc,
+	//	_COM_Outptr_opt_ IDXGISwapChain** ppSwapChain,
+	//	_COM_Outptr_opt_ ID3D11Device** ppDevice,
+	//	_Out_opt_ D3D_FEATURE_LEVEL* pFeatureLevel,
+	//	_COM_Outptr_opt_ ID3D11DeviceContext** ppImmediateContext);
 	if (wcscmp(name, L"D3D11.DLL!D3D11CreateDeviceAndSwapChain") == 0)
 	{
+#ifdef _DEBUG 
+		VARIANT_BOOL isPreCall;
+		lpHookCallInfoPlugin->get_IsPreCall(&isPreCall);
+		if (FAILED(hr))
+			throw std::exception("Failed Nektra get_IsPreCall");
+
+		if (isPreCall)
+		{
+			unsigned long flags;	// should be UINT. long and int are both 32 bits on windows.
+			hr = paramsEnum->GetAt(3, &param);
+			if (FAILED(hr))
+				throw std::exception("Failed Nektra paramsEnum->GetAt(3)");
+			hr = param->get_ULongVal(&flags);
+			if (FAILED(hr))
+				throw std::exception("Failed Nektra paramsEnum->get_ULongVal()");
+
+			flags |= D3D11_CREATE_DEVICE_DEBUG;
+
+			hr = param->put_ULongVal(flags);
+			if (FAILED(hr))
+				throw std::exception("Failed Nektra paramsEnum->put_ULongVal()");
+
+			return S_OK;
+		}
+#endif
+
 		// Param 8 is returned _COM_Outptr_opt_ IDXGISwapChain** ppSwapChain
 		hr = paramsEnum->GetAt(8, &param);
 		if (FAILED(hr))
@@ -227,6 +256,8 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 				throw std::exception("Failed Nektra param->get_PointerVal");
 			pDevice = reinterpret_cast<ID3D11Device*>(pointeraddress);
 		}
+
+		HookPresent(pDevice, pSwapChain);
 	}
 
 
@@ -238,23 +269,29 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 	//);
 	if (wcscmp(name, L"DXGI.DLL!CreateDXGIFactory") == 0)
 	{
-		hr = paramsEnum->GetAt(1, &param);
+		hr = paramsEnum->GetAt(1, &param.p);
 		if (FAILED(hr))
 			throw std::exception("Failed Nektra paramsEnum->GetAt(1)");
-		hr = param->Evaluate(&param);
+		hr = param->Evaluate(&param.p);
 		if (FAILED(hr))
 			throw std::exception("Failed Nektra param->Evaluate");
 		hr = param->get_PointerVal(&pointeraddress);
 		if (FAILED(hr))
 			throw std::exception("Failed Nektra param->get_PointerVal");
 		pDXGIFactory = reinterpret_cast<IDXGIFactory*>(pointeraddress);
-		IDXGIFactory1* pDXGIDevice;
+		//IDXGIFactory1* pDXGIDevice;
 		//hr = pDXGIFactory->QueryInterface(__uuidof(IDXGIFactory2), (void **)&pDXGIDevice);
 		//if (FAILED(hr))
 		//	throw std::exception("Failed Nektra param->get_PointerVal");
 
 		HookCreateSwapChain(pDXGIFactory);
 	}
+
+	// HRESULT CreateDXGIFactory1(
+	//	REFIID riid,
+	//	void   **ppFactory
+	// );
+
 
 	// If it's CreateDevice, let's fetch the 7th parameter, which is
 	// the returned ppDevice from this Post call.
@@ -272,7 +309,33 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 	//);
 	if (wcscmp(name, L"D3D11.DLL!D3D11CreateDevice") == 0)
 	{
-		hr = paramsEnum->GetAt(7, &param);
+#ifdef _DEBUG 
+		VARIANT_BOOL isPreCall;
+		lpHookCallInfoPlugin->get_IsPreCall(&isPreCall);
+		if (FAILED(hr))
+			throw std::exception("Failed Nektra get_IsPreCall");
+
+		if (isPreCall)
+		{
+			unsigned long flags;	// should be UINT. long and int are both 32 bits on windows.
+			hr = paramsEnum->GetAt(3, &param.p);
+			if (FAILED(hr))
+				throw std::exception("Failed Nektra paramsEnum->GetAt(3)");
+			hr = param->get_ULongVal(&flags);
+			if (FAILED(hr))
+				throw std::exception("Failed Nektra paramsEnum->get_ULongVal()");
+
+			flags |= D3D11_CREATE_DEVICE_DEBUG;
+
+			hr = param->put_ULongVal(flags);
+			if (FAILED(hr))
+				throw std::exception("Failed Nektra paramsEnum->put_ULongVal()");
+
+			return S_OK;
+		}
+#endif
+
+		hr = paramsEnum->GetAt(7, &param.p);
 		if (FAILED(hr))
 			throw std::exception("Failed Nektra paramsEnum->GetAt(7)");
 		hr = param->get_IsNullPointer(&notNull);
@@ -280,7 +343,7 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 			throw std::exception("Failed Nektra param->get_IsNullPointer");
 		if (notNull)
 		{
-			hr = param->Evaluate(&param);
+			hr = param->Evaluate(&param.p);
 			if (FAILED(hr))
 				throw std::exception("Failed Nektra param->Evaluate");
 			hr = param->get_PointerVal(&pointeraddress);
@@ -308,7 +371,6 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 
 	// HookCreateSwapChain(pDXGIFactory);
 
-	HookPresent(pDevice, pSwapChain);
 
 	return S_OK;
 }
