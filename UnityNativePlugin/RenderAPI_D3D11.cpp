@@ -258,6 +258,7 @@ ID3D11ShaderResourceView* RenderAPI_D3D11::CreateSharedSurface(HANDLE shared)
 		if (FAILED(hr))
 			__debugbreak();
 
+#ifdef _DEBUG
 		D3D11_TEXTURE2D_DESC tdesc;
 		texture->GetDesc(&tdesc);
 		wchar_t info[512];
@@ -265,6 +266,7 @@ ID3D11ShaderResourceView* RenderAPI_D3D11::CreateSharedSurface(HANDLE shared)
 			L"RenderAPI_D3D11::CreateSharedSurface - Width: %d, Height: %d, Format: %d\n",
 			tdesc.Width, tdesc.Height, tdesc.Format);
 		::OutputDebugString(info);
+#endif 
 	}
 	resource->Release();
 

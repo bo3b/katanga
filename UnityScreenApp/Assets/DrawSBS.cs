@@ -76,7 +76,7 @@ public class DrawSBS : MonoBehaviour
         hresult = _spyMgr.Initialize();
         if (hresult != 0)
             throw new Exception("Deviare initialization error.");
-#if DEBUG
+#if _DEBUG
         _spyMgr.SettingOverride("SpyMgrDebugLevelMask", 0x2FF8);
        // _spyMgr.SettingOverride("SpyMgrAgentLevelMask", 0x040);
 #endif
@@ -128,7 +128,7 @@ public class DrawSBS : MonoBehaviour
                 throw new Exception("Failed to hook DXGI.DLL!CreateDXGIFactory");
 
             print("Hook the DXGI.DLL!CreateDXGIFactory1...");
-            NktHook dxgiHook1 = _spyMgr.CreateHook("DXGI.DLL!CreateDXGIFactory1",    0); // (int)eNktHookFlags.flgOnlyPostCall);
+            NktHook dxgiHook1 = _spyMgr.CreateHook("DXGI.DLL!CreateDXGIFactory1", (int)eNktHookFlags.flgOnlyPostCall);
             if (dxgiHook1 == null)
                 throw new Exception("Failed to hook DXGI.DLL!CreateDXGIFactory1");
 
