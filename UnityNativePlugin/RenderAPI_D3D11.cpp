@@ -247,16 +247,6 @@ ID3D11ShaderResourceView* RenderAPI_D3D11::CreateSharedSurface(HANDLE shared)
 	ID3D11Texture2D* texture;
 	ID3D11ShaderResourceView* pSRView;
 
-	// Bump priority for this Device, it's VR and must be tops.
-
-	IDXGIDevice* pDXGIDevice;
-	hr = m_Device->QueryInterface(__uuidof(IDXGIDevice), (void**)(&pDXGIDevice));
-	if (FAILED(hr))
-		__debugbreak();
-	hr = pDXGIDevice->SetGPUThreadPriority(7);
-	if (FAILED(hr))
-		__debugbreak();
-
 	hr = m_Device->OpenSharedResource(shared, __uuidof(ID3D11Resource), (void**)(&resource));
 	{
 		if (FAILED(hr))
@@ -278,18 +268,14 @@ ID3D11ShaderResourceView* RenderAPI_D3D11::CreateSharedSurface(HANDLE shared)
 	}
 	resource->Release();
 
-	// now use ID3D11Texture2D with DX11  
 	// This is theoretically the exact same surface in the video card memory,
-	// that DX9Ex is using for the StretchRect destination.
+	// that the game's DX11 is using as the stereo shared surface. 
 	//
 	// Now we need to create a ShaderResourceView using this, because that
 	// is what Unity requires for its CreateExternalTexture.
-	// ToDo: Need to pass format and dimensions too.
-	D3D11_SHADER_RESOURCE_VIEW_DESC desc;
-	desc.Format = DXGI_FORMAT_B8G8R8A8_TYPELESS;
-	desc.ViewDimension = D3D_SRV_DIMENSION_TEXTURE2D;
-	desc.Texture2D.MipLevels = 0;
-	desc.Texture2D.MostDetailedMip = -1;  // Pathetic design- defined as UINT, requires -1.
+	//
+	// No need to change description, we want it to be the same as what the game
+	// specifies, so passing NULL to make it identical.
 
 	hr = m_Device->CreateShaderResourceView(texture, NULL, &pSRView);
 	if (FAILED(hr))
