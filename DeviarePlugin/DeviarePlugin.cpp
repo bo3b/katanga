@@ -196,7 +196,6 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 	//	_COM_Outptr_opt_ ID3D11DeviceContext** ppImmediateContext);
 	if (wcscmp(name, L"D3D11.DLL!D3D11CreateDeviceAndSwapChain") == 0)
 	{
-#ifdef _DEBUG 
 		VARIANT_BOOL isPreCall;
 		lpHookCallInfoPlugin->get_IsPreCall(&isPreCall);
 		if (FAILED(hr))
@@ -204,6 +203,7 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 
 		if (isPreCall)
 		{
+#ifdef _DEBUG 
 			unsigned long flags;	// should be UINT. long and int are both 32 bits on windows.
 			hr = paramsEnum->GetAt(3, &param);
 			if (FAILED(hr))
@@ -217,11 +217,12 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 			hr = param->put_ULongVal(flags);
 			if (FAILED(hr))
 				throw std::exception("Failed Nektra paramsEnum->put_ULongVal()");
+#endif
 
 			return S_OK;
 		}
-#endif
 
+		// This is PostCall.
 		// Param 8 is returned _COM_Outptr_opt_ IDXGISwapChain** ppSwapChain
 		hr = paramsEnum->GetAt(8, &param);
 		if (FAILED(hr))
@@ -309,7 +310,6 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 	//);
 	if (wcscmp(name, L"D3D11.DLL!D3D11CreateDevice") == 0)
 	{
-#ifdef _DEBUG 
 		VARIANT_BOOL isPreCall;
 		lpHookCallInfoPlugin->get_IsPreCall(&isPreCall);
 		if (FAILED(hr))
@@ -317,6 +317,7 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 
 		if (isPreCall)
 		{
+#ifdef _DEBUG 
 			unsigned long flags;	// should be UINT. long and int are both 32 bits on windows.
 			hr = paramsEnum->GetAt(3, &param.p);
 			if (FAILED(hr))
@@ -330,10 +331,10 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 			hr = param->put_ULongVal(flags);
 			if (FAILED(hr))
 				throw std::exception("Failed Nektra paramsEnum->put_ULongVal()");
+#endif
 
 			return S_OK;
 		}
-#endif
 
 		hr = paramsEnum->GetAt(7, &param.p);
 		if (FAILED(hr))
