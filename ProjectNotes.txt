@@ -1,4 +1,4 @@
-Katanga (maybe release name is Screen3d, Scr33d) is the virtual 3D screen.
+Katanga (maybe release name is Screen3d, Scr33d, umm Helix TV) is the virtual 3D screen.
 
 Any given 3D game running on NVidia or SBS will take the bits and put them into
 the screen Quad in the Unity environment.
@@ -664,3 +664,13 @@ But, this will be DX11 specific and skip DX9 for now.  This is the easist path, 
 be able to just create new projects, and get DX11 shared surfaces.  Should also be 
 most popular, as DX11 and modern games are really the interest nowadays. 
 
+
+3-24-19
+Got the DX11 side working!  So this is x64 game to x64 Unity, and showing in the big screen
+TV in VR.  Witcher 3 test case is working fine at present, performance is good, way beyond
+what I need while using 1080ti.  
+
+Mostly straightforward switch to using DX11, Deviare setup was a pain, but works, and allows
+for multiple injected targets to get to Present.  Surface Sharing in DX11 works very similar
+to DX9, so much so that the Unity plugin side didn't need to change. After using DebugLayer
+on both sides, all problems were solved. Stunning.
