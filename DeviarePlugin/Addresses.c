@@ -20,7 +20,7 @@
 
 #define CINTERFACE
 
-#include <d3d11.h>
+#include <d3d11_1.h>
 
 
 
@@ -30,6 +30,14 @@ LPVOID lpvtbl_CreateSwapChain(IDXGIFactory* pDXGIFactory)
 		return NULL;
 
 	return pDXGIFactory->lpVtbl->CreateSwapChain;
+}
+
+LPVOID lpvtbl_CreateSwapChainForHwnd(IDXGIFactory2* pDXGIFactory2)
+{
+	if (!pDXGIFactory2)
+		return NULL;
+
+	return pDXGIFactory2->lpVtbl->CreateSwapChainForHwnd;
 }
 
 

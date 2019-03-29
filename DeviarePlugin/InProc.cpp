@@ -260,7 +260,54 @@ HRESULT __stdcall Hooked_Present(IDXGISwapChain * This,
 //	return E_FAIL;
 //}
 
+//-----------------------------------------------------------
+// Interface for Win10 or Win7+evilUpdate variant IDXGIFactory2->CreateSwapChainForHwnd
+// Known to be used by BatmanTelltale and recent Unity games.
 
+HRESULT(__stdcall *pOrigCreateSwapChainForHwnd)(IDXGIFactory2 * This,
+	_In_  IUnknown *pDevice,
+	_In_  HWND hWnd,
+	_In_  const DXGI_SWAP_CHAIN_DESC1 *pDesc,
+	_In_opt_  const DXGI_SWAP_CHAIN_FULLSCREEN_DESC *pFullscreenDesc,
+	_In_opt_  IDXGIOutput *pRestrictToOutput,
+	_COM_Outptr_  IDXGISwapChain1 **ppSwapChain) = nullptr;
+
+HRESULT __stdcall Hooked_CreateSwapChainForHwnd(IDXGIFactory2 * This,
+	_In_  IUnknown *pDevice,
+	_In_  HWND hWnd,
+	_In_  const DXGI_SWAP_CHAIN_DESC1 *pDesc,
+	_In_opt_  const DXGI_SWAP_CHAIN_FULLSCREEN_DESC *pFullscreenDesc,
+	_In_opt_  IDXGIOutput *pRestrictToOutput,
+	_COM_Outptr_  IDXGISwapChain1 **ppSwapChain)
+{
+	wchar_t info[512];
+	HRESULT hr;
+
+#ifdef _DEBUG
+	::OutputDebugString(L"NativePlugin::Hooked_CreateSwapChainForHwnd called\n");
+
+	if (pDesc)
+	{
+		swprintf_s(info, _countof(info), L"  Width: %d, Height: %d, Format: %d\n"
+			, pDesc->Width, pDesc->Height, pDesc->Format);
+		::OutputDebugString(info);
+	}
+#endif
+
+	// Run original call game is expecting.
+
+	hr = pOrigCreateSwapChainForHwnd(This, pDevice, hWnd, pDesc, pFullscreenDesc, pRestrictToOutput, ppSwapChain);
+	if (FAILED(hr))
+		throw std::exception("Failed to create CreateSwapChainForHwnd");
+
+
+	// Using that fresh IDXGISwapChain, we can now hook the Present call, which 
+	// is what we are really after.
+
+	HookPresent(reinterpret_cast<ID3D11Device*>(pDevice), *ppSwapChain);
+
+	return hr;
+}
 
 
 //-----------------------------------------------------------
@@ -355,12 +402,44 @@ void HookCreateSwapChain(IDXGIFactory* dDXGIFactory)
 }
 
 
+// Win10 recommended variant.
+
+void HookCreateSwapChainForHwnd(IDXGIFactory2* dDXGIFactory)
+{
+	// This can be called multiple times by a game, so let's be sure to
+	// only hook once.
+	if (pOrigCreateSwapChainForHwnd == nullptr && dDXGIFactory != nullptr)
+	{
+#ifdef _DEBUG 
+		nktInProc.SetEnableDebugOutput(TRUE);
+#endif
+
+		// If we are here, we want to now hook the IDXGIFactory::CreateSwapChainForHwnd
+		// routine, as that will be the next thing the game does, and we
+		// need access to the IDXGISwapChain.
+		// This can't be done directly, because this is a vtable based API
+		// call, not an export from a DLL, so we need to directly hook the 
+		// address of the CreateSwapChainForHwnd function. This is also why we are 
+		// using In-Proc here.  Since we are using the CINTERFACE, we can 
+		// just directly access the address.
+
+		SIZE_T hook_id;
+		DWORD dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigCreateSwapChainForHwnd,
+			lpvtbl_CreateSwapChainForHwnd(dDXGIFactory), Hooked_CreateSwapChainForHwnd, 0);
+
+		if (dwOsErr != S_OK)
+			throw std::exception("Failed to hook IDXGIFactory1::CreateSwapChainForHwnd");
+	}
+}
+
+
 // Here we want to hook IDXGISwapChain::Present
 //
 // SwapChain can be created from D3D11 with CreateDeviceAndSwapChain, hence this 
 // might be called implicitly from there.
 //
-// It is common code for both that path, and the direct path from CreateSwapChain.
+// It is common code for both that path, and the direct path from CreateSwapChain
+// or CreateSwapChainForHwnd.
 
 void HookPresent(ID3D11Device* pDevice, IDXGISwapChain* pSwapChain)
 {

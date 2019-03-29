@@ -27,12 +27,13 @@
 	#define D3D_DEBUG_INFO
 #endif
 
-#include <d3d11.h>
+#include <d3d11_1.h>
 
 #include <exception>
 
-
+// Interface to InProc side
 void HookCreateSwapChain(IDXGIFactory* dDXGIFactory);
+void HookCreateSwapChainForHwnd(IDXGIFactory2* dDXGIFactory);
 void HookPresent(ID3D11Device* pDevice, IDXGISwapChain* pSwapChain);
 
 
@@ -40,5 +41,6 @@ void HookPresent(ID3D11Device* pDevice, IDXGISwapChain* pSwapChain);
 // They are coming from the straight C compilation unit.
 
 extern "C" LPVOID lpvtbl_CreateSwapChain(IDXGIFactory* dDXGIFactory);
+extern "C" LPVOID lpvtbl_CreateSwapChainForHwnd(IDXGIFactory2* dDXGIFactory);
 
 extern "C" LPVOID lpvtbl_Present(IDXGISwapChain* pSwapChain);

@@ -261,39 +261,6 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 		HookPresent(pDevice, pSwapChain);
 	}
 
-
-	// If it's CreateDXGIFactory, let's fetch the 2nd parameter, which is
-	// the returned ppFactory from this Post call.
-	//HRESULT CreateDXGIFactory(
-	//	REFIID riid,
-	//	void   **ppFactory
-	//);
-	if (wcscmp(name, L"DXGI.DLL!CreateDXGIFactory") == 0)
-	{
-		hr = paramsEnum->GetAt(1, &param.p);
-		if (FAILED(hr))
-			throw std::exception("Failed Nektra paramsEnum->GetAt(1)");
-		hr = param->Evaluate(&param.p);
-		if (FAILED(hr))
-			throw std::exception("Failed Nektra param->Evaluate");
-		hr = param->get_PointerVal(&pointeraddress);
-		if (FAILED(hr))
-			throw std::exception("Failed Nektra param->get_PointerVal");
-		pDXGIFactory = reinterpret_cast<IDXGIFactory*>(pointeraddress);
-		//IDXGIFactory1* pDXGIDevice;
-		//hr = pDXGIFactory->QueryInterface(__uuidof(IDXGIFactory2), (void **)&pDXGIDevice);
-		//if (FAILED(hr))
-		//	throw std::exception("Failed Nektra param->get_PointerVal");
-
-		HookCreateSwapChain(pDXGIFactory);
-	}
-
-	// HRESULT CreateDXGIFactory1(
-	//	REFIID riid,
-	//	void   **ppFactory
-	// );
-
-
 	// If it's CreateDevice, let's fetch the 7th parameter, which is
 	// the returned ppDevice from this Post call.
 	//HRESULT D3D11CreateDevice(
@@ -353,6 +320,42 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 			pDevice = reinterpret_cast<ID3D11Device*>(pointeraddress);
 		}
 	}
+
+
+	// ToDo: gonna need factory1 and factory2 as well.
+
+	// If it's CreateDXGIFactory, let's fetch the 2nd parameter, which is
+	// the returned ppFactory from this Post call.
+	//HRESULT CreateDXGIFactory(
+	//	REFIID riid,
+	//	void   **ppFactory
+	//);
+	if (wcscmp(name, L"DXGI.DLL!CreateDXGIFactory") == 0)
+	{
+		hr = paramsEnum->GetAt(1, &param.p);
+		if (FAILED(hr))
+			throw std::exception("Failed Nektra paramsEnum->GetAt(1)");
+		hr = param->Evaluate(&param.p);
+		if (FAILED(hr))
+			throw std::exception("Failed Nektra param->Evaluate");
+		hr = param->get_PointerVal(&pointeraddress);
+		if (FAILED(hr))
+			throw std::exception("Failed Nektra param->get_PointerVal");
+		pDXGIFactory = reinterpret_cast<IDXGIFactory*>(pointeraddress);
+		//IDXGIFactory1* pDXGIDevice;
+		//hr = pDXGIFactory->QueryInterface(__uuidof(IDXGIFactory2), (void **)&pDXGIDevice);
+		//if (FAILED(hr))
+		//	throw std::exception("Failed Nektra param->get_PointerVal");
+
+		HookCreateSwapChain(pDXGIFactory);
+		HookCreateSwapChainForHwnd(reinterpret_cast<IDXGIFactory2*>(pDXGIFactory));
+	}
+
+	// HRESULT CreateDXGIFactory1(
+	//	REFIID riid,
+	//	void   **ppFactory
+	// );
+
 
 
 	// ToDo: wrong get I think for CreateDXGIFactory
