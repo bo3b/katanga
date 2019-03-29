@@ -202,21 +202,18 @@ extern "C" UnityRenderingEvent UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API GetRen
 
 extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API SelectGameDialog(wchar_t *filename, int len)
 {
-	*filename = NULL;			// empty string default for failures/cancel.
-
-	//if (!GetAsyncKeyState(VK_LCONTROL))
-	//	return;
-
 	OPENFILENAME ofn = { 0 };
 	ofn.lStructSize = sizeof(ofn);
 	ofn.hwndOwner = NULL;  // If you have a window to center over, put its HANDLE here
-	ofn.lpstrFilter = L"Game Exe\0*.exe\0\0";
-	ofn.lpstrFile = filename;
+	ofn.lpstrFilter = L".exe\0*.exe\0\0";
+	ofn.lpstrFile = filename;	// Input filename, becomes primary return value.
 	ofn.nMaxFile = len;
 	ofn.lpstrTitle = L"Select a Game Exe to launch in Virtual 3D.";
 	ofn.Flags = OFN_DONTADDTORECENT | OFN_FILEMUSTEXIST;
 
 	BOOL ok = GetOpenFileName(&ofn);
+	if (!ok)
+		*filename = NULL;			// empty string default for failures/cancel.
 }
 
 

@@ -47,19 +47,18 @@ public class DrawSBS : MonoBehaviour
 
         //  string game = @"W:\Games\The Ball\Binaries\Win32\theball.exe";
 
-        print("Running: " + game + "\n");
-        
         // Ask user to select the game to run in virtual 3D.  
-        // If they hold Ctrl at launch. Test for ctrl is in C++,
-        // because Unity does not support GetKey until Update.
+        // ToDo: do this in C#?
 
         int MAX_PATH = 260;
-        StringBuilder sb = new StringBuilder("noname", MAX_PATH);
+        StringBuilder sb = new StringBuilder("", MAX_PATH);
         SelectGameDialog(sb, sb.Capacity);
         Directory.SetCurrentDirectory(drawSBS_directory);
 
         if (sb.Length != 0)
             game = sb.ToString();
+
+        print("Running: " + game + "\n");
 
 
         string wd = System.IO.Directory.GetCurrentDirectory();
