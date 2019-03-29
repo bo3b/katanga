@@ -204,8 +204,8 @@ extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API SelectGameDialog(wcha
 {
 	*filename = NULL;			// empty string default for failures/cancel.
 
-	if (!GetAsyncKeyState(VK_LCONTROL))
-		return;
+	//if (!GetAsyncKeyState(VK_LCONTROL))
+	//	return;
 
 	OPENFILENAME ofn = { 0 };
 	ofn.lStructSize = sizeof(ofn);
@@ -216,7 +216,7 @@ extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API SelectGameDialog(wcha
 	ofn.lpstrTitle = L"Select a Game Exe to launch in Virtual 3D.";
 	ofn.Flags = OFN_DONTADDTORECENT | OFN_FILEMUSTEXIST;
 
-	GetOpenFileName(&ofn);
+	BOOL ok = GetOpenFileName(&ofn);
 }
 
 

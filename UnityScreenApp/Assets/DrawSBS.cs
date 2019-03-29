@@ -54,7 +54,7 @@ public class DrawSBS : MonoBehaviour
         // because Unity does not support GetKey until Update.
 
         int MAX_PATH = 260;
-        StringBuilder sb = new StringBuilder("arf arf arf", MAX_PATH);
+        StringBuilder sb = new StringBuilder("noname", MAX_PATH);
         SelectGameDialog(sb, sb.Capacity);
         Directory.SetCurrentDirectory(drawSBS_directory);
 
