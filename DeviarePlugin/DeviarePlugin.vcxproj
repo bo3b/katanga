@@ -218,9 +218,6 @@
   <ItemGroup>
     <None Include="DeviarePlugin.def" />
   </ItemGroup>
-  <ItemGroup>
-    <Text Include="..\ProjectNotes.txt" />
-  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

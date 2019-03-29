@@ -8,19 +8,37 @@
   <ItemGroup>
     <ClInclude Include="DeviarePlugin.h" />
     <ClInclude Include="NktHookLib.h" />
-    <ClInclude Include="nvapi\nvapi.h" />
-    <ClInclude Include="nvapi\nvapi_lite_common.h" />
-    <ClInclude Include="nvapi\nvapi_lite_d3dext.h" />
-    <ClInclude Include="nvapi\nvapi_lite_salend.h" />
-    <ClInclude Include="nvapi\nvapi_lite_salstart.h" />
-    <ClInclude Include="nvapi\nvapi_lite_sli.h" />
-    <ClInclude Include="nvapi\nvapi_lite_stereo.h" />
-    <ClInclude Include="nvapi\nvapi_lite_surround.h" />
+    <ClInclude Include="nvapi\nvapi.h">
+      <Filter>nvapi</Filter>
+    </ClInclude>
+    <ClInclude Include="nvapi\nvapi_lite_common.h">
+      <Filter>nvapi</Filter>
+    </ClInclude>
+    <ClInclude Include="nvapi\nvapi_lite_d3dext.h">
+      <Filter>nvapi</Filter>
+    </ClInclude>
+    <ClInclude Include="nvapi\nvapi_lite_salend.h">
+      <Filter>nvapi</Filter>
+    </ClInclude>
+    <ClInclude Include="nvapi\nvapi_lite_salstart.h">
+      <Filter>nvapi</Filter>
+    </ClInclude>
+    <ClInclude Include="nvapi\nvapi_lite_sli.h">
+      <Filter>nvapi</Filter>
+    </ClInclude>
+    <ClInclude Include="nvapi\nvapi_lite_stereo.h">
+      <Filter>nvapi</Filter>
+    </ClInclude>
+    <ClInclude Include="nvapi\nvapi_lite_surround.h">
+      <Filter>nvapi</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="DeviarePlugin.def" />
   </ItemGroup>
   <ItemGroup>
-    <Text Include="..\ProjectNotes.txt" />
+    <Filter Include="nvapi">
+      <UniqueIdentifier>{bd9f962f-059d-4193-9a60-107fd8a83446}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
 </Project>
