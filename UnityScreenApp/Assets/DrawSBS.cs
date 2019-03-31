@@ -208,6 +208,15 @@ public class DrawSBS : MonoBehaviour
     // the shared handle and turn it into a ID3D11ShaderResourceView for Unity.
     [DllImport("UnityNativePlugin64")]
     private static extern IntPtr CreateSharedTexture(int sharedHandle);
+    [DllImport("UnityNativePlugin64")]
+    private static extern int GetGameWidth();
+    [DllImport("UnityNativePlugin64")]
+    private static extern int GetGameHeight();
+    [DllImport("UnityNativePlugin64")]
+    private static extern TextureFormat GetGameFormat();
+
+    bool noMipMaps = false;
+    bool linearColorSpace = true;
 
     // WaitForSharedSurface will just wait until the CreateDevice has been called in 
     // DeviarePlugin, and thus we have created a shared surface for copying game bits into.
@@ -243,14 +252,21 @@ public class DrawSBS : MonoBehaviour
 
         // Call into the x64 UnityNativePlugin DLL for DX11 access, in order to create a ID3D11ShaderResourceView.
         // You'd expect this to be a IDX11Texture2D, but that's not what Unity wants.
+        // We also fetch the Width/Height/Format from the C++ side, as it's simpler than
+        // making an interop for the GetDesc call.
 
         IntPtr shared = CreateSharedTexture(gameSharedHandle);
+        int width = GetGameWidth();
+        int height = GetGameHeight();
+        TextureFormat format = GetGameFormat();
 
         // This is the Unity Texture2D, double width texture, with right eye on the left half.
         // It will always be up to date with latest game image, because we pass in 'shared'.
 
-        _bothEyes = Texture2D.CreateExternalTexture(3200, 900, TextureFormat.BGRA32, false, true, shared);
-        //_bothEyes = new Texture2D(3200, 900, TextureFormat.BGRA32, false, true);
+        _bothEyes = Texture2D.CreateExternalTexture(width, height, format, noMipMaps, linearColorSpace, shared);
+        
+        // ToDo: might always require BGRA32, not sure
+        //        _bothEyes = Texture2D.CreateExternalTexture(3200, 900, TextureFormat.BGRA32, false, true, shared);
 
         print("..eyes width: " + _bothEyes.width + " height: " + _bothEyes.height + " format: " + _bothEyes.format);
 

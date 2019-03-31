@@ -6,7 +6,7 @@
 #if SUPPORT_D3D11
 
 #include <assert.h>
-#include <d3d11.h>
+#include <d3d11_1.h>
 #include "Unity/IUnityGraphicsD3D11.h"
 
 #include <stdio.h>
@@ -26,6 +26,9 @@ public:
 	virtual void EndModifyTexture(void* textureHandle, int textureWidth, int textureHeight, int rowPitch, void* dataPtr);
 
 	virtual ID3D11ShaderResourceView* CreateSharedSurface(HANDLE shared);
+	virtual UINT GetGameWidth();
+	virtual UINT GetGameHeight();
+	virtual DXGI_FORMAT GetGameFormat();
 
 private:
 	void CreateResources();
@@ -41,6 +44,14 @@ private:
 	ID3D11RasterizerState* m_RasterState;
 	ID3D11BlendState* m_BlendState;
 	ID3D11DepthStencilState* m_DepthState;
+
+	// Width, Height, format of the game's backbuffer, once it makes it
+	// here as a shared surface.  We will use this to pass back to Unity
+	// so that it can make a matching Texture2D to match full resolution 
+	// of the game.
+	UINT gWidth;
+	UINT gHeight;
+	DXGI_FORMAT gFormat;
 
 	//ID3D11Texture2D* m_SharedSurface;	// Same as DX9Ex surface
 };
@@ -235,6 +246,20 @@ void RenderAPI_D3D11::EndModifyTexture(void* textureHandle, int textureWidth, in
 }
 
 
+UINT RenderAPI_D3D11::GetGameWidth()
+{
+	return gWidth;
+}
+UINT RenderAPI_D3D11::GetGameHeight()
+{
+	return gHeight;
+}
+DXGI_FORMAT RenderAPI_D3D11::GetGameFormat()
+{
+	return gFormat;
+}
+
+
 // Get the shared surface specified by the input HANDLE.  This will be from 
 // the game side, in DX9Ex. This technique is specified in the documentation:
 // https://msdn.microsoft.com/en-us/library/windows/desktop/ff476531(v=vs.85).aspx
@@ -258,9 +283,15 @@ ID3D11ShaderResourceView* RenderAPI_D3D11::CreateSharedSurface(HANDLE shared)
 		if (FAILED(hr))
 			__debugbreak();
 
-#ifdef _DEBUG
+		// By capturing the Width/Height/Format here, we can let Unity side
+		// know what buffer to build to match.
 		D3D11_TEXTURE2D_DESC tdesc;
 		texture->GetDesc(&tdesc);
+		gWidth = tdesc.Width;
+		gHeight = tdesc.Height;
+		gFormat = tdesc.Format;
+
+#ifdef _DEBUG
 		wchar_t info[512];
 		swprintf_s(info, _countof(info),
 			L"RenderAPI_D3D11::CreateSharedSurface - Width: %d, Height: %d, Format: %d\n",

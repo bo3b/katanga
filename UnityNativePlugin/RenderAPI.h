@@ -39,6 +39,9 @@ public:
 
 	// These are generic APIs, not DX specific.
 	virtual ID3D11ShaderResourceView* CreateSharedSurface(HANDLE shared) = 0;
+	virtual UINT GetGameWidth() = 0;
+	virtual UINT GetGameHeight() = 0;
+	virtual DXGI_FORMAT GetGameFormat() = 0;
 };
 
 

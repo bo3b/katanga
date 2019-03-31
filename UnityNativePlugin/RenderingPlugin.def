@@ -12,4 +12,7 @@ EXPORTS
    GetRenderEventFunc
 
    CreateSharedTexture
+   GetGameWidth
+   GetGameHeight
+   GetGameFormat
    TriggerEvent

@@ -120,6 +120,18 @@ extern "C" UNITY_INTERFACE_EXPORT ID3D11ShaderResourceView* UNITY_INTERFACE_API 
 	return s_CurrentAPI->CreateSharedSurface(sharedHandle);
 }
 
+extern "C" UNITY_INTERFACE_EXPORT UINT UNITY_INTERFACE_API GetGameWidth()
+{
+	return s_CurrentAPI->GetGameWidth();
+}
+extern "C" UNITY_INTERFACE_EXPORT UINT UNITY_INTERFACE_API GetGameHeight()
+{
+	return s_CurrentAPI->GetGameHeight();
+}
+extern "C" UNITY_INTERFACE_EXPORT DXGI_FORMAT UNITY_INTERFACE_API GetGameFormat()
+{
+	return s_CurrentAPI->GetGameFormat();
+}
 
 
 static void ModifyTexturePixels()
