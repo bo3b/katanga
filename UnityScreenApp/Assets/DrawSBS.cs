@@ -44,8 +44,11 @@ public class DrawSBS : MonoBehaviour
 
     static void FatalExit(string condition, string stackTrace, LogType type)
     {
-        MessageBox(IntPtr.Zero, condition, "Fatal Error", 0);
-        Application.Quit();
+        if (type == LogType.Exception)
+        {
+            MessageBox(IntPtr.Zero, condition, "Fatal Error", 0);
+            Application.Quit();
+        }
     }
 
     private void Awake()
