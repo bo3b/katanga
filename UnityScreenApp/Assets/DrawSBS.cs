@@ -31,6 +31,33 @@ public class DrawSBS : MonoBehaviour
 
     // -----------------------------------------------------------------------------
 
+    // Error handling.  Anytime we get an error that should *never* happen, we'll
+    // just exit by putting up a MessageBox. We still want to check for any and all
+    // possible error returns. Whenever we throw an exception anywhere in C# or
+    // the C++ plugin, it will come here, so we can use the throw on fatal error model.
+    //
+    // We are using user32.dll MessageBox, instead of Windows Forms, because Unity
+    // only supports an old version of .Net, because of its antique Mono runtime.
+
+    [DllImport("user32.dll")]
+    static extern int MessageBox(IntPtr hWnd, string text, string caption, int type);
+
+    static void FatalExit(string condition, string stackTrace, LogType type)
+    {
+        MessageBox(IntPtr.Zero, condition, "Fatal Error", 0);
+        Application.Quit();
+    }
+
+    private void Awake()
+    {
+        Application.logMessageReceived += FatalExit;
+    }
+
+    // -----------------------------------------------------------------------------
+
+    // We jump out to the native C++ to open the file selection box.  There might be a
+    // way to do it here in Unity, but the Mono runtime is old and creaky, and does not
+    // support .Net, so I'm leaving it over there in C++ land.
     [DllImport("UnityNativePlugin64")]
     static extern void SelectGameDialog([MarshalAs(UnmanagedType.LPWStr)] StringBuilder unicodeFileName, int len);
 
@@ -108,48 +135,51 @@ public class DrawSBS : MonoBehaviour
             if (result != 1)
                 throw new Exception("Could not load NativePlugin DLL.");
 
-            // Hook the primary DX11 creation call of CreateDXGIFactory1, which is a direct export of 
-            // the dxgi DLL.  All DX11 games must call this interface, or possibly CreateDeviceAndSwapChain.
+
+            // Hook the primary DX11 creation calls of CreateDevice, CreateDeviceAndSwapChain,
+            // CreateDXGIFactory, and CreateDXGIFactory1.  These are all direct exports for either
+            // D3D11.dll, or DXGI.dll. All DX11 games must call one of these interfaces to 
+            // create a SwapChain.  These must be spelled exactly right, including Case.
 
             print("Hook the D3D11.DLL!D3D11CreateDevice...");
-            NktHook d3dHook = _spyMgr.CreateHook("D3D11.DLL!D3D11CreateDevice", 0); // (int)eNktHookFlags.flgOnlyPostCall);
-            if (d3dHook == null)
+            NktHook deviceHook = _spyMgr.CreateHook("D3D11.DLL!D3D11CreateDevice", 0);
+            if (deviceHook == null)
                 throw new Exception("Failed to hook D3D11.DLL!D3D11CreateDevice");
 
             print("Hook the D3D11.DLL!D3D11CreateDeviceAndSwapChain...");
-            NktHook d3dHook1 = _spyMgr.CreateHook("D3D11.DLL!D3D11CreateDeviceAndSwapChain", 0); // (int)eNktHookFlags.flgOnlyPostCall);
-            if (d3dHook1 == null)
+            NktHook deviceAndSwapChainHook = _spyMgr.CreateHook("D3D11.DLL!D3D11CreateDeviceAndSwapChain", 0);
+            if (deviceAndSwapChainHook == null)
                 throw new Exception("Failed to hook D3D11.DLL!D3D11CreateDeviceAndSwapChain");
 
             print("Hook the DXGI.DLL!CreateDXGIFactory...");
-            NktHook dxgiHook = _spyMgr.CreateHook("DXGI.DLL!CreateDXGIFactory", (int)eNktHookFlags.flgOnlyPostCall);
-            if (dxgiHook == null)
+            NktHook factoryHook = _spyMgr.CreateHook("DXGI.DLL!CreateDXGIFactory", (int)eNktHookFlags.flgOnlyPostCall);
+            if (factoryHook == null)
                 throw new Exception("Failed to hook DXGI.DLL!CreateDXGIFactory");
 
             print("Hook the DXGI.DLL!CreateDXGIFactory1...");
-            NktHook dxgiHook1 = _spyMgr.CreateHook("DXGI.DLL!CreateDXGIFactory1", (int)eNktHookFlags.flgOnlyPostCall);
-            if (dxgiHook1 == null)
+            NktHook factory1Hook = _spyMgr.CreateHook("DXGI.DLL!CreateDXGIFactory1", (int)eNktHookFlags.flgOnlyPostCall);
+            if (factory1Hook == null)
                 throw new Exception("Failed to hook DXGI.DLL!CreateDXGIFactory1");
 
 
             // Make sure the CustomHandler in the NativePlugin at OnFunctionCall gets called when this 
             // object is created. At that point, the native code will take over.
 
-            d3dHook.AddCustomHandler(_nativeDLLName, 0, "");
-            d3dHook1.AddCustomHandler(_nativeDLLName, 0, "");
-            dxgiHook.AddCustomHandler(_nativeDLLName, 0, "");
-            dxgiHook1.AddCustomHandler(_nativeDLLName, 0, "");
+            deviceHook.AddCustomHandler(_nativeDLLName, 0, "");
+            deviceAndSwapChainHook.AddCustomHandler(_nativeDLLName, 0, "");
+            factoryHook.AddCustomHandler(_nativeDLLName, 0, "");
+            factory1Hook.AddCustomHandler(_nativeDLLName, 0, "");
 
             // Finally attach and activate the hook in the still suspended game process.
 
-            d3dHook.Attach(_gameProcess, true);
-            d3dHook.Hook(true);
-            d3dHook1.Attach(_gameProcess, true);
-            d3dHook1.Hook(true);
-            dxgiHook.Attach(_gameProcess, true);
-            dxgiHook.Hook(true);
-            dxgiHook1.Attach(_gameProcess, true);
-            dxgiHook1.Hook(true);
+            deviceHook.Attach(_gameProcess, true);
+            deviceHook.Hook(true);
+            deviceAndSwapChainHook.Attach(_gameProcess, true);
+            deviceAndSwapChainHook.Hook(true);
+            factoryHook.Attach(_gameProcess, true);
+            factoryHook.Hook(true);
+            factory1Hook.Attach(_gameProcess, true);
+            factory1Hook.Hook(true);
 
 
             // Ready to go.  Let the game startup.  When it calls Direct3DCreate9, we'll be
