@@ -206,7 +206,7 @@ public class DrawSBS : MonoBehaviour
     [DllImport("UnityNativePlugin64")]
     private static extern int GetGameHeight();
     [DllImport("UnityNativePlugin64")]
-    private static extern TextureFormat GetGameFormat();
+    private static extern int GetGameFormat();
 
     bool noMipMaps = false;
     bool linearColorSpace = true;
@@ -251,14 +251,25 @@ public class DrawSBS : MonoBehaviour
         IntPtr shared = CreateSharedTexture(gameSharedHandle);
         int width = GetGameWidth();
         int height = GetGameHeight();
-        TextureFormat format = GetGameFormat();
+        int format = GetGameFormat();
 
         // This is the Unity Texture2D, double width texture, with right eye on the left half.
         // It will always be up to date with latest game image, because we pass in 'shared'.
 
-        _bothEyes = Texture2D.CreateExternalTexture(width, height, format, noMipMaps, linearColorSpace, shared);
+        // DXGI_FORMAT_R8G8B8A8_UNORM = 28,
+        // DXGI_FORMAT_R8G8B8A8_UNORM_SRGB = 29,
+        bool colorSpace;
+        if (format == 28)
+            colorSpace = linearColorSpace;
+        else if (format == 29)
+            colorSpace = !linearColorSpace;
+        else
+            throw new Exception(String.Format("Game uses unknown DXGI_FORMAT: {0}", format));
 
-        // ToDo: might always require BGRA32, not sure
+        _bothEyes = Texture2D.CreateExternalTexture(width, height, TextureFormat.RGBA32, noMipMaps, colorSpace, shared);
+
+        // ToDo: might always require BGRA32, not sure.  Games typically use DXGI_FORMAT_R8G8B8A8_UNORM, 
+        //  but if it's different, not sure what's the right approach.
         //        _bothEyes = Texture2D.CreateExternalTexture(3200, 900, TextureFormat.BGRA32, false, true, shared);
 
         print("..eyes width: " + _bothEyes.width + " height: " + _bothEyes.height + " format: " + _bothEyes.format);
