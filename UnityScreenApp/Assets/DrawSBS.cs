@@ -33,9 +33,10 @@ public class DrawSBS : MonoBehaviour
     static int SetEvent = 1;
 
     // -----------------------------------------------------------------------------
+
     // We jump out to the native C++ to open the file selection box.  There might be a
     // way to do it here in Unity, but the Mono runtime is old and creaky, and does not
-    // support .Net, so I'm leaving it over there in C++ land.
+    // support modern .Net, so I'm leaving it over there in C++ land.
     [DllImport("UnityNativePlugin64")]
     static extern void SelectGameDialog([MarshalAs(UnmanagedType.LPWStr)] StringBuilder unicodeFileName, int len);
 
@@ -49,8 +50,7 @@ public class DrawSBS : MonoBehaviour
 
         // Ask user to select the game to run in virtual 3D.  
         // We are doing this super early because there are scenarios where Unity
-        // has been crashing out because the working directory changes in here.
-        // ToDo: do this in C#?
+        // has been crashing out because the working directory changes in GetOpenFileName.
 
         int MAX_PATH = 260;
         StringBuilder sb = new StringBuilder("", MAX_PATH);
@@ -60,32 +60,12 @@ public class DrawSBS : MonoBehaviour
             gameToLaunch = sb.ToString();
     }
 
-    // Error handling.  Anytime we get an error that should *never* happen, we'll
-    // just exit by putting up a MessageBox. We still want to check for any and all
-    // possible error returns. Whenever we throw an exception anywhere in C# or
-    // the C++ plugin, it will come here, so we can use the throw on fatal error model.
-    //
-    // We are using user32.dll MessageBox, instead of Windows Forms, because Unity
-    // only supports an old version of .Net, because of its antique Mono runtime.
-
-    [DllImport("user32.dll")]
-    static extern int MessageBox(IntPtr hWnd, string text, string caption, int type);
-
-    static void FatalExit(string condition, string stackTrace, LogType type)
-    {
-        if (type == LogType.Exception)
-        {
-            MessageBox(IntPtr.Zero, condition, "Fatal Error", 0);
-            Application.Quit();
-        }
-    }
-
+    // -----------------------------------------------------------------------------
 
     void Start()
     {
         int hresult;
         object continueevent;
-
 
         print("Running: " + gameToLaunch + "\n");
 
@@ -103,7 +83,7 @@ public class DrawSBS : MonoBehaviour
         _spyMgr = new NktSpyMgr();
         hresult = _spyMgr.Initialize();
         if (hresult != 0)
-            throw new Exception("Deviare initialization error.");
+            throw new Exception("Deviare Initialize error.");
 #if _DEBUG
         _spyMgr.SettingOverride("SpyMgrDebugLevelMask", 0x2FF8);
        // _spyMgr.SettingOverride("SpyMgrAgentLevelMask", 0x040);
@@ -125,27 +105,31 @@ public class DrawSBS : MonoBehaviour
             print("Launching: " + gameToLaunch + "...");
             _gameProcess = _spyMgr.CreateProcess(gameToLaunch, true, out continueevent);
             if (_gameProcess == null)
-                throw new Exception("Game launch failed.");
+                throw new Exception("CreateProcess game launch failed: " + gameToLaunch);
 
 
             // Load the NativePlugin for the C++ side.  The NativePlugin must be in this app folder.
             // The Agent supports the use of Deviare in the CustomDLL, but does not respond to hooks.
+            //
+            // The native DeviarePlugin has two versions, one for x32, one for x64, so we can handle
+            // either x32 or x64 games.
 
             _spyMgr.LoadAgent(_gameProcess);
 
-            _nativeDLLName = Application.dataPath + "/Plugins/DeviarePlugin64.dll";
-            int result = _spyMgr.LoadCustomDll(_gameProcess, _nativeDLLName, false, true);
-            if (result != 1)
-            {
-                // Try 32 bit version, might be x32 game.
+            if (_gameProcess.PlatformBits == 64)
+                _nativeDLLName = Application.dataPath + "/Plugins/DeviarePlugin64.dll";
+            else
                 _nativeDLLName = Application.dataPath + "/Plugins/DeviarePlugin.dll";
-                result = _spyMgr.LoadCustomDll(_gameProcess, _nativeDLLName, false, true);
-                if (result == 0)
-                {
-                    string deadbeef = String.Format("Could not load NativePlugin DLL, x64: {0:X}  x32: {1:X}");
-                    throw new Exception(deadbeef);
-                }
+
+            int loadResult = _spyMgr.LoadCustomDll(_gameProcess, _nativeDLLName, false, true);
+            if (loadResult <= 0)
+            {
+                int lastHR = GetLastDeviareError();
+                string deadbeef = String.Format("Could not load {0}: 0x{1:X}", _nativeDLLName, lastHR);
+                throw new Exception(deadbeef);
             }
+
+            print(String.Format("Successfully loaded {0}", _nativeDLLName));
 
 
             // Hook the primary DX11 creation calls of CreateDevice, CreateDeviceAndSwapChain,
@@ -239,12 +223,12 @@ public class DrawSBS : MonoBehaviour
     {
         System.Int32 gameSharedHandle = 0;
 
+        print("... Waiting for SharedSurface");
+
         while (gameSharedHandle == 0)
         {
             // Check-in every 200ms.
             yield return new WaitForSecondsRealtime(0.2f);
-
-            print("... WaitForSharedSurface");
 
             // ToDo: To work, we need to pass in a parameter? 
             // This will call to DeviarePlugin native DLL routine to fetch current gGameSurfaceShare HANDLE.
@@ -273,7 +257,7 @@ public class DrawSBS : MonoBehaviour
         // It will always be up to date with latest game image, because we pass in 'shared'.
 
         _bothEyes = Texture2D.CreateExternalTexture(width, height, format, noMipMaps, linearColorSpace, shared);
-        
+
         // ToDo: might always require BGRA32, not sure
         //        _bothEyes = Texture2D.CreateExternalTexture(3200, 900, TextureFormat.BGRA32, false, true, shared);
 
@@ -480,6 +464,58 @@ public class DrawSBS : MonoBehaviour
             this.transform.localScale = new Vector3(width, -width * 9 / 16, 1);
         }
     }
+
+    // -----------------------------------------------------------------------------
+
+    // Error handling.  Anytime we get an error that should *never* happen, we'll
+    // just exit by putting up a MessageBox. We still want to check for any and all
+    // possible error returns. Whenever we throw an exception anywhere in C# or
+    // the C++ plugin, it will come here, so we can use the throw on fatal error model.
+    //
+    // We are using user32.dll MessageBox, instead of Windows Forms, because Unity
+    // only supports an old version of .Net, because of its antique Mono runtime.
+
+    [DllImport("user32.dll")]
+    static extern int MessageBox(IntPtr hWnd, string text, string caption, int type);
+
+    static void FatalExit(string condition, string stackTrace, LogType type)
+    {
+        if (type == LogType.Exception)
+        {
+            MessageBox(IntPtr.Zero, condition, "Fatal Error", 0);
+            Application.Quit();
+        }
+    }
+
+
+    // Deviare has a bizarre model where they don't actually return HRESULT for calls
+    // that are defined that way.  Suggestion is to use GetLastError to get the real
+    // error.  This is problematic, because the DeviareCOM.dll must be found to do
+    // this. So, encapsulating all that here to get and print the real error.
+    //
+    // Also for some damn reason the LoadCustomDLL call can also return 2, not just
+    // 1, so that's extra special.  0 means it failed.  Backwards of HRESULT.
+    //
+    // https://github.com/nektra/Deviare2/issues/32
+
+    [DllImport("DeviareCOM64.dll")]
+    static extern int GetLastErrorCode();
+
+    int GetLastDeviareError()
+    {
+        // We set back to the katanga_directory here, in case we throw
+        // an error.  This keeps the editor from crashing.
+        string activeDirectory = Directory.GetCurrentDirectory();
+        Directory.SetCurrentDirectory(katanga_directory);
+
+        int result;
+        result = GetLastErrorCode();
+        print(string.Format("Last Deviare error: 0x{0:X}", result));
+        
+        Directory.SetCurrentDirectory(activeDirectory);
+
+        return result;
+    }
 }
 
 //// Sierpinksky triangles for a default view, shows if other updates fail.
@@ -493,4 +529,5 @@ public class DrawSBS : MonoBehaviour
 //}
 //// Call Apply() so it's actually uploaded to the GPU
 //_tex.Apply();
+
 
