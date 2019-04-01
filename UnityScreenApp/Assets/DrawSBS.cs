@@ -16,6 +16,9 @@ using System.Diagnostics;
 
 public class DrawSBS : MonoBehaviour
 {
+    string katanga_directory;
+    string gameToLaunch;
+
     static NktSpyMgr _spyMgr;
     static NktProcess _gameProcess;
     static string _nativeDLLName;
@@ -30,6 +33,32 @@ public class DrawSBS : MonoBehaviour
     static int SetEvent = 1;
 
     // -----------------------------------------------------------------------------
+    // We jump out to the native C++ to open the file selection box.  There might be a
+    // way to do it here in Unity, but the Mono runtime is old and creaky, and does not
+    // support .Net, so I'm leaving it over there in C++ land.
+    [DllImport("UnityNativePlugin64")]
+    static extern void SelectGameDialog([MarshalAs(UnmanagedType.LPWStr)] StringBuilder unicodeFileName, int len);
+
+    // The very first thing that happens for the app.
+    private void Awake()
+    {
+        Application.logMessageReceived += FatalExit;
+
+        // We need to save and restore to this Katanga directory, or Unity gets super mad.
+        katanga_directory = Environment.CurrentDirectory;
+
+        // Ask user to select the game to run in virtual 3D.  
+        // We are doing this super early because there are scenarios where Unity
+        // has been crashing out because the working directory changes in here.
+        // ToDo: do this in C#?
+
+        int MAX_PATH = 260;
+        StringBuilder sb = new StringBuilder("", MAX_PATH);
+        SelectGameDialog(sb, sb.Capacity);
+
+        if (sb.Length != 0)
+            gameToLaunch = sb.ToString();
+    }
 
     // Error handling.  Anytime we get an error that should *never* happen, we'll
     // just exit by putting up a MessageBox. We still want to check for any and all
@@ -51,49 +80,19 @@ public class DrawSBS : MonoBehaviour
         }
     }
 
-    private void Awake()
-    {
-        Application.logMessageReceived += FatalExit;
-    }
-
-    // -----------------------------------------------------------------------------
-
-    // We jump out to the native C++ to open the file selection box.  There might be a
-    // way to do it here in Unity, but the Mono runtime is old and creaky, and does not
-    // support .Net, so I'm leaving it over there in C++ land.
-    [DllImport("UnityNativePlugin64")]
-    static extern void SelectGameDialog([MarshalAs(UnmanagedType.LPWStr)] StringBuilder unicodeFileName, int len);
 
     void Start()
     {
         int hresult;
         object continueevent;
-        string drawSBS_directory = Environment.CurrentDirectory;
-        _nativeDLLName = Application.dataPath + "/Plugins/DeviarePlugin64.dll";
 
-        //string game = @"W:\SteamLibrary\steamapps\common\Alien Isolation\ai.exe";
-        //string game = @"W:\Games\Opus Magnum\Lightning.exe";
-        string game = @"W:\Games\The Witcher 3 Wild Hunt\bin\x64\witcher3.exe";
 
-        //  string game = @"W:\Games\The Ball\Binaries\Win32\theball.exe";
-
-        // Ask user to select the game to run in virtual 3D.  
-        // ToDo: do this in C#?
-
-        int MAX_PATH = 260;
-        StringBuilder sb = new StringBuilder("", MAX_PATH);
-        SelectGameDialog(sb, sb.Capacity);
-        Directory.SetCurrentDirectory(drawSBS_directory);
-
-        if (sb.Length != 0)
-            game = sb.ToString();
-
-        print("Running: " + game + "\n");
+        print("Running: " + gameToLaunch + "\n");
 
 
         string wd = System.IO.Directory.GetCurrentDirectory();
         print("WorkingDirectory: " + wd);
-        print("CurrentDirectory: " + drawSBS_directory);
+        print("CurrentDirectory: " + katanga_directory);
 
         //print("App Directory:" + Environment.CurrentDirectory);
         //foreach (var path in Directory.GetFileSystemEntries(Environment.CurrentDirectory))
@@ -119,12 +118,12 @@ public class DrawSBS : MonoBehaviour
         // This must be reset back to the Unity game directory, otherwise Unity will
         // crash with a fatal error.
 
-        Directory.SetCurrentDirectory(Path.GetDirectoryName(game));
+        Directory.SetCurrentDirectory(Path.GetDirectoryName(gameToLaunch));
         {
             // Launch the game, but suspended, so we can hook our first call and be certain to catch it.
 
-            print("Launching: " + game + "...");
-            _gameProcess = _spyMgr.CreateProcess(game, true, out continueevent);
+            print("Launching: " + gameToLaunch + "...");
+            _gameProcess = _spyMgr.CreateProcess(gameToLaunch, true, out continueevent);
             if (_gameProcess == null)
                 throw new Exception("Game launch failed.");
 
@@ -132,11 +131,21 @@ public class DrawSBS : MonoBehaviour
             // Load the NativePlugin for the C++ side.  The NativePlugin must be in this app folder.
             // The Agent supports the use of Deviare in the CustomDLL, but does not respond to hooks.
 
-            print("Load NativePlugin... " + _nativeDLLName);
             _spyMgr.LoadAgent(_gameProcess);
+
+            _nativeDLLName = Application.dataPath + "/Plugins/DeviarePlugin64.dll";
             int result = _spyMgr.LoadCustomDll(_gameProcess, _nativeDLLName, false, true);
             if (result != 1)
-                throw new Exception("Could not load NativePlugin DLL.");
+            {
+                // Try 32 bit version, might be x32 game.
+                _nativeDLLName = Application.dataPath + "/Plugins/DeviarePlugin.dll";
+                result = _spyMgr.LoadCustomDll(_gameProcess, _nativeDLLName, false, true);
+                if (result == 0)
+                {
+                    string deadbeef = String.Format("Could not load NativePlugin DLL, x64: {0:X}  x32: {1:X}");
+                    throw new Exception(deadbeef);
+                }
+            }
 
 
             // Hook the primary DX11 creation calls of CreateDevice, CreateDeviceAndSwapChain,
@@ -191,9 +200,9 @@ public class DrawSBS : MonoBehaviour
             print("Continue game launch...");
             _spyMgr.ResumeProcess(_gameProcess, continueevent);
         }
-        Directory.SetCurrentDirectory(drawSBS_directory);
+        Directory.SetCurrentDirectory(katanga_directory);
 
-        print("Restored Working Directory to: " + drawSBS_directory);
+        print("Restored Working Directory to: " + katanga_directory);
 
 
         // We've gotten everything launched, hooked, and setup.  Now we need to wait for the

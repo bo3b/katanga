@@ -221,7 +221,7 @@ extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API SelectGameDialog(wcha
 	ofn.lpstrFile = filename;	// Input filename, becomes primary return value.
 	ofn.nMaxFile = len;
 	ofn.lpstrTitle = L"Select a Game Exe to launch in Virtual 3D.";
-	ofn.Flags = OFN_DONTADDTORECENT | OFN_FILEMUSTEXIST;
+	ofn.Flags = OFN_DONTADDTORECENT | OFN_FILEMUSTEXIST | OFN_NOCHANGEDIR;
 
 	BOOL ok = GetOpenFileName(&ofn);
 	if (!ok)
