@@ -1,18 +1,13 @@
 ﻿using System;
 using System.Collections;
-using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.IO;
 using System.Text;
-using System.Threading;
 
 using UnityEngine;
-using UnityEngine.XR;
-using UnityEngine.UI;
 
 using Nektra.Deviare2;
 using System.Diagnostics;
-
 
 public class DrawSBS : MonoBehaviour
 {
@@ -43,21 +38,41 @@ public class DrawSBS : MonoBehaviour
     // The very first thing that happens for the app.
     private void Awake()
     {
+        // Set our FatalExit as the handler for exceptions so that we get usable 
+        // information from the users.
         Application.logMessageReceived += FatalExit;
 
-        // We need to save and restore to this Katanga directory, or Unity gets super mad.
+        // We need to save and restore to this Katanga directory, or Unity editor gets super mad.
         katanga_directory = Environment.CurrentDirectory;
 
-        // Ask user to select the game to run in virtual 3D.  
-        // We are doing this super early because there are scenarios where Unity
-        // has been crashing out because the working directory changes in GetOpenFileName.
+        // Check if the CmdLine arguments include a game path to be launched.
+        // We are using --game-path to make it clearly different than Unity arguments.
+        var args = System.Environment.GetCommandLineArgs();
+        for (int i = 0; i < args.Length; i++)
+        {
+            print(args[i]);
+            if (args[i] == "--game-path")
+                gameToLaunch = args[i + 1];
+        }
 
-        int MAX_PATH = 260;
-        StringBuilder sb = new StringBuilder("", MAX_PATH);
-        SelectGameDialog(sb, sb.Capacity);
+        // If they didn't pass a --game-path argument, then bring up the GetOpenFileName
+        // dialog to let them choose.
+        if (String.IsNullOrEmpty(gameToLaunch))
+        {
+            // Ask user to select the game to run in virtual 3D.  
+            // We are doing this super early because there are scenarios where Unity
+            // has been crashing out because the working directory changes in GetOpenFileName.
 
-        if (sb.Length != 0)
-            gameToLaunch = sb.ToString();
+            int MAX_PATH = 260;
+            StringBuilder sb = new StringBuilder("", MAX_PATH);
+            SelectGameDialog(sb, sb.Capacity);
+
+            if (sb.Length != 0)
+                gameToLaunch = sb.ToString();
+        }
+
+        if (String.IsNullOrEmpty(gameToLaunch))
+            throw new Exception("No game specified to launch.");
     }
 
     // -----------------------------------------------------------------------------
