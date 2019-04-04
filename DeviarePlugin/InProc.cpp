@@ -166,6 +166,10 @@ HRESULT (__stdcall *pOrigPresent)(IDXGISwapChain * This,
 	/* [in] */ UINT Flags
 	) = nullptr;
 
+// TODO:  It should be possible to add Temporal AntiAliasing here.  
+//  Since we get each frame as a SBS cross eyed buffer, we can save last frame
+//  and use it for TAA.  Should really be valuable in VR.
+
 
 // This is it. The one we are after.  This is the hook for the DX11 Present call
 // which the game will call for every frame.  At each call, we will make a copy
