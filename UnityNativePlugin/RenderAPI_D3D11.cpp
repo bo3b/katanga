@@ -6,6 +6,7 @@
 #if SUPPORT_D3D11
 
 #include <assert.h>
+#include <exception>
 #include <d3d11_1.h>
 #include "Unity/IUnityGraphicsD3D11.h"
 
@@ -275,13 +276,13 @@ ID3D11ShaderResourceView* RenderAPI_D3D11::CreateSharedSurface(HANDLE shared)
 	hr = m_Device->OpenSharedResource(shared, __uuidof(ID3D11Resource), (void**)(&resource));
 	{
 		if (FAILED(hr))
-			__debugbreak();
+			throw std::exception("Failed to open shared.");
 
 		// Even though the input shared surface is a RenderTarget Surface, this
 		// Query for Texture still works.  Not sure if it is good or bad.
 		hr = resource->QueryInterface(__uuidof(ID3D11Texture2D), (void**)(&texture));
 		if (FAILED(hr))
-			__debugbreak();
+			throw std::exception("Failed to QueryInterface of ID3D11Texture2D.");
 
 		// By capturing the Width/Height/Format here, we can let Unity side
 		// know what buffer to build to match.
@@ -312,7 +313,7 @@ ID3D11ShaderResourceView* RenderAPI_D3D11::CreateSharedSurface(HANDLE shared)
 
 	hr = m_Device->CreateShaderResourceView(texture, NULL, &pSRView);
 	if (FAILED(hr))
-		__debugbreak();
+		throw std::exception("Failed to CreateShaderResourceView.");
 
 	return pSRView;
 }
