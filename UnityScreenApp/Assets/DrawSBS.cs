@@ -5,6 +5,7 @@ using System.IO;
 using System.Text;
 
 using UnityEngine;
+using UnityEngine.UI;
 
 using Nektra.Deviare2;
 using System.Diagnostics;
@@ -26,6 +27,8 @@ public class DrawSBS : MonoBehaviour
     //    System.Int32 _gameEventSignal = 0;
     static int ResetEvent = 0;
     static int SetEvent = 1;
+
+    public Text infoText;
 
     // -----------------------------------------------------------------------------
 
@@ -73,6 +76,9 @@ public class DrawSBS : MonoBehaviour
 
         if (String.IsNullOrEmpty(gameToLaunch))
             throw new Exception("No game specified to launch.");
+
+        // With the game properly selected, add that to the big screen as info on launch.
+        infoText.text = "Launching...\n" + gameToLaunch.ToString();
     }
 
     // -----------------------------------------------------------------------------
@@ -252,6 +258,7 @@ public class DrawSBS : MonoBehaviour
             gameSharedHandle = _spyMgr.CallCustomApi(_gameProcess, _nativeDLLName, "GetSharedHandle", ref parm, true);
         }
 
+        // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
         // We finally have a valid gGameSurfaceShare as a DX11 HANDLE.  
         // We can thus finish up the init.
 
@@ -310,6 +317,9 @@ public class DrawSBS : MonoBehaviour
         rightMat.mainTextureScale = new Vector2(0.5f, 1.0f);
         rightMat.mainTextureOffset = new Vector2(0.0f, 0);
 
+        // With the game fully launched and showing frames, we no longer need InfoText.
+        // Setting it Inactive makes it not take any drawing cycles, as opposed to an empty string.
+        infoText.gameObject.SetActive(false);
 
         // ToDo: To work, we need to pass in a parameter? 
         // This will call to DeviarePlugin native DLL routine to fetch current gGameSurfaceShare HANDLE.
