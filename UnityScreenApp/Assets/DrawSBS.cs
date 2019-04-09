@@ -48,6 +48,7 @@ public class DrawSBS : MonoBehaviour
         // We need to save and restore to this Katanga directory, or Unity editor gets super mad.
         katanga_directory = Environment.CurrentDirectory;
 
+
         // Check if the CmdLine arguments include a game path to be launched.
         // We are using --game-path to make it clearly different than Unity arguments.
         var args = System.Environment.GetCommandLineArgs();
@@ -77,8 +78,9 @@ public class DrawSBS : MonoBehaviour
         if (String.IsNullOrEmpty(gameToLaunch))
             throw new Exception("No game specified to launch.");
 
-        // With the game properly selected, add that to the big screen as info on launch.
-        infoText.text = "Launching...\n" + gameToLaunch.ToString();
+        // With the game properly selected, add name to the big screen as info on launch.
+        string gameName = gameToLaunch.Substring(gameToLaunch.LastIndexOf('\\') + 1);
+        infoText.text = "Launching...\n" + gameName;
     }
 
     // -----------------------------------------------------------------------------
@@ -89,6 +91,12 @@ public class DrawSBS : MonoBehaviour
         object continueevent;
 
         print("Running: " + gameToLaunch + "\n");
+
+        // Let's recenter around wherever the headset is pointing. Seems to be the model
+        // that people are expecting, instead of the facing forward based on room setup.
+        UnityEngine.XR.XRDevice.SetTrackingSpaceType(UnityEngine.XR.TrackingSpaceType.Stationary);
+        UnityEngine.XR.InputTracking.Recenter();
+
 
 
         string wd = System.IO.Directory.GetCurrentDirectory();
