@@ -92,10 +92,12 @@ public class DrawSBS : MonoBehaviour
 
         print("Running: " + gameToLaunch + "\n");
 
+        // ToDo: only do this when we also have a recenter key/button.
+        //  This makes floor move to wherever it starts.
         // Let's recenter around wherever the headset is pointing. Seems to be the model
         // that people are expecting, instead of the facing forward based on room setup.
-        UnityEngine.XR.XRDevice.SetTrackingSpaceType(UnityEngine.XR.TrackingSpaceType.Stationary);
-        UnityEngine.XR.InputTracking.Recenter();
+        //UnityEngine.XR.XRDevice.SetTrackingSpaceType(UnityEngine.XR.TrackingSpaceType.Stationary);
+        //UnityEngine.XR.InputTracking.Recenter();
 
 
 
