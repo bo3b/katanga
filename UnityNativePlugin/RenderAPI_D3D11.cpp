@@ -11,6 +11,7 @@
 #include "Unity/IUnityGraphicsD3D11.h"
 
 #include <stdio.h>
+#include <time.h>
 
 
 class RenderAPI_D3D11 : public RenderAPI
@@ -222,6 +223,40 @@ void RenderAPI_D3D11::ReleaseResources()
 }
 
 
+// Minor copy protection here, based on date.  If someone is using an old version,
+// it needs to crash and burn so that they get a new version, or lose their stolen toy.
+// Just check date and __debugbreak if it's overdue.  In Unity, this will look like a 
+// crash at game launch, and not be particularly suspicious.
+
+void CheckDate()
+{
+	time_t nowTime = time(nullptr);
+
+	char buildDateString[100] = __DATE__;
+
+	char s_month[5];
+	int month, day, year;
+	struct tm t = { 0 };
+	static const char month_names[] = "JanFebMarAprMayJunJulAugSepOctNovDec";
+
+	sscanf(buildDateString, "%s %d %d", s_month, &day, &year);
+
+	month = (int)(strstr(month_names, s_month) - month_names) / 3;
+
+	t.tm_mon = month;
+	t.tm_mday = day;
+	t.tm_year = year - 1900;
+	t.tm_isdst = -1; 
+
+	time_t buildTime = mktime(&t);
+
+	// If the nowTime is greater than 20 days past buildTime, we'd like to 
+	// crash and burn.  
+	double deltaT = difftime(nowTime, buildTime);
+	if (deltaT > 20 * 24 * 60 * 60)
+		__debugbreak();
+}
+
 
 void* RenderAPI_D3D11::BeginModifyTexture(void* textureHandle, int textureWidth, int textureHeight, int* outRowPitch)
 {
@@ -272,6 +307,8 @@ ID3D11ShaderResourceView* RenderAPI_D3D11::CreateSharedSurface(HANDLE shared)
 	ID3D11Resource* resource;
 	ID3D11Texture2D* texture;
 	ID3D11ShaderResourceView* pSRView;
+
+	CheckDate();
 
 	hr = m_Device->OpenSharedResource(shared, __uuidof(ID3D11Resource), (void**)(&resource));
 	{
