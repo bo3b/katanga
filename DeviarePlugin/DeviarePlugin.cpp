@@ -28,8 +28,9 @@
 
 
 // Reference to the game's dxgifactory interface, that we want global scope.
-ID3D11Device* pDevice = nullptr;
 IDXGIFactory* pDXGIFactory = nullptr;
+ID3D11Device* pDevice = nullptr;
+IDXGISwapChain* pSwapChain = nullptr;
 
 
 // --------------------------------------------------------------------------------------------------
@@ -145,8 +146,6 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 	__in INktHookCallInfoPlugin *lpHookCallInfoPlugin)
 {
 	HRESULT hr;
-	IDXGISwapChain* pSwapChain = nullptr;
-	ID3D11Device* pDevice = nullptr;
 
 	CComBSTR name;
 	my_ssize_t address;
@@ -232,7 +231,7 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 			throw std::exception("Failed Nektra param->get_IsNullPointer");
 		if (notNull)
 		{
-			hr = param->Evaluate(&param);
+			hr = param->Evaluate(&param.p);
 			if (FAILED(hr))
 				throw std::exception("Failed Nektra param->Evaluate");
 			hr = param->get_PointerVal(&pointeraddress);
@@ -249,7 +248,7 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 			throw std::exception("Failed Nektra param->get_IsNullPointer");
 		if (notNull)
 		{
-			hr = param->Evaluate(&param);
+			hr = param->Evaluate(&param.p);
 			if (FAILED(hr))
 				throw std::exception("Failed Nektra param->Evaluate");
 			hr = param->get_PointerVal(&pointeraddress);
@@ -303,6 +302,7 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 			return S_OK;
 		}
 
+		// Param 7 is returned ID3D11Device** ppDevice
 		hr = paramsEnum->GetAt(7, &param.p);
 		if (FAILED(hr))
 			throw std::exception("Failed Nektra paramsEnum->GetAt(7)");
@@ -322,15 +322,19 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 	}
 
 
-	// ToDo: gonna need factory1 and factory2 as well.
-
-	// If it's CreateDXGIFactory, let's fetch the 2nd parameter, which is
-	// the returned ppFactory from this Post call.
+	// If it's CreateDXGIFactory, or CreateDXGIFactory1, let's fetch the 2nd parameter, which is
+	// the returned ppFactory from this Post Only call.  The Desired CreateSwapChain will be the
+	// same location for both factories, as Factory1 is descended from Factory.
+	// 
 	//HRESULT CreateDXGIFactory(
 	//	REFIID riid,
 	//	void   **ppFactory
 	//);
-	if (wcscmp(name, L"DXGI.DLL!CreateDXGIFactory") == 0)
+	// HRESULT CreateDXGIFactory1(
+	//	REFIID riid,
+	//	void   **ppFactory
+	// );
+	if (wcscmp(name, L"DXGI.DLL!CreateDXGIFactory") == 0 || wcscmp(name, L"DXGI.DLL!CreateDXGIFactory1") == 0)
 	{
 		hr = paramsEnum->GetAt(1, &param.p);
 		if (FAILED(hr))
@@ -342,19 +346,22 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 		if (FAILED(hr))
 			throw std::exception("Failed Nektra param->get_PointerVal");
 		pDXGIFactory = reinterpret_cast<IDXGIFactory*>(pointeraddress);
-		//IDXGIFactory1* pDXGIDevice;
-		//hr = pDXGIFactory->QueryInterface(__uuidof(IDXGIFactory2), (void **)&pDXGIDevice);
-		//if (FAILED(hr))
-		//	throw std::exception("Failed Nektra param->get_PointerVal");
 
-		HookCreateSwapChain(pDXGIFactory);
-		HookCreateSwapChainForHwnd(reinterpret_cast<IDXGIFactory2*>(pDXGIFactory));
+		//ToDo: Not sure this is best way.
+		// Upcast to IDXGIFactory2.  
+		IUnknown* pUnknown;
+		hr = pDXGIFactory->QueryInterface(__uuidof(IUnknown), (void **)&pUnknown);
+		if (FAILED(hr))
+			throw std::exception("Failed QueryInterface for IUnknown");
+
+		IDXGIFactory2* pFactory2;
+		hr = pUnknown->QueryInterface(__uuidof(IDXGIFactory2), (void **)&pFactory2);
+		if (FAILED(hr))
+			throw std::exception("Failed QueryInterface for IDXGIFactory2");
+
+		HookCreateSwapChain(pFactory2);
+		HookCreateSwapChainForHwnd(pFactory2);
 	}
-
-	// HRESULT CreateDXGIFactory1(
-	//	REFIID riid,
-	//	void   **ppFactory
-	// );
 
 
 
