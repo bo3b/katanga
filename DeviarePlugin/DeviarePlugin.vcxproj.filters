@@ -3,7 +3,7 @@
   <ItemGroup>
     <ClCompile Include="DeviarePlugin.cpp" />
     <ClCompile Include="Addresses.c" />
-    <ClCompile Include="InProc_x64.cpp" />
+    <ClCompile Include="InProc_DX11.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DeviarePlugin.h" />
