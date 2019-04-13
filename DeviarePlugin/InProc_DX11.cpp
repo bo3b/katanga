@@ -459,7 +459,7 @@ void HookPresent(ID3D11Device* pDevice, IDXGISwapChain* pSwapChain)
 		DWORD dwOsErr;
 
 		dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigPresent,
-			lpvtbl_Present(pSwapChain), Hooked_Present, 0);
+			lpvtbl_Present_DX11(pSwapChain), Hooked_Present, 0);
 		if (FAILED(dwOsErr))
 			::OutputDebugStringA("Failed to hook IDXGISwapChain::Present\n");
 

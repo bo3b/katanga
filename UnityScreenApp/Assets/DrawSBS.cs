@@ -189,6 +189,16 @@ public class DrawSBS : MonoBehaviour
                 throw new Exception("Failed to hook DXGI.DLL!CreateDXGIFactory1");
 
 
+            // Hook the primary DX9 creation call of Direct3DCreate9, which is a direct export of 
+            // the d3d9 DLL.  All DX9 games must call this interface, or the Direct3DCreate9Ex.
+            // We set this to flgOnlyPreCall, because we want to always create the IDirect3D9Ex object.
+            // By hooking this here, we can handle either DX9 or DX11 games.
+
+            print("Hook the D3D9.DLL!Direct3DCreate9...");
+            NktHook create9Hook = _spyMgr.CreateHook("D3D9.DLL!Direct3DCreate9", (int)eNktHookFlags.flgOnlyPreCall);
+            if (create9Hook == null)
+                throw new Exception("Failed to hook D3D9.DLL!Direct3DCreate9");
+
             // Make sure the CustomHandler in the NativePlugin at OnFunctionCall gets called when this 
             // object is created. At that point, the native code will take over.
 
@@ -196,6 +206,8 @@ public class DrawSBS : MonoBehaviour
             deviceAndSwapChainHook.AddCustomHandler(_nativeDLLName, 0, "");
             factoryHook.AddCustomHandler(_nativeDLLName, 0, "");
             factory1Hook.AddCustomHandler(_nativeDLLName, 0, "");
+
+            create9Hook.AddCustomHandler(_nativeDLLName, 0, "");
 
             // Finally attach and activate the hook in the still suspended game process.
 
@@ -208,6 +220,8 @@ public class DrawSBS : MonoBehaviour
             factory1Hook.Attach(_gameProcess, true);
             factory1Hook.Hook(true);
 
+            create9Hook.Attach(_gameProcess, true);
+            create9Hook.Hook(true);
 
             // Ready to go.  Let the game startup.  When it calls Direct3DCreate9, we'll be
             // called in the NativePlugin::OnFunctionCall
@@ -557,7 +571,7 @@ public class DrawSBS : MonoBehaviour
         int result;
         result = GetLastErrorCode();
         print(string.Format("Last Deviare error: 0x{0:X}", result));
-        
+
         Directory.SetCurrentDirectory(activeDirectory);
 
         return result;
@@ -576,5 +590,4 @@ public class DrawSBS : MonoBehaviour
 //}
 //// Call Apply() so it's actually uploaded to the GPU
 //_tex.Apply();
-
 

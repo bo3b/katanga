@@ -27,20 +27,39 @@
 	#define D3D_DEBUG_INFO
 #endif
 
+#include <d3d9.h>
 #include <d3d11_1.h>
 
 #include <exception>
 
+
 // Interface to InProc side
+
+// DX9 - InProc_DX9.cpp
+void HookCreateDevice(IDirect3D9Ex* pDX9Ex);
+// DX11 - InProc_DX11.cpp
 void HookCreateSwapChain(IDXGIFactory* dDXGIFactory);
 void HookCreateSwapChainForHwnd(IDXGIFactory2* dDXGIFactory);
 void HookPresent(ID3D11Device* pDevice, IDXGISwapChain* pSwapChain);
 
 
 // These need to be declared as extern "C" so that the names are not mangled.
-// They are coming from the straight C compilation unit.
+// They are coming from the straight C compilation unit.  All these are 
+// implemented in the straight c file Addresses.c
 
+// DX9
+extern "C" LPVOID lpvtbl_CreateDevice(IDirect3D9* pDX9);
+extern "C" LPVOID lpvtbl_CreateTexture(IDirect3DDevice9* pDX9Device);
+extern "C" LPVOID lpvtbl_CreateCubeTexture(IDirect3DDevice9* pDX9Device);
+extern "C" LPVOID lpvtbl_CreateVertexBuffer(IDirect3DDevice9* pDX9Device);
+extern "C" LPVOID lpvtbl_CreateIndexBuffer(IDirect3DDevice9* pDX9Device);
+extern "C" LPVOID lpvtbl_DrawIndexedPrimitiveUP(IDirect3DDevice9* pDX9Device);
+
+extern "C" LPVOID lpvtbl_Present_DX9(IDirect3DDevice9* pDX9Device);
+
+// DX11
 extern "C" LPVOID lpvtbl_CreateSwapChain(IDXGIFactory* dDXGIFactory);
 extern "C" LPVOID lpvtbl_CreateSwapChainForHwnd(IDXGIFactory2* dDXGIFactory);
 
-extern "C" LPVOID lpvtbl_Present(IDXGISwapChain* pSwapChain);
+extern "C" LPVOID lpvtbl_Present_DX11(IDXGISwapChain* pSwapChain);
+
