@@ -172,6 +172,7 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 {
 	HRESULT hr;
 
+	CComBSTR name;
 	CComPtr<INktParamsEnum> paramsEnum;
 	CComPtr<INktParam> param;
 	my_ssize_t pointeraddress;
@@ -182,14 +183,14 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 	ID3D11Device* pDevice = nullptr;
 	IDXGISwapChain* pSwapChain = nullptr;
 
-#ifdef _DEBUG
-	CComBSTR name;
-	my_ssize_t address;
-	CHAR szBufA[1024];
-
 	hr = lpHookInfo->get_FunctionName(&name);
 	if (FAILED(hr))
 		throw std::exception("Failed GetFunctionName");
+
+#ifdef _DEBUG
+	my_ssize_t address;
+	CHAR szBufA[1024];
+
 	lpHookInfo->get_Address(&address);
 	sprintf_s(szBufA, 1024, "DeviarePlugin::OnFunctionCall called [Hook: %S @ 0x%IX / Chain:%lu]\n",
 		name, address, dwChainIndex);
