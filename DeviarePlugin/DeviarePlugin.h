@@ -32,6 +32,14 @@
 
 #include <exception>
 
+#include "NktHookLib.h"
+#include "nvapi\nvapi.h"
+
+
+//-----------------------------------------------------------
+// Careful with this header file.  It's used for three separate
+// compilation units, InProc_DX9, InProc_DX11, and DeviarePlugin.
+// Anything declared here can conflict or be lost from the other units.
 
 // Interface to InProc side
 
@@ -63,3 +71,17 @@ extern "C" LPVOID lpvtbl_CreateSwapChainForHwnd(IDXGIFactory2* dDXGIFactory);
 
 extern "C" LPVOID lpvtbl_Present_DX11(IDXGISwapChain* pSwapChain);
 
+
+//-----------------------------------------------------------
+// These are the global variables used by the Inproc sections.
+// Used for similar, but not identical purposes in DX9 and DX11
+// variants.  But, only one will ever be active at a given time,
+// because we only hook one game.
+
+// Variables used as globals for each side, declared here, defined
+// in DeviarePlugin as the owner.
+extern CNktHookLib nktInProc;
+extern StereoHandle gNVAPI;
+extern HANDLE gGameSharedHandle;
+
+extern "C" HANDLE WINAPI GetSharedHandle(int* in);

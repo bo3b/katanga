@@ -58,42 +58,20 @@
 
 //-----------------------------------------------------------
 
-#include <thread>
-
 #include "DeviarePlugin.h"
 
-#include "NktHookLib.h"
-
-#include "nvapi\nvapi.h"
+#include <thread>
 
 
-//-----------------------------------------------------------
+// The surface that we copy the current game frame into. It is shared
+// via a StretchRect copy into the shared RenderTarget.
 
-// This is automatically instantiated by C++, so the hooking library
-// is immediately available.
-CNktHookLib nktInProc;
+IDirect3DSurface9* gGameSurface = nullptr;
 
-// The surface that we copy the current game frame into. It is shared.
-// It starts as a Texture so that it is created stereo, but is converted
-// to a Surface for use in StretchRect.
+// Actual shared RenderTarget. When this is updated via a StretchRect,
+// the bits are automatically shared to the DX11 VR side.
 
-IDirect3DTexture9* gGameTexture = nullptr;
-IDirect3DSurface9* gGameSurface = nullptr;	// created as a reference to Texture
-
-HANDLE gSharedThread = nullptr;				// will copy from GameSurface to SharedSurface
-
-HANDLE gFreshBits = nullptr;				// Synchronization Event object
-
-IDirect3DSurface9* gSharedTarget = nullptr;	// Actual shared RenderTarget
-HANDLE gGameSharedHandle = nullptr;			// Handle to share with DX11
-
-// The nvapi stereo handle, to access the reverse blit.
-StereoHandle gNVAPI = nullptr;
-
-//HANDLE gameThread = nullptr;
-
-wchar_t info[512];
-static unsigned long triggerCount = 0;
+IDirect3DSurface9* gSharedTarget = nullptr;
 
 
 // --------------------------------------------------------------------------------------------------
@@ -102,80 +80,76 @@ static unsigned long triggerCount = 0;
 // using Deviare access routines.
 
 
-// Return the current value of the gGameSurfaceShare.  This is the HANDLE
-// that is necessary to share from DX9Ex here to DX11 in the VR app.
+//HANDLE gSharedThread = nullptr;				// will copy from GameSurface to SharedSurface
+//HANDLE gFreshBits = nullptr;				// Synchronization Event object
+//static unsigned long triggerCount = 0;
 
-HANDLE WINAPI GetSharedHandle(int* in)
-{
-	::OutputDebugString(L"GetSharedHandle::\n");
-
-	return gGameSharedHandle;
-}
 
 // Shared Event object that is the notification that the VR side
 // has called Present.
 
-HANDLE WINAPI GetEventHandle(int* in)
-{
-	::OutputDebugString(L"GetSharedEvent::\n");
-
-	return gFreshBits;
-}
+//HANDLE WINAPI GetEventHandle(int* in)
+//{
+//	::OutputDebugString(L"GetSharedEvent::\n");
+//
+//	return gFreshBits;
+//}
 
 // Called from C# side after VR app has presented its frame.
 // This allows our locked present for the target game to continue.
 
-static LARGE_INTEGER startTriggeredTicks, resetTriggerTicks;
-static LARGE_INTEGER frequency;
-
-HANDLE WINAPI TriggerEvent(int* in)
-{
-	//	::OutputDebugString(L"TriggerEvent::\n");
-
-
-	if ((int)in == 1)		// Active triggered
-	{
-		BOOL set = SetEvent(gFreshBits);
-		if (!set)
-			::OutputDebugString(L"Bad SetEvent in TriggerEvent.\n");
-
-		// Waste time spinning, while we wait for high resolution timer.
-		// This timer using QueryPerformanceCounter should be accurate
-		// to some 100ns or so, for any system we care about.
-
-		QueryPerformanceFrequency(&frequency);
-		QueryPerformanceCounter(&startTriggeredTicks);
-
-		triggerCount += 1;
-
-		if ((triggerCount % 30) == 0)
-		{
-			LONGLONG startMS = startTriggeredTicks.QuadPart * 1000 / frequency.QuadPart;
-			swprintf_s(info, _countof(info),
-				L"SetEvent - ms: %d, frequency: %d, triggerCount: %d\n", startMS, frequency.QuadPart, triggerCount);
-			::OutputDebugString(info);
-		}
-	}
-	else					// Reset untriggered
-	{
-		BOOL reset = ResetEvent(gFreshBits);
-		if (!reset)
-			::OutputDebugString(L"Bad ResetEvent in TriggerEvent.\n");
-
-		QueryPerformanceCounter(&resetTriggerTicks);
-
-		if ((triggerCount % 30) == 0)
-		{
-			LONGLONG frameTicks = resetTriggerTicks.QuadPart - startTriggeredTicks.QuadPart;
-			LONGLONG endMS = frameTicks * 1000 / frequency.QuadPart;
-			swprintf_s(info, _countof(info),
-				L"ResetEvent - ms: %d\n", endMS);
-			::OutputDebugString(info);
-		}
-	}
-
-	return NULL;
-}
+//static LARGE_INTEGER startTriggeredTicks, resetTriggerTicks;
+//static LARGE_INTEGER frequency;
+//
+//HANDLE WINAPI TriggerEvent(int* in)
+//{
+//	wchar_t info[512];
+//	//	::OutputDebugString(L"TriggerEvent::\n");
+//
+//
+//	if ((int)in == 1)		// Active triggered
+//	{
+//		BOOL set = SetEvent(gFreshBits);
+//		if (!set)
+//			::OutputDebugString(L"Bad SetEvent in TriggerEvent.\n");
+//
+//		// Waste time spinning, while we wait for high resolution timer.
+//		// This timer using QueryPerformanceCounter should be accurate
+//		// to some 100ns or so, for any system we care about.
+//
+//		QueryPerformanceFrequency(&frequency);
+//		QueryPerformanceCounter(&startTriggeredTicks);
+//
+//		triggerCount += 1;
+//
+//		if ((triggerCount % 30) == 0)
+//		{
+//			LONGLONG startMS = startTriggeredTicks.QuadPart * 1000 / frequency.QuadPart;
+//			swprintf_s(info, _countof(info),
+//				L"SetEvent - ms: %d, frequency: %d, triggerCount: %d\n", startMS, frequency.QuadPart, triggerCount);
+//			::OutputDebugString(info);
+//		}
+//	}
+//	else					// Reset untriggered
+//	{
+//		BOOL reset = ResetEvent(gFreshBits);
+//		if (!reset)
+//			::OutputDebugString(L"Bad ResetEvent in TriggerEvent.\n");
+//
+//		QueryPerformanceCounter(&resetTriggerTicks);
+//
+//		if ((triggerCount % 30) == 0)
+//		{
+//			LONGLONG frameTicks = resetTriggerTicks.QuadPart - startTriggeredTicks.QuadPart;
+//			LONGLONG endMS = frameTicks * 1000 / frequency.QuadPart;
+//			swprintf_s(info, _countof(info),
+//				L"ResetEvent - ms: %d\n", endMS);
+//			::OutputDebugString(info);
+//		}
+//	}
+//
+//	return NULL;
+//}
 
 
 //-----------------------------------------------------------
@@ -573,12 +547,12 @@ HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 	/* [in, out] */     D3DPRESENT_PARAMETERS *pPresentationParameters,
 	/* [out, retval] */ IDirect3DDevice9      **ppReturnedDeviceInterface)
 {
-	wchar_t info[512];
 	HRESULT hr;
 
 	::OutputDebugString(L"NativePlugin::Hooked_CreateDevice called\n");
 	if (pPresentationParameters)
 	{
+		wchar_t info[512];
 		swprintf_s(info, _countof(info), L"  Width: %d, Height: %d, Format: %d\n"
 			, pPresentationParameters->BackBufferWidth, pPresentationParameters->BackBufferHeight, pPresentationParameters->BackBufferFormat);
 		::OutputDebugString(info);
@@ -674,13 +648,14 @@ HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 		// quite a bit, I hit upon using CreateTexture, with the D3DUSAGE_RENDERTARGET
 		// flag set.  
 		//
-		// This Texture cannot be shared here.  When shared variable is set for input,
+		// This Texture itself cannot be shared here.  When shared variable is set for input,
 		// the StretchRect fails at Present, and makes a mono copy.  Thus, we need to
-		// create second target, which will be the one passed to the VR/Unity side.
+		// create a second RenderTarget, which will be the one passed to the VR/Unity side.
 
 		UINT width = pPresentationParameters->BackBufferWidth * 2;
 		UINT height = pPresentationParameters->BackBufferHeight;
 		D3DFORMAT format = pPresentationParameters->BackBufferFormat;
+		IDirect3DTexture9* gGameTexture = nullptr;
 
 		res = pDevice9->CreateTexture(width, height, 0, D3DUSAGE_RENDERTARGET, format, D3DPOOL_DEFAULT,
 			&gGameTexture, nullptr);
@@ -704,13 +679,13 @@ HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 		//
 		// And the thread synchronization Event object. Signaled when we get fresh bits.
 		// Starts in off state, thread active, so it should pause at launch.
-		gFreshBits = CreateEvent(
-			NULL,               // default security attributes
-			TRUE,               // manual, not auto-reset event
-			FALSE,              // initial state is nonsignaled
-			nullptr);			// object name
-		if (gFreshBits == nullptr)
-			throw std::exception("Fail to CreateEvent for gFreshBits");
+		//gFreshBits = CreateEvent(
+		//	NULL,               // default security attributes
+		//	TRUE,               // manual, not auto-reset event
+		//	FALSE,              // initial state is nonsignaled
+		//	nullptr);			// object name
+		//if (gFreshBits == nullptr)
+		//	throw std::exception("Fail to CreateEvent for gFreshBits");
 
 		//gSharedThread = CreateThread(
 		//	NULL,                   // default security attributes

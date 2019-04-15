@@ -1,10 +1,10 @@
-// NativePlugin.cpp : Defines the exported functions for the DLL.
+// DeviarePlugin.cpp : Defines the exported functions for the DLL.
 //
 // This part of the code is the Deviare style hook that handles the 
-// very first DX11 object creation.  Even though this is C++, it is 
+// very first DX11 or DX9 object creation.  Even though this is C++, it is 
 // most useful for Deviare style hooks that are supported by their DB,
 // and are direct exports from a DLL.  It's not well suited for vtable
-// based calls like those used by DX11.
+// based calls like Present used by DX11 or DX9.
 
 #include "DeviarePlugin.h"
 
@@ -27,15 +27,40 @@
 
 
 
-// Reference to the game's dxgifactory interface, that we want global scope.
-IDXGIFactory* pDXGIFactory = nullptr;
-ID3D11Device* pDevice = nullptr;
-IDXGISwapChain* pSwapChain = nullptr;
+
+// --------------------------------------------------------------------------------------------------
+// Globals definition here, with extern reference in the .h file ensures that we 
+// only have a single instance of each.  Even though they aren't used in this
+// compilation unit, it is the named target of the project, so they belong here.
+
+// This is automatically instantiated by C++, so the hooking library
+// is immediately available.
+CNktHookLib nktInProc;
+
+// Required for reverse stereo blit to give us stereo backbuffer.
+StereoHandle gNVAPI = nullptr;
+
+// The actual shared Handle to the DX11 VR side.  Filled in by an active InProc_*.
+HANDLE gGameSharedHandle = nullptr;
 
 
 // --------------------------------------------------------------------------------------------------
-//IMPORTANT NOTES:
-//---------------
+// Return the current value of the gGameSurfaceShare.  This is the HANDLE
+// that is necessary to share from either DX9Ex or DX11 here, to DX11 in the VR app.
+//
+// This routine is defined here, so that we have only a single implementation of the
+// routine with a declaration in the DeviarePlugin.h file.  This routine is specific
+// to the DeviarePlugin itself, not the InProc sides.
+
+HANDLE WINAPI GetSharedHandle(int* in)
+{
+	::OutputDebugString(L"GetSharedHandle::\n");
+
+	return gGameSharedHandle;
+}
+
+
+// --------------------------------------------------------------------------------------------------
 //
 //1) Regardless of the functionality of the plugin, the dll must export: OnLoad, OnUnload, OnHookAdded,
 //   OnHookRemoved and OnFunctionCall (Tip: add a .def file to avoid name mangling)
@@ -75,7 +100,6 @@ VOID WINAPI OnUnload()
 	return;
 }
 
-long gGamePID;
 
 HRESULT WINAPI OnHookAdded(__in INktHookInfo *lpHookInfo, __in DWORD dwChainIndex,
 	__in LPCWSTR szParametersW)
@@ -84,6 +108,7 @@ HRESULT WINAPI OnHookAdded(__in INktHookInfo *lpHookInfo, __in DWORD dwChainInde
 	my_ssize_t address;
 	CHAR szBufA[1024];
 	INktProcess* pProc;
+	long gGamePID;
 
 	HRESULT hr = lpHookInfo->get_FunctionName(&name);
 	if (FAILED(hr))
@@ -147,6 +172,17 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 {
 	HRESULT hr;
 
+	CComPtr<INktParamsEnum> paramsEnum;
+	CComPtr<INktParam> param;
+	my_ssize_t pointeraddress;
+	VARIANT_BOOL notNull;
+	VARIANT_BOOL isPreCall;
+
+	IDXGIFactory* pDXGIFactory = nullptr;
+	ID3D11Device* pDevice = nullptr;
+	IDXGISwapChain* pSwapChain = nullptr;
+
+#ifdef _DEBUG
 	CComBSTR name;
 	my_ssize_t address;
 	CHAR szBufA[1024];
@@ -158,27 +194,9 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 	sprintf_s(szBufA, 1024, "DeviarePlugin::OnFunctionCall called [Hook: %S @ 0x%IX / Chain:%lu]\n",
 		name, address, dwChainIndex);
 	::OutputDebugStringA(szBufA);
+#endif
 
 
-	// We only expect this to be called for DXGI.DLL!CreateDXGIFactory1. We want to daisy chain
-	// through the call sequence to ultimately get the Present routine.
-	// At this moment we are right after the call has finished.
-
-	CComPtr<INktParamsEnum> paramsEnum;
-	long paramCount;
-
-	hr = lpHookCallInfoPlugin->Params(&paramsEnum);
-	if (FAILED(hr))
-		throw std::exception("Failed Nektra lpHookCallInfoPlugin->Params");
-
-	hr = paramsEnum->get_Count(&paramCount);
-	if (FAILED(hr))
-		throw std::exception("Failed Nektra paramsEnum->get_Count");
-
-
-	CComPtr<INktParam> param;
-	my_ssize_t pointeraddress;
-	VARIANT_BOOL notNull;
 
 	//HRESULT WINAPI D3D11CreateDeviceAndSwapChain(
 	//	_In_opt_ IDXGIAdapter* pAdapter,
@@ -195,7 +213,10 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 	//	_COM_Outptr_opt_ ID3D11DeviceContext** ppImmediateContext);
 	if (wcscmp(name, L"D3D11.DLL!D3D11CreateDeviceAndSwapChain") == 0)
 	{
-		VARIANT_BOOL isPreCall;
+		hr = lpHookCallInfoPlugin->Params(&paramsEnum);
+		if (FAILED(hr))
+			throw std::exception("Failed Nektra lpHookCallInfoPlugin->Params");
+
 		lpHookCallInfoPlugin->get_IsPreCall(&isPreCall);
 		if (FAILED(hr))
 			throw std::exception("Failed Nektra get_IsPreCall");
@@ -217,7 +238,6 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 			if (FAILED(hr))
 				throw std::exception("Failed Nektra paramsEnum->put_ULongVal()");
 #endif
-
 			return S_OK;
 		}
 
@@ -276,7 +296,10 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 	//);
 	if (wcscmp(name, L"D3D11.DLL!D3D11CreateDevice") == 0)
 	{
-		VARIANT_BOOL isPreCall;
+		hr = lpHookCallInfoPlugin->Params(&paramsEnum);
+		if (FAILED(hr))
+			throw std::exception("Failed Nektra lpHookCallInfoPlugin->Params");
+
 		lpHookCallInfoPlugin->get_IsPreCall(&isPreCall);
 		if (FAILED(hr))
 			throw std::exception("Failed Nektra get_IsPreCall");
@@ -298,7 +321,6 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 			if (FAILED(hr))
 				throw std::exception("Failed Nektra paramsEnum->put_ULongVal()");
 #endif
-
 			return S_OK;
 		}
 
@@ -336,6 +358,10 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 	// );
 	if (wcscmp(name, L"DXGI.DLL!CreateDXGIFactory") == 0 || wcscmp(name, L"DXGI.DLL!CreateDXGIFactory1") == 0)
 	{
+		hr = lpHookCallInfoPlugin->Params(&paramsEnum);
+		if (FAILED(hr))
+			throw std::exception("Failed Nektra lpHookCallInfoPlugin->Params");
+
 		hr = paramsEnum->GetAt(1, &param.p);
 		if (FAILED(hr))
 			throw std::exception("Failed Nektra paramsEnum->GetAt(1)");

@@ -26,134 +26,104 @@
 
 //-----------------------------------------------------------
 
-#include <thread>
-
 #include "DeviarePlugin.h"
 
-#include "NktHookLib.h"
-
-#include "nvapi\nvapi.h"
+#include <thread>
 
 
-//-----------------------------------------------------------
-
-// This is automatically instantiated by C++, so the hooking library
-// is immediately available.
-CNktHookLib nktInProc;
-
-// The surface that we copy the current game frame into. It is shared.
-// It starts as a Texture so that it is created stereo, but is converted
-// to a Surface for use in StretchRect.
+// The surface that we copy the current stereo game frame into. It is shared.
+// It starts as a Texture so that it is created stereo, and is shared 
+// via GetSharedHandle.
 
 ID3D11Texture2D* gGameTexture = nullptr;
-
-HANDLE gSharedThread = nullptr;				// will copy from GameSurface to SharedSurface
-
-HANDLE gFreshBits = nullptr;				// Synchronization Event object
-
-HANDLE gGameSharedHandle = nullptr;			// Handle to share with DX11
-
-// The nvapi stereo handle, to access the reverse blit.
-StereoHandle gNVAPI = nullptr;
-
-//HANDLE gameThread = nullptr;
-
-wchar_t info[512];
-static unsigned long triggerCount = 0;
-
 
 // --------------------------------------------------------------------------------------------------
 
 // Custom routines for this DeviarePlugin.dll, that the master app can call,
 // using Deviare access routines.
 
+//HANDLE gSharedThread = nullptr;				// will copy from GameSurface to SharedSurface
+//HANDLE gFreshBits = nullptr;				// Synchronization Event object
+//static unsigned long triggerCount = 0;
 
-// Return the current value of the gGameSurfaceShare.  This is the HANDLE
-// that is necessary to share from DX9Ex here to DX11 in the VR app.
-
-HANDLE WINAPI GetSharedHandle(int* in)
-{
-	::OutputDebugString(L"GetSharedHandle::\n");
-
-	return gGameSharedHandle;
-}
 
 // Shared Event object that is the notification that the VR side
 // has called Present.
 
-HANDLE WINAPI GetEventHandle(int* in)
-{
-	::OutputDebugString(L"GetSharedEvent::\n");
-
-	return gFreshBits;
-}
+//HANDLE WINAPI GetEventHandle(int* in)
+//{
+//	::OutputDebugString(L"GetSharedEvent::\n");
+//
+//	return gFreshBits;
+//}
 
 // Called from C# side after VR app has presented its frame.
 // This allows our locked present for the target game to continue.
 
-static LARGE_INTEGER startTriggeredTicks, resetTriggerTicks;
-static LARGE_INTEGER frequency;
-
-HANDLE WINAPI TriggerEvent(int* in)
-{
-	//	::OutputDebugString(L"TriggerEvent::\n");
-
-
-	if ((int)in == 1)		// Active triggered
-	{
-		BOOL set = SetEvent(gFreshBits);
-		if (!set)
-			::OutputDebugString(L"Bad SetEvent in TriggerEvent.\n");
-
-		// Waste time spinning, while we wait for high resolution timer.
-		// This timer using QueryPerformanceCounter should be accurate
-		// to some 100ns or so, for any system we care about.
-
-		QueryPerformanceFrequency(&frequency);
-		QueryPerformanceCounter(&startTriggeredTicks);
-
-		triggerCount += 1;
-
-		if ((triggerCount % 30) == 0)
-		{
-			LONGLONG startMS = startTriggeredTicks.QuadPart * 1000 / frequency.QuadPart;
-			swprintf_s(info, _countof(info),
-				L"SetEvent - ms: %lld, frequency: %lld, triggerCount: %d\n", startMS, frequency.QuadPart, triggerCount);
-			::OutputDebugString(info);
-		}
-	}
-	else					// Reset untriggered
-	{
-		BOOL reset = ResetEvent(gFreshBits);
-		if (!reset)
-			::OutputDebugString(L"Bad ResetEvent in TriggerEvent.\n");
-
-		QueryPerformanceCounter(&resetTriggerTicks);
-
-		if ((triggerCount % 30) == 0)
-		{
-			LONGLONG frameTicks = resetTriggerTicks.QuadPart - startTriggeredTicks.QuadPart;
-			LONGLONG endMS = frameTicks * 1000 / frequency.QuadPart;
-			swprintf_s(info, _countof(info),
-				L"ResetEvent - ms: %lld\n", endMS);
-			::OutputDebugString(info);
-		}
-	}
-
-	return NULL;
-}
+//static LARGE_INTEGER startTriggeredTicks, resetTriggerTicks;
+//static LARGE_INTEGER frequency;
+//
+//HANDLE WINAPI TriggerEvent(int* in)
+//{
+//	//	::OutputDebugString(L"TriggerEvent::\n");
+//
+//
+//	if ((int)in == 1)		// Active triggered
+//	{
+//		BOOL set = SetEvent(gFreshBits);
+//		if (!set)
+//			::OutputDebugString(L"Bad SetEvent in TriggerEvent.\n");
+//
+//		// Waste time spinning, while we wait for high resolution timer.
+//		// This timer using QueryPerformanceCounter should be accurate
+//		// to some 100ns or so, for any system we care about.
+//
+//		QueryPerformanceFrequency(&frequency);
+//		QueryPerformanceCounter(&startTriggeredTicks);
+//
+//		triggerCount += 1;
+//
+//		if ((triggerCount % 30) == 0)
+//		{
+//			LONGLONG startMS = startTriggeredTicks.QuadPart * 1000 / frequency.QuadPart;
+//			swprintf_s(info, _countof(info),
+//				L"SetEvent - ms: %lld, frequency: %lld, triggerCount: %d\n", startMS, frequency.QuadPart, triggerCount);
+//			::OutputDebugString(info);
+//		}
+//	}
+//	else					// Reset untriggered
+//	{
+//		BOOL reset = ResetEvent(gFreshBits);
+//		if (!reset)
+//			::OutputDebugString(L"Bad ResetEvent in TriggerEvent.\n");
+//
+//		QueryPerformanceCounter(&resetTriggerTicks);
+//
+//		if ((triggerCount % 30) == 0)
+//		{
+//			LONGLONG frameTicks = resetTriggerTicks.QuadPart - startTriggeredTicks.QuadPart;
+//			LONGLONG endMS = frameTicks * 1000 / frequency.QuadPart;
+//			swprintf_s(info, _countof(info),
+//				L"ResetEvent - ms: %lld\n", endMS);
+//			::OutputDebugString(info);
+//		}
+//	}
+//
+//	return NULL;
+//}
 
 
 //-----------------------------------------------------------
 // StretchRect the stereo snapshot back onto the backbuffer so we can see what we got.
 // Keep aspect ratio intact, because we want to see if it's a stretched image.
 
+#ifdef _DEBUG
 void DrawStereoOnGame(ID3D11DeviceContext* pContext, ID3D11Texture2D* surface, ID3D11Texture2D* back)
 {
 	D3D11_BOX srcBox = { 300, 0, 0, 1600+300, 900, 1};
 	pContext->CopySubresourceRegion(back, 0, 0, 0, 0, surface, 0, &srcBox);
 }
-
+#endif
 
 //-----------------------------------------------------------
 // Interface to implement the hook for IDXGISwapChain->Present
@@ -284,10 +254,11 @@ HRESULT __stdcall Hooked_CreateSwapChainForHwnd(IDXGIFactory2 * This,
 	_In_opt_  IDXGIOutput *pRestrictToOutput,
 	_COM_Outptr_  IDXGISwapChain1 **ppSwapChain)
 {
-	wchar_t info[512];
 	HRESULT hr;
 
 #ifdef _DEBUG
+	wchar_t info[512];
+
 	::OutputDebugString(L"NativePlugin::Hooked_CreateSwapChainForHwnd called\n");
 
 	if (pDesc)
@@ -334,10 +305,11 @@ HRESULT __stdcall Hooked_CreateSwapChain(IDXGIFactory1 * This,
 	_In_  DXGI_SWAP_CHAIN_DESC *pDesc,
 	_COM_Outptr_  IDXGISwapChain **ppSwapChain)
 {
-	wchar_t info[512];
 	HRESULT hr;
 
 #ifdef _DEBUG
+	wchar_t info[512];
+
 	::OutputDebugString(L"NativePlugin::Hooked_CreateSwapChain called\n");
 
 	if (pDesc)
@@ -516,7 +488,7 @@ void HookPresent(ID3D11Device* pDevice, IDXGISwapChain* pSwapChain)
 
 		hr = pDXGIResource->GetSharedHandle(&gGameSharedHandle);
 		if (FAILED(hr))
-			throw std::exception("Fail to GetSharedHandle");
+			throw std::exception("Fail to pDXGIResource->GetSharedHandle");
 		pDXGIResource->Release();
 		if (gGameSharedHandle == nullptr)
 			throw std::exception("Fail to create gGameSharedHandle");
@@ -529,13 +501,13 @@ void HookPresent(ID3D11Device* pDevice, IDXGISwapChain* pSwapChain)
 		// And the thread synchronization Event object. Signaled when we get fresh bits.
 		// Starts in off state, thread active, so it should pause at launch.
 		//ToDo: Not presently active
-		gFreshBits = CreateEvent(
-			NULL,               // default security attributes
-			TRUE,               // manual, not auto-reset event
-			FALSE,              // initial state is nonsignaled
-			nullptr);			// object name
-		if (gFreshBits == nullptr)
-			throw std::exception("Fail to CreateEvent for gFreshBits");
+		//gFreshBits = CreateEvent(
+		//	NULL,               // default security attributes
+		//	TRUE,               // manual, not auto-reset event
+		//	FALSE,              // initial state is nonsignaled
+		//	nullptr);			// object name
+		//if (gFreshBits == nullptr)
+		//	throw std::exception("Fail to CreateEvent for gFreshBits");
 
 		//gSharedThread = CreateThread(
 		//	NULL,                   // default security attributes
