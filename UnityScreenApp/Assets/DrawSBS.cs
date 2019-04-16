@@ -302,12 +302,18 @@ public class DrawSBS : MonoBehaviour
         // This is the Unity Texture2D, double width texture, with right eye on the left half.
         // It will always be up to date with latest game image, because we pass in 'shared'.
 
+        // Really not sure how this color format works.  The DX9 values are completely different,
+        // and typically the games are ARGB format there, but still look fine here once we
+        // create DX11 texture with RGBA format.
         // DXGI_FORMAT_R8G8B8A8_UNORM = 28,
         // DXGI_FORMAT_R8G8B8A8_UNORM_SRGB = 29,
+        // DXGI_FORMAT_B8G8R8A8_UNORM = 87          (The Ball, DX9)
+        // DXGI_FORMAT_B8G8R8A8_UNORM_SRGB = 91,
+
         bool colorSpace;
-        if (format == 28)
+        if (format == 28 || format == 87)
             colorSpace = linearColorSpace;
-        else if (format == 29)
+        else if (format == 29 || format == 91)
             colorSpace = !linearColorSpace;
         else
             throw new Exception(String.Format("Game uses unknown DXGI_FORMAT: {0}", format));
