@@ -309,6 +309,8 @@ public class DrawSBS : MonoBehaviour
         // DXGI_FORMAT_R8G8B8A8_UNORM_SRGB = 29,
         // DXGI_FORMAT_B8G8R8A8_UNORM = 87          (The Ball, DX9)
         // DXGI_FORMAT_B8G8R8A8_UNORM_SRGB = 91,
+        // DXGI_FORMAT_R10G10B10A2_UNORM = 24       ME:Andromenda
+        //  No SRGB variant of R10G10B10A2.
 
         bool colorSpace;
         if (format == 28 || format == 87)
@@ -335,17 +337,24 @@ public class DrawSBS : MonoBehaviour
         GetComponent<Renderer>().material.mainTexture = _bothEyes;
 
 
-        // These are test Quads, and will be removed.  One for each eye.
-        Material leftMat = GameObject.Find("left").GetComponent<Renderer>().material;
-        leftMat.mainTexture = _bothEyes;
-        Material rightMat = GameObject.Find("right").GetComponent<Renderer>().material;
-        rightMat.mainTexture = _bothEyes;
-
-        // Using same primary 2x width shared texture, specify which half is used.
-        leftMat.mainTextureScale = new Vector2(0.5f, 1.0f);
-        leftMat.mainTextureOffset = new Vector2(0.5f, 0);
-        rightMat.mainTextureScale = new Vector2(0.5f, 1.0f);
-        rightMat.mainTextureOffset = new Vector2(0.0f, 0);
+        // These are test Quads, and will be removed.  One for each eye. Might be deactivated.
+        GameObject leftScreen = GameObject.Find("left");
+        if (leftScreen != null)
+        {
+            Material leftMat = leftScreen.GetComponent<Renderer>().material;
+            leftMat.mainTexture = _bothEyes;
+            // Using same primary 2x width shared texture, specify which half is used.
+            leftMat.mainTextureScale = new Vector2(0.5f, 1.0f);
+            leftMat.mainTextureOffset = new Vector2(0.5f, 0);
+        }
+        GameObject rightScreen = GameObject.Find("right");
+        if (rightScreen != null)
+        {
+            Material rightMat = rightScreen.GetComponent<Renderer>().material;
+            rightMat.mainTexture = _bothEyes;
+            rightMat.mainTextureScale = new Vector2(0.5f, 1.0f);
+            rightMat.mainTextureOffset = new Vector2(0.0f, 0);
+        }
 
         // With the game fully launched and showing frames, we no longer need InfoText.
         // Setting it Inactive makes it not take any drawing cycles, as opposed to an empty string.

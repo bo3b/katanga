@@ -244,7 +244,7 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 
 		// This is PostCall.
 		// Param 8 is returned _COM_Outptr_opt_ IDXGISwapChain** ppSwapChain
-		hr = paramsEnum->GetAt(8, &param);
+		hr = paramsEnum->GetAt(8, &param.p);
 		if (FAILED(hr))
 			throw std::exception("Failed Nektra paramsEnum->GetAt(8)");
 		hr = param->get_IsNullPointer(&notNull);
@@ -261,7 +261,7 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 			pSwapChain = reinterpret_cast<IDXGISwapChain*>(pointeraddress);
 		}
 		// Param 9 is returned _COM_Outptr_opt_ ID3D11Device** ppDevice
-		hr = paramsEnum->GetAt(9, &param);
+		hr = paramsEnum->GetAt(9, &param.p);
 		if (FAILED(hr))
 			throw std::exception("Failed Nektra paramsEnum->GetAt(9)");
 		hr = param->get_IsNullPointer(&notNull);
