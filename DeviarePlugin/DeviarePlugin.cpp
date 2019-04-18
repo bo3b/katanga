@@ -176,7 +176,7 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 	CComPtr<INktParamsEnum> paramsEnum;
 	CComPtr<INktParam> param;
 	my_ssize_t pointeraddress;
-	VARIANT_BOOL notNull;
+	VARIANT_BOOL isNull;
 	VARIANT_BOOL isPreCall;
 
 	IDXGIFactory* pDXGIFactory = nullptr;
@@ -226,7 +226,7 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 		{
 #ifdef _DEBUG 
 			unsigned long flags;	// should be UINT. long and int are both 32 bits on windows.
-			hr = paramsEnum->GetAt(3, &param);
+			hr = paramsEnum->GetAt(3, &param.p);
 			if (FAILED(hr))
 				throw std::exception("Failed Nektra paramsEnum->GetAt(3)");
 			hr = param->get_ULongVal(&flags);
@@ -247,10 +247,10 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 		hr = paramsEnum->GetAt(8, &param.p);
 		if (FAILED(hr))
 			throw std::exception("Failed Nektra paramsEnum->GetAt(8)");
-		hr = param->get_IsNullPointer(&notNull);
+		hr = param->get_IsNullPointer(&isNull);
 		if (FAILED(hr))
 			throw std::exception("Failed Nektra param->get_IsNullPointer");
-		if (notNull)
+		if (!isNull)
 		{
 			hr = param->Evaluate(&param.p);
 			if (FAILED(hr))
@@ -264,10 +264,10 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 		hr = paramsEnum->GetAt(9, &param.p);
 		if (FAILED(hr))
 			throw std::exception("Failed Nektra paramsEnum->GetAt(9)");
-		hr = param->get_IsNullPointer(&notNull);
+		hr = param->get_IsNullPointer(&isNull);
 		if (FAILED(hr))
 			throw std::exception("Failed Nektra param->get_IsNullPointer");
-		if (notNull)
+		if (!isNull)
 		{
 			hr = param->Evaluate(&param.p);
 			if (FAILED(hr))
@@ -329,10 +329,10 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 		hr = paramsEnum->GetAt(7, &param.p);
 		if (FAILED(hr))
 			throw std::exception("Failed Nektra paramsEnum->GetAt(7)");
-		hr = param->get_IsNullPointer(&notNull);
+		hr = param->get_IsNullPointer(&isNull);
 		if (FAILED(hr))
 			throw std::exception("Failed Nektra param->get_IsNullPointer");
-		if (notNull)
+		if (!isNull)
 		{
 			hr = param->Evaluate(&param.p);
 			if (FAILED(hr))
