@@ -48,7 +48,7 @@ void HookCreateDevice(IDirect3D9Ex* pDX9Ex);
 // DX11 - InProc_DX11.cpp
 void HookCreateSwapChain(IDXGIFactory* dDXGIFactory);
 void HookCreateSwapChainForHwnd(IDXGIFactory2* dDXGIFactory);
-void HookPresent(ID3D11Device* pDevice, IDXGISwapChain* pSwapChain);
+void HookPresent(IDXGISwapChain* pSwapChain);
 
 
 // These need to be declared as extern "C" so that the names are not mangled.

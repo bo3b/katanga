@@ -279,7 +279,7 @@ HRESULT __stdcall Hooked_CreateSwapChainForHwnd(IDXGIFactory2 * This,
 	// Using that fresh IDXGISwapChain, we can now hook the Present call, which 
 	// is what we are really after.
 
-	HookPresent(reinterpret_cast<ID3D11Device*>(pDevice), *ppSwapChain);
+	HookPresent(*ppSwapChain);
 
 	return hr;
 }
@@ -330,7 +330,7 @@ HRESULT __stdcall Hooked_CreateSwapChain(IDXGIFactory1 * This,
 	// Using that fresh IDXGISwapChain, we can now hook the Present call, which 
 	// is what we are really after.
 
-	HookPresent(reinterpret_cast<ID3D11Device*>(pDevice), *ppSwapChain);
+	HookPresent(*ppSwapChain);
 
 	return hr;
 }
@@ -417,7 +417,7 @@ void HookCreateSwapChainForHwnd(IDXGIFactory2* dDXGIFactory)
 // It is common code for both that path, and the direct path from CreateSwapChain
 // or CreateSwapChainForHwnd.
 
-void HookPresent(ID3D11Device* pDevice, IDXGISwapChain* pSwapChain)
+void HookPresent(IDXGISwapChain* pSwapChain)
 {
 	// This can be called multiple times by a game, so let's be sure to
 	// only hook once.
@@ -429,26 +429,24 @@ void HookPresent(ID3D11Device* pDevice, IDXGISwapChain* pSwapChain)
 
 		SIZE_T hook_id;
 		DWORD dwOsErr;
+		HRESULT hr;
+		ID3D11Device* pDevice;
+		ID3D11Texture2D* backBuffer;
+		D3D11_TEXTURE2D_DESC desc;
 
 		dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigPresent,
 			lpvtbl_Present_DX11(pSwapChain), Hooked_Present, 0);
 		if (FAILED(dwOsErr))
 			::OutputDebugStringA("Failed to hook IDXGISwapChain::Present\n");
 
-		// ToDo: not needed, or is it more reliable?
-		//hres = pSwapChain->GetDevice(__uuidof(ID3D11Device), (void**)&pDevice);
-		//if (FAILED(hres))
-		//	throw std::exception("Failed to GetDevice");
 
-		NvAPI_Status res = NvAPI_Initialize();
-		if (res != NVAPI_OK)
-			throw std::exception("Failed to NvAPI_Initialize\n");
+		// It's more reliable to get the pDevice of an actual D3D11Device from
+		// the swap chain directly, because bad code like UE4 can pass in a 
+		// DXGIDevice, which is not usable here.
 
-		// ToDo: need to handle stereo disabled...
-		res = NvAPI_Stereo_CreateHandleFromIUnknown(pDevice, &gNVAPI);
-		if (res != NVAPI_OK)
-			throw std::exception("Failed to NvAPI_Stereo_CreateHandleFromIUnknown\n");
-		
+		hr = pSwapChain->GetDevice(__uuidof(ID3D11Device), (void**)&pDevice);
+		if (FAILED(hr))
+			throw std::exception("Failed to GetDevice");
 
 		// Now that we have a proper SwapChain from the game, let's also make a 
 		// DX11 Texture2D, so that we can snapshot the game output.  This texture needs to
@@ -457,10 +455,6 @@ void HookPresent(ID3D11Device* pDevice, IDXGISwapChain* pSwapChain)
 		//
 		// Make it exactly match the backbuffer, which ensures that the stereo copy
 		// using ReverseStereoBlit will work.
-
-		ID3D11Texture2D* backBuffer;
-		D3D11_TEXTURE2D_DESC desc;
-		HRESULT hr;
 
 		hr = pSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&backBuffer);
 		if (FAILED(hr))
@@ -492,6 +486,19 @@ void HookPresent(ID3D11Device* pDevice, IDXGISwapChain* pSwapChain)
 		pDXGIResource->Release();
 		if (gGameSharedHandle == nullptr)
 			throw std::exception("Fail to create gGameSharedHandle");
+
+
+		// Using the D3D11Device we fetched above, we also want to initialize nvidia
+		// stereo so that we can fetch the stereo backbuffer during Present.
+
+		NvAPI_Status res = NvAPI_Initialize();
+		if (res != NVAPI_OK)
+			throw std::exception("Failed to NvAPI_Initialize\n");
+
+		// ToDo: need to handle stereo disabled...
+		res = NvAPI_Stereo_CreateHandleFromIUnknown(pDevice, &gNVAPI);
+		if (res != NVAPI_OK)
+			throw std::exception("Failed to NvAPI_Stereo_CreateHandleFromIUnknown\n");
 
 
 		// Since we are doing setup here, also create a thread that will be used to copy

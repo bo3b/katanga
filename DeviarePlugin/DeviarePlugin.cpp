@@ -260,25 +260,8 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 				throw std::exception("Failed Nektra param->get_PointerVal");
 			pSwapChain = reinterpret_cast<IDXGISwapChain*>(pointeraddress);
 		}
-		// Param 9 is returned _COM_Outptr_opt_ ID3D11Device** ppDevice
-		hr = paramsEnum->GetAt(9, &param.p);
-		if (FAILED(hr))
-			throw std::exception("Failed Nektra paramsEnum->GetAt(9)");
-		hr = param->get_IsNullPointer(&isNull);
-		if (FAILED(hr))
-			throw std::exception("Failed Nektra param->get_IsNullPointer");
-		if (!isNull)
-		{
-			hr = param->Evaluate(&param.p);
-			if (FAILED(hr))
-				throw std::exception("Failed Nektra param->Evaluate");
-			hr = param->get_PointerVal(&pointeraddress);
-			if (FAILED(hr))
-				throw std::exception("Failed Nektra param->get_PointerVal");
-			pDevice = reinterpret_cast<ID3D11Device*>(pointeraddress);
-		}
 
-		HookPresent(pDevice, pSwapChain);
+		HookPresent(pSwapChain);
 	}
 
 	// If it's CreateDevice, let's fetch the 7th parameter, which is
