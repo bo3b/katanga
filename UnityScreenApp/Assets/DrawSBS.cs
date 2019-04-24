@@ -309,16 +309,18 @@ public class DrawSBS : MonoBehaviour
         // DXGI_FORMAT_R8G8B8A8_UNORM_SRGB = 29,
         // DXGI_FORMAT_B8G8R8A8_UNORM = 87          (The Ball, DX9)
         // DXGI_FORMAT_B8G8R8A8_UNORM_SRGB = 91,
-        // DXGI_FORMAT_R10G10B10A2_UNORM = 24       ME:Andromenda
+        // DXGI_FORMAT_R10G10B10A2_UNORM = 24       ME:Andromenda   Unity RenderTextureFormat, but not TextureFormat
         //  No SRGB variant of R10G10B10A2.
+        // DXGI_FORMAT_B8G8R8X8_UNORM = 88,         Trine   Unity RGB24
 
-        bool colorSpace;
-        if (format == 28 || format == 87)
+        bool colorSpace = linearColorSpace;
+        if (format == 28 || format == 87 || format == 88)
             colorSpace = linearColorSpace;
         else if (format == 29 || format == 91)
             colorSpace = !linearColorSpace;
         else
-            throw new Exception(String.Format("Game uses unknown DXGI_FORMAT: {0}", format));
+            //throw new Exception(String.Format("Game uses unknown DXGI_FORMAT: {0}", format));
+            print(String.Format("Game uses unknown DXGI_FORMAT: {0}", format));
 
         _bothEyes = Texture2D.CreateExternalTexture(width, height, TextureFormat.RGBA32, noMipMaps, colorSpace, shared);
 
