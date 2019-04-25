@@ -402,7 +402,7 @@ public class DrawSBS : MonoBehaviour
         object parm = native;
         System.Int32 pollHandle = _spyMgr.CallCustomApi(_gameProcess, _nativeDLLName, "GetSharedHandle", ref parm, true);
 
-        if (pollHandle == gGameSharedHANDLE)
+        if ((pollHandle == gGameSharedHANDLE) || (pollHandle == 0))
             return;
 
         gGameSharedHANDLE = pollHandle;

@@ -310,10 +310,16 @@ ID3D11ShaderResourceView* RenderAPI_D3D11::CreateSharedSurface(HANDLE shared)
 
 	CheckDate();
 
+	if (shared == NULL)
+		return nullptr;
+
 	hr = m_Device->OpenSharedResource(shared, __uuidof(ID3D11Resource), (void**)(&resource));
 	{
 		if (FAILED(hr))
 			throw std::exception("Failed to open shared.");
+
+		if (resource == nullptr)
+			return nullptr;
 
 		// Even though the input shared surface is a RenderTarget Surface, this
 		// Query for Texture still works.  Not sure if it is good or bad.
