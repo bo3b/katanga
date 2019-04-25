@@ -24,7 +24,7 @@
 //  Using the StereoSnapShot code from 3Dmigoto to get stereo back buffer
 //  with NvAPI_Stereo_ReverseStereoBlitControl. 
 
-//-----------------------------------------------------------
+// --------------------------------------------------------------------------------------------------
 
 #include "DeviarePlugin.h"
 
@@ -113,9 +113,100 @@ ID3D11Texture2D* gGameTexture = nullptr;
 //}
 
 
-//-----------------------------------------------------------
-// StretchRect the stereo snapshot back onto the backbuffer so we can see what we got.
-// Keep aspect ratio intact, because we want to see if it's a stretched image.
+// --------------------------------------------------------------------------------------------------
+// Shared code for when we need to create the offscreen Texture2D for our stereo
+// copy.  This is created when the CreateSwapChain is called, and also whenever
+// it ResizeBuffers is called, because we need to change our destination copy
+// to always match what the game is drawing.
+//
+// This will also rewrite the global gGameSharedHandle with a new HANDLE as
+// needed, and the Unity side is expected to notice a change and setup a new
+// drawing texture as well.  This is thus polling on the Unity side, which is
+// not ideal, but it is one call here to fetch the 4 byte HANDLE every 11ms.  
+// There does not appear to be a good way for this code to notify the C# code,
+// although using a TriggerEvent with some C# interop might work.  We'll only
+// do that work if this proves to be a problem.
+
+ID3D11Device* CreateSharedTexture(IDXGISwapChain* pSwapChain)
+{
+	HRESULT hr;
+	ID3D11Device* pDevice;
+	ID3D11Texture2D* backBuffer;
+	D3D11_TEXTURE2D_DESC desc;
+	HANDLE oldGameSharedHandle;
+	ID3D11Texture2D* oldGameTexture;
+
+	// Save possible prior usage to be disposed after we recreate.
+
+	oldGameSharedHandle = gGameSharedHandle;
+	oldGameTexture = gGameTexture;
+
+	// It's more reliable to get the pDevice of an actual D3D11Device from
+	// the swap chain directly, because bad code like UE4 can pass in a 
+	// DXGIDevice, which is not usable here.
+
+	hr = pSwapChain->GetDevice(__uuidof(ID3D11Device), (void**)&pDevice);
+	if (FAILED(hr))
+		throw std::exception("Failed to GetDevice");
+
+
+	// Now that we have a proper SwapChain from the game, let's also make a 
+	// DX11 Texture2D, so that we can snapshot the game output. 
+	//
+	// Make it exactly match the backbuffer, which ensures that the stereo copy
+	// using ReverseStereoBlit will work.
+
+	hr = pSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&backBuffer);
+	if (FAILED(hr))
+		throw std::exception("Fail to get backbuffer");
+
+	backBuffer->GetDesc(&desc);
+	backBuffer->Release();
+
+	// This texture needs to use the Shared flag, so that we can share it to 
+	// another Device.  Because these are all DX11 objects, the share will work.
+
+	desc.Width *= 2;								// Double width texture for stereo.
+	desc.BindFlags |= D3D11_BIND_SHADER_RESOURCE;	// Must add bind flag, so SRV can be created in Unity.
+	desc.MiscFlags = D3D11_RESOURCE_MISC_SHARED;	// To be shared. maybe D3D11_RESOURCE_MISC_SHARED_KEYEDMUTEX is better
+
+	hr = pDevice->CreateTexture2D(&desc, NULL, &gGameTexture);
+	if (FAILED(hr))
+		throw std::exception("Fail to create shared stereo Texture");
+
+	// Now create the HANDLE which is used to share surfaces.  This follows the model from:
+	// https://docs.microsoft.com/en-us/windows/desktop/api/d3d11/nf-d3d11-id3d11device-opensharedresource
+
+	IDXGIResource* pDXGIResource = NULL;
+
+	hr = gGameTexture->QueryInterface(__uuidof(IDXGIResource), (LPVOID*)&pDXGIResource);
+	if (FAILED(hr))
+		throw std::exception("Fail to QueryInterface on shared surface");
+
+	hr = pDXGIResource->GetSharedHandle(&gGameSharedHandle);
+	if (FAILED(hr))
+		throw std::exception("Fail to pDXGIResource->GetSharedHandle");
+	pDXGIResource->Release();
+	if (gGameSharedHandle == nullptr)
+		throw std::exception("Fail to create gGameSharedHandle");
+
+
+	// If we already had created one, let the old one go.  We do it after the recreation
+	// here fills in the prior globals, to avoid possible dead structure usage in the
+	// Unity app.
+
+	// Fails because it's not a real NTHandle.  No idea how to properly dispose of this.
+	//if (oldGameSharedHandle)
+	//	CloseHandle(oldGameSharedHandle);
+	if (oldGameTexture)
+		oldGameTexture->Release();
+
+	return pDevice;
+}
+
+// --------------------------------------------------------------------------------------------------
+// Move the image halfway, so that we can see half of each eye on the main view.
+// This is just a hack way to be sure we are getting stereo output.
 
 #ifdef _DEBUG
 void DrawStereoOnGame(ID3D11DeviceContext* pContext, ID3D11Texture2D* surface, ID3D11Texture2D* back)
@@ -234,7 +325,59 @@ HRESULT __stdcall Hooked_Present(IDXGISwapChain * This,
 //	return E_FAIL;
 //}
 
-//-----------------------------------------------------------
+
+// --------------------------------------------------------------------------------------------------
+// Interface to implement the hook for IDXGISwapChain->ResizeBuffers
+
+// The original declaration of the call, which also doubles as the storage
+// for the original D3D11 call, so that we can call through.
+// We need this ResizeBuffers call, because a game will likely have a setting
+// for resolution, and we want to change with the game.  UE4 does this on launch.
+
+HRESULT(__stdcall *pOrigResizeBuffers)(IDXGISwapChain* This,
+	/* [in] */ UINT BufferCount,
+	/* [in] */ UINT Width,
+	/* [in] */ UINT Height,
+	/* [in] */ DXGI_FORMAT NewFormat,
+	/* [in] */ UINT SwapChainFlags) = nullptr;
+
+// The actual Hooked routine for ResizeBuffers, called whenever the game
+// makes a IDXGISwapChain->ResizeBuffers call.
+
+HRESULT __stdcall Hooked_ResizeBuffers(IDXGISwapChain* This,
+	/* [in] */ UINT BufferCount,
+	/* [in] */ UINT Width,
+	/* [in] */ UINT Height,
+	/* [in] */ DXGI_FORMAT NewFormat,
+	/* [in] */ UINT SwapChainFlags)
+{
+	HRESULT hr;
+
+#ifdef _DEBUG
+	wchar_t info[512];
+
+	::OutputDebugString(L"NativePlugin::Hooked_ResizeBuffers called\n");
+
+	swprintf_s(info, _countof(info), L"  Width: %d, Height: %d, Format: %d\n"
+		, Width, Height, NewFormat);
+	::OutputDebugString(info);
+#endif
+
+	// Run original call game is expecting.
+
+	hr = pOrigResizeBuffers(This, BufferCount, Width, Height, NewFormat, SwapChainFlags);
+	if (FAILED(hr))
+		throw std::exception("Failed to IDXGISwapChain->ResizeBuffers");
+
+	// Refresh our shared texture and shared HANDLE to match, otherwise we draw only
+	// a partial image on the big screen.
+
+	CreateSharedTexture(This);
+
+	return hr;
+}
+
+// --------------------------------------------------------------------------------------------------
 // Interface for Win10 or Win7+evilUpdate variant IDXGIFactory2->CreateSwapChainForHwnd
 // Known to be used by BatmanTelltale and recent Unity games.
 
@@ -285,7 +428,7 @@ HRESULT __stdcall Hooked_CreateSwapChainForHwnd(IDXGIFactory2 * This,
 }
 
 
-//-----------------------------------------------------------
+// --------------------------------------------------------------------------------------------------
 // Interface to implement the hook for IDXGIFactory1->CreateSwapChain
 
 // This declaration serves a dual purpose of defining the interface routine as required by
@@ -336,7 +479,7 @@ HRESULT __stdcall Hooked_CreateSwapChain(IDXGIFactory1 * This,
 }
 
 
-//-----------------------------------------------------------
+// --------------------------------------------------------------------------------------------------
 
 // Here we want to start the daisy chain of hooking DX11 interfaces, to
 // ultimately get access to IDXGISwapChain::Present
@@ -429,63 +572,22 @@ void HookPresent(IDXGISwapChain* pSwapChain)
 
 		SIZE_T hook_id;
 		DWORD dwOsErr;
-		HRESULT hr;
 		ID3D11Device* pDevice;
-		ID3D11Texture2D* backBuffer;
-		D3D11_TEXTURE2D_DESC desc;
 
 		dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigPresent,
 			lpvtbl_Present_DX11(pSwapChain), Hooked_Present, 0);
 		if (FAILED(dwOsErr))
 			::OutputDebugStringA("Failed to hook IDXGISwapChain::Present\n");
 
+		dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigResizeBuffers,
+			lpvtbl_ResizeBuffers(pSwapChain), Hooked_ResizeBuffers, 0);
+		if (FAILED(dwOsErr))
+			::OutputDebugStringA("Failed to hook IDXGISwapChain::ResizeBuffers\n");
 
-		// It's more reliable to get the pDevice of an actual D3D11Device from
-		// the swap chain directly, because bad code like UE4 can pass in a 
-		// DXGIDevice, which is not usable here.
+		// Create Texture2D and HANDLE we'll use to share the stereo game bits across
+		// the process boundary.
 
-		hr = pSwapChain->GetDevice(__uuidof(ID3D11Device), (void**)&pDevice);
-		if (FAILED(hr))
-			throw std::exception("Failed to GetDevice");
-
-		// Now that we have a proper SwapChain from the game, let's also make a 
-		// DX11 Texture2D, so that we can snapshot the game output.  This texture needs to
-		// use the Shared flag, so that we can share it to another Device.  Because
-		// these are all DX11 objects, the share will work.
-		//
-		// Make it exactly match the backbuffer, which ensures that the stereo copy
-		// using ReverseStereoBlit will work.
-
-		hr = pSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&backBuffer);
-		if (FAILED(hr))
-			throw std::exception("Fail to get backbuffer");
-
-		backBuffer->GetDesc(&desc);
-		backBuffer->Release();
-
-		desc.Width *= 2; // Double width texture for stereo.
-		desc.BindFlags |= D3D11_BIND_SHADER_RESOURCE;	// Must add bind flag, so SRV can be created in Unity.
-		desc.MiscFlags = D3D11_RESOURCE_MISC_SHARED;  // To be shared. maybe D3D11_RESOURCE_MISC_SHARED_KEYEDMUTEX is better
-
-		hr = pDevice->CreateTexture2D(&desc, NULL, &gGameTexture);
-		if (FAILED(hr))
-			throw std::exception("Fail to create shared stereo Texture");
-
-		// Now create the HANDLE which is used to share surfaces.  This follows the model from:
-		// https://docs.microsoft.com/en-us/windows/desktop/api/d3d11/nf-d3d11-id3d11device-opensharedresource
-
-		IDXGIResource* pDXGIResource = NULL;
-
-		hr = gGameTexture->QueryInterface(__uuidof(IDXGIResource), (LPVOID*)&pDXGIResource);
-		if (FAILED(hr))
-			throw std::exception("Fail to QueryInterface on shared surface");
-
-		hr = pDXGIResource->GetSharedHandle(&gGameSharedHandle);
-		if (FAILED(hr))
-			throw std::exception("Fail to pDXGIResource->GetSharedHandle");
-		pDXGIResource->Release();
-		if (gGameSharedHandle == nullptr)
-			throw std::exception("Fail to create gGameSharedHandle");
+		pDevice = CreateSharedTexture(pSwapChain);
 
 
 		// Using the D3D11Device we fetched above, we also want to initialize nvidia
@@ -534,3 +636,4 @@ void HookPresent(IDXGISwapChain* pSwapChain)
 		//DuplicateHandle(GetCurrentProcess(), thread, GetCurrentProcess(), &gameThread, 0, TRUE, DUPLICATE_SAME_ACCESS);
 	}
 }
+

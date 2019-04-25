@@ -49,6 +49,7 @@ void HookCreateDevice(IDirect3D9Ex* pDX9Ex);
 void HookCreateSwapChain(IDXGIFactory* dDXGIFactory);
 void HookCreateSwapChainForHwnd(IDXGIFactory2* dDXGIFactory);
 void HookPresent(IDXGISwapChain* pSwapChain);
+void HookResizeBuffers(IDXGISwapChain* pSwapChain);
 
 
 // These need to be declared as extern "C" so that the names are not mangled.
@@ -70,6 +71,7 @@ extern "C" LPVOID lpvtbl_CreateSwapChain(IDXGIFactory* dDXGIFactory);
 extern "C" LPVOID lpvtbl_CreateSwapChainForHwnd(IDXGIFactory2* dDXGIFactory);
 
 extern "C" LPVOID lpvtbl_Present_DX11(IDXGISwapChain* pSwapChain);
+extern "C" LPVOID lpvtbl_ResizeBuffers(IDXGISwapChain* pSwapChain);
 
 
 //-----------------------------------------------------------

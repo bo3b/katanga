@@ -23,6 +23,7 @@ public class DrawSBS : MonoBehaviour
     // It automatically updates as the injected DLL copies the bits into the
     // shared resource.
     Texture2D _bothEyes;
+    System.Int32 gGameSharedHANDLE = 0;
 
     //    System.Int32 _gameEventSignal = 0;
     static int ResetEvent = 0;
@@ -236,144 +237,9 @@ public class DrawSBS : MonoBehaviour
 
         // We've gotten everything launched, hooked, and setup.  Now we need to wait for the
         // game to call through to CreateDevice, so that we can create the shared surface.
-        // Let's yield until that happens.
-
-        StartCoroutine("WaitForSharedSurface");
+        // That will be picked up in Update, as it will be checking the shared HANDLE.
     }
 
-
-    // Our x64 Native DLL allows us direct access to DX11 in order to take
-    // the shared handle and turn it into a ID3D11ShaderResourceView for Unity.
-    [DllImport("UnityNativePlugin64")]
-    private static extern IntPtr CreateSharedTexture(int sharedHandle);
-    [DllImport("UnityNativePlugin64")]
-    private static extern int GetGameWidth();
-    [DllImport("UnityNativePlugin64")]
-    private static extern int GetGameHeight();
-    [DllImport("UnityNativePlugin64")]
-    private static extern int GetGameFormat();
-
-    bool noMipMaps = false;
-    bool linearColorSpace = true;
-
-    // WaitForSharedSurface will just wait until the CreateDevice has been called in 
-    // DeviarePlugin, and thus we have created a shared surface for copying game bits into.
-    // This is asynchronous because it's in the game world, and we don't know when
-    // it will happen.
-    //
-    // Once the GetSharedSurface returns with non-null, we are ready to continue
-    // with the VR side of showing those bits.
-
-    private IEnumerator WaitForSharedSurface()
-    {
-        System.Int32 gameSharedHandle = 0;
-
-        print("... Waiting for SharedSurface");
-
-        while (gameSharedHandle == 0)
-        {
-            // Check-in every 200ms.
-            yield return new WaitForSecondsRealtime(0.2f);
-
-            // ToDo: To work, we need to pass in a parameter? 
-            // This will call to DeviarePlugin native DLL routine to fetch current gGameSurfaceShare HANDLE.
-            System.Int32 native = 0; // (int)_tex.GetNativeTexturePtr();
-            object parm = native;
-            gameSharedHandle = _spyMgr.CallCustomApi(_gameProcess, _nativeDLLName, "GetSharedHandle", ref parm, true);
-        }
-
-        // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-        // We finally have a valid gGameSurfaceShare as a DX11 HANDLE.  
-        // We can thus finish up the init.
-
-        print("-> Got shared handle: " + gameSharedHandle.ToString("x"));
-
-
-        // Call into the x64 UnityNativePlugin DLL for DX11 access, in order to create a ID3D11ShaderResourceView.
-        // You'd expect this to be a IDX11Texture2D, but that's not what Unity wants.
-        // We also fetch the Width/Height/Format from the C++ side, as it's simpler than
-        // making an interop for the GetDesc call.
-
-        IntPtr shared = CreateSharedTexture(gameSharedHandle);
-        int width = GetGameWidth();
-        int height = GetGameHeight();
-        int format = GetGameFormat();
-
-        // This is the Unity Texture2D, double width texture, with right eye on the left half.
-        // It will always be up to date with latest game image, because we pass in 'shared'.
-
-        // Really not sure how this color format works.  The DX9 values are completely different,
-        // and typically the games are ARGB format there, but still look fine here once we
-        // create DX11 texture with RGBA format.
-        // DXGI_FORMAT_R8G8B8A8_UNORM = 28,
-        // DXGI_FORMAT_R8G8B8A8_UNORM_SRGB = 29,
-        // DXGI_FORMAT_B8G8R8A8_UNORM = 87          (The Ball, DX9)
-        // DXGI_FORMAT_B8G8R8A8_UNORM_SRGB = 91,
-        // DXGI_FORMAT_R10G10B10A2_UNORM = 24       ME:Andromenda   Unity RenderTextureFormat, but not TextureFormat
-        //  No SRGB variant of R10G10B10A2.
-        // DXGI_FORMAT_B8G8R8X8_UNORM = 88,         Trine   Unity RGB24
-
-        bool colorSpace = linearColorSpace;
-        if (format == 28 || format == 87 || format == 88)
-            colorSpace = linearColorSpace;
-        else if (format == 29 || format == 91)
-            colorSpace = !linearColorSpace;
-        else
-            //throw new Exception(String.Format("Game uses unknown DXGI_FORMAT: {0}", format));
-            print(String.Format("Game uses unknown DXGI_FORMAT: {0}", format));
-
-        _bothEyes = Texture2D.CreateExternalTexture(width, height, TextureFormat.RGBA32, noMipMaps, colorSpace, shared);
-
-        // ToDo: might always require BGRA32, not sure.  Games typically use DXGI_FORMAT_R8G8B8A8_UNORM, 
-        //  but if it's different, not sure what's the right approach.
-        //        _bothEyes = Texture2D.CreateExternalTexture(3200, 900, TextureFormat.BGRA32, false, true, shared);
-
-        print("..eyes width: " + _bothEyes.width + " height: " + _bothEyes.height + " format: " + _bothEyes.format);
-
-
-        // This is the primary Material for the Quad used for the virtual TV.
-        // Assigning the 2x width _bothEyes texture to it means it always has valid
-        // game bits.  The custom sbsShader for the material takes care of 
-        // showing the correct half for each eye.
-
-        GetComponent<Renderer>().material.mainTexture = _bothEyes;
-
-
-        // These are test Quads, and will be removed.  One for each eye. Might be deactivated.
-        GameObject leftScreen = GameObject.Find("left");
-        if (leftScreen != null)
-        {
-            Material leftMat = leftScreen.GetComponent<Renderer>().material;
-            leftMat.mainTexture = _bothEyes;
-            // Using same primary 2x width shared texture, specify which half is used.
-            leftMat.mainTextureScale = new Vector2(0.5f, 1.0f);
-            leftMat.mainTextureOffset = new Vector2(0.5f, 0);
-        }
-        GameObject rightScreen = GameObject.Find("right");
-        if (rightScreen != null)
-        {
-            Material rightMat = rightScreen.GetComponent<Renderer>().material;
-            rightMat.mainTexture = _bothEyes;
-            rightMat.mainTextureScale = new Vector2(0.5f, 1.0f);
-            rightMat.mainTextureOffset = new Vector2(0.0f, 0);
-        }
-
-        // With the game fully launched and showing frames, we no longer need InfoText.
-        // Setting it Inactive makes it not take any drawing cycles, as opposed to an empty string.
-        infoText.gameObject.SetActive(false);
-
-        // ToDo: To work, we need to pass in a parameter? 
-        // This will call to DeviarePlugin native DLL routine to fetch current gGameSurfaceShare HANDLE.
-        //System.Int32 dummy = 0; // (int)_tex.GetNativeTexturePtr();
-        //object deviare = dummy;
-        //_gameEventSignal = _spyMgr.CallCustomApi(_gameProcess, _nativeDLLName, "GetEventHandle", ref deviare, true);
-
-
-        //StartCoroutine("SyncAtStartOfFrame");
-        //StartCoroutine("SyncAtEndofFrame");
-
-        yield return null;
-    }
 
 
     // -----------------------------------------------------------------------------
@@ -502,12 +368,139 @@ public class DrawSBS : MonoBehaviour
 
 
     // -----------------------------------------------------------------------------
+    // Our x64 Native DLL allows us direct access to DX11 in order to take
+    // the shared handle and turn it into a ID3D11ShaderResourceView for Unity.
+
+    [DllImport("UnityNativePlugin64")]
+    private static extern IntPtr CreateSharedTexture(int sharedHandle);
+    [DllImport("UnityNativePlugin64")]
+    private static extern int GetGameWidth();
+    [DllImport("UnityNativePlugin64")]
+    private static extern int GetGameHeight();
+    [DllImport("UnityNativePlugin64")]
+    private static extern int GetGameFormat();
+
+    readonly bool noMipMaps = false;
+    readonly bool linearColorSpace = true;
+
+    // WaitForSharedSurface will just wait until the CreateDevice has been called in 
+    // DeviarePlugin, and thus we have created a shared surface for copying game bits into.
+    // This is asynchronous because it's in the game world, and we don't know when
+    // it will happen.  This is a polling mechanism, which is not
+    // great, but should be checking on a 4 byte HANDLE from the game side,
+    // once a frame, which is every 11ms.  Only worth doing something more 
+    // heroic if this proves to be a problem.
+    //
+    // Once the GetSharedSurface returns with non-null, we are ready to continue
+    // with the VR side of showing those bits.
+
+    void PollForSharedSurface()
+    {
+        // ToDo: To work, we need to pass in a parameter? Could use named pipe instead.
+        // This will call to DeviarePlugin native DLL in the game, to fetch current gGameSurfaceShare HANDLE.
+        System.Int32 native = 0; // (int)_tex.GetNativeTexturePtr();
+        object parm = native;
+        System.Int32 pollHandle = _spyMgr.CallCustomApi(_gameProcess, _nativeDLLName, "GetSharedHandle", ref parm, true);
+
+        if (pollHandle == gGameSharedHANDLE)
+            return;
+
+        gGameSharedHANDLE = pollHandle;
+        print("-> Got shared handle: " + gGameSharedHANDLE.ToString("x"));
+
+
+        // Call into the x64 UnityNativePlugin DLL for DX11 access, in order to create a ID3D11ShaderResourceView.
+        // You'd expect this to be a ID3D11Texture2D, but that's not what Unity wants.
+        // We also fetch the Width/Height/Format from the C++ side, as it's simpler than
+        // making an interop for the GetDesc call.
+
+        IntPtr shared = CreateSharedTexture(gGameSharedHANDLE);
+        int width = GetGameWidth();
+        int height = GetGameHeight();
+        int format = GetGameFormat();
+
+        // This is the Unity Texture2D, double width texture, with right eye on the left half.
+        // It will always be up to date with latest game image, because we pass in 'shared'.
+
+        // Really not sure how this color format works.  The DX9 values are completely different,
+        // and typically the games are ARGB format there, but still look fine here once we
+        // create DX11 texture with RGBA format.
+        // DXGI_FORMAT_R8G8B8A8_UNORM = 28,
+        // DXGI_FORMAT_R8G8B8A8_UNORM_SRGB = 29,
+        // DXGI_FORMAT_B8G8R8A8_UNORM = 87          (The Ball, DX9)
+        // DXGI_FORMAT_B8G8R8A8_UNORM_SRGB = 91,
+        // DXGI_FORMAT_R10G10B10A2_UNORM = 24       ME:Andromenda   Unity RenderTextureFormat, but not TextureFormat
+        //  No SRGB variant of R10G10B10A2.
+        // DXGI_FORMAT_B8G8R8X8_UNORM = 88,         Trine   Unity RGB24
+
+        bool colorSpace = linearColorSpace;
+        if (format == 28 || format == 87 || format == 88)
+            colorSpace = linearColorSpace;
+        else if (format == 29 || format == 91)
+            colorSpace = !linearColorSpace;
+        else
+            //throw new Exception(String.Format("Game uses unknown DXGI_FORMAT: {0}", format));
+            print(String.Format("Game uses unknown DXGI_FORMAT: {0}", format));
+
+        _bothEyes = Texture2D.CreateExternalTexture(width, height, TextureFormat.RGBA32, noMipMaps, colorSpace, shared);
+
+        // ToDo: might always require BGRA32, not sure.  Games typically use DXGI_FORMAT_R8G8B8A8_UNORM, 
+        //  but if it's different, not sure what's the right approach.
+        //        _bothEyes = Texture2D.CreateExternalTexture(3200, 900, TextureFormat.BGRA32, false, true, shared);
+
+        print("..eyes width: " + _bothEyes.width + " height: " + _bothEyes.height + " format: " + _bothEyes.format);
+
+
+        // This is the primary Material for the Quad used for the virtual TV.
+        // Assigning the 2x width _bothEyes texture to it means it always has valid
+        // game bits.  The custom sbsShader.shader for the material takes care of 
+        // showing the correct half for each eye.
+
+        GetComponent<Renderer>().material.mainTexture = _bothEyes;
+
+
+        // These are test Quads, and will be removed.  One for each eye. Might be deactivated.
+        GameObject leftScreen = GameObject.Find("left");
+        if (leftScreen != null)
+        {
+            Material leftMat = leftScreen.GetComponent<Renderer>().material;
+            leftMat.mainTexture = _bothEyes;
+            // Using same primary 2x width shared texture, specify which half is used.
+            leftMat.mainTextureScale = new Vector2(0.5f, 1.0f);
+            leftMat.mainTextureOffset = new Vector2(0.5f, 0);
+        }
+        GameObject rightScreen = GameObject.Find("right");
+        if (rightScreen != null)
+        {
+            Material rightMat = rightScreen.GetComponent<Renderer>().material;
+            rightMat.mainTexture = _bothEyes;
+            rightMat.mainTextureScale = new Vector2(0.5f, 1.0f);
+            rightMat.mainTextureOffset = new Vector2(0.0f, 0);
+        }
+
+        // With the game fully launched and showing frames, we no longer need InfoText.
+        // Setting it Inactive makes it not take any drawing cycles, as opposed to an empty string.
+        infoText.gameObject.SetActive(false);
+
+
+        //StartCoroutine("SyncAtStartOfFrame");
+        //StartCoroutine("SyncAtEndofFrame");
+    }
+
+    // -----------------------------------------------------------------------------
     // Update is called once per frame, before rendering. Great diagram:
     // https://docs.unity3d.com/Manual/ExecutionOrder.html
     // Update is much slower than coroutines.  Unless it's required for VR, skip it.
 
     void Update()
     {
+        // We need to setup our drawing Texture again if it ever changes in the 
+        // game side.  This can happen if they change in-game resolution, or UE4
+        // does a fullscreen switch. 
+        PollForSharedSurface();
+
+        // Doing GC on an ongoing basis is recommended for VR, to avoid weird stalls
+        // at random times.
         if (Time.frameCount % 30 == 0)
             System.GC.Collect();
 

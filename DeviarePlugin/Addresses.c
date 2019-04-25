@@ -133,4 +133,12 @@ LPVOID lpvtbl_Present_DX11(IDXGISwapChain* pSwapChain)
 	return pSwapChain->lpVtbl->Present;
 }
 
+LPVOID lpvtbl_ResizeBuffers(IDXGISwapChain* pSwapChain)
+{
+	if (!pSwapChain)
+		return NULL;
+
+	return pSwapChain->lpVtbl->ResizeBuffers;
+}
+
 #undef CINTERFACE
