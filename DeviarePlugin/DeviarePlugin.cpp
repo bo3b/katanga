@@ -397,7 +397,7 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 	//	IDirect3D9* Direct3DCreate9(
 	//		UINT SDKVersion
 	//	);
-	if (wcscmp(name, L"D3D9.DLL!Direct3DCreate9") == 0)
+	if (wcscmp(name, L"D3D9.DLL!Direct3DCreate9") == 0 || wcscmp(name, L"D3D9.DLL!Direct3DCreate9Ex") == 0)
 	{
 		IDirect3D9Ex* pDX9Ex = nullptr;
 		INktParam* nktResult;

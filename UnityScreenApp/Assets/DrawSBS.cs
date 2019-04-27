@@ -200,6 +200,11 @@ public class DrawSBS : MonoBehaviour
             if (create9Hook == null)
                 throw new Exception("Failed to hook D3D9.DLL!Direct3DCreate9");
 
+            print("Hook the D3D9.DLL!Direct3DCreate9Ex...");
+            NktHook create9ExHook = _spyMgr.CreateHook("D3D9.DLL!Direct3DCreate9Ex", (int)eNktHookFlags.flgOnlyPreCall);
+            if (create9ExHook == null)
+                throw new Exception("Failed to hook D3D9.DLL!Direct3DCreate9Ex");
+
             // Make sure the CustomHandler in the NativePlugin at OnFunctionCall gets called when this 
             // object is created. At that point, the native code will take over.
 
@@ -209,6 +214,7 @@ public class DrawSBS : MonoBehaviour
             factory1Hook.AddCustomHandler(_nativeDLLName, 0, "");
 
             create9Hook.AddCustomHandler(_nativeDLLName, 0, "");
+            create9ExHook.AddCustomHandler(_nativeDLLName, 0, "");
 
             // Finally attach and activate the hook in the still suspended game process.
 
@@ -223,6 +229,8 @@ public class DrawSBS : MonoBehaviour
 
             create9Hook.Attach(_gameProcess, true);
             create9Hook.Hook(true);
+            create9ExHook.Attach(_gameProcess, true);
+            create9ExHook.Hook(true);
 
             // Ready to go.  Let the game startup.  When it calls Direct3DCreate9, we'll be
             // called in the NativePlugin::OnFunctionCall
