@@ -64,6 +64,14 @@ LPVOID lpvtbl_Present_DX9(IDirect3DDevice9* pDX9Device)
 	return pDX9Device->lpVtbl->Present;
 }
 
+LPVOID lpvtbl_Reset(IDirect3DDevice9* pDX9Device)
+{
+	if (!pDX9Device)
+		return NULL;
+
+	return pDX9Device->lpVtbl->Reset;
+}
+
 LPVOID lpvtbl_CreateTexture(IDirect3DDevice9* pDX9Device)
 {
 	if (!pDX9Device)

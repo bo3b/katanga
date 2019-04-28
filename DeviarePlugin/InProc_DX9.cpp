@@ -189,7 +189,7 @@ HRESULT (__stdcall *pOrigPresent)(IDirect3DDevice9* This,
 // of whatever the game drew, and that will be passed along via the shared surface
 // to the VR layer.
 //
-// The StretchRect to the gGameSurface will be duplicated in the gGameTexture. So
+// The StretchRect to the gGameSurface will be duplicated in the gSharedTarget. So
 // even though we are sharing the original Texture and not the target gGameSurface
 // here, we still expect it to be stereo and match the gGameSurface.
 
@@ -232,6 +232,127 @@ HRESULT __stdcall Hooked_Present(IDirect3DDevice9* This,
 	//} while (object != WAIT_OBJECT_0);
 
 	return hrp;
+}
+
+
+//-----------------------------------------------------------
+// Common code for both initial setup, and changing of the game resolution
+// via the Reset call.  When the shared gGameSharedHandle changes
+// from null or an prior version, the Unity side will pick it up
+// and rebuild the drawing Quad in VR.
+//
+// Now that we have a proper Ex Device from the game, let's also make a 
+// DX9 Surface, so that we can snapshot the game output.  This surface needs to
+// use the Shared parameter, so that we can share it to another Device.  Because
+// these are all DX9Ex objects, the share will work.
+// 
+// The Nvidia documentation suggests this should be an OffScreenPlainSurface,
+// but that has never worked, because it is disallowed by DX9.  Experimenting
+// quite a bit, I hit upon using CreateTexture, with the D3DUSAGE_RENDERTARGET
+// flag set.  
+//
+// This Texture itself cannot be shared here.  When shared variable is set for input,
+// the StretchRect fails at Present, and makes a mono copy.  Thus, we need to
+// create a second RenderTarget, which will be the one passed to the VR/Unity side.
+
+void CreateSharedRenderTarget(IDirect3DDevice9* pDevice9)
+{
+	HRESULT res;
+	HANDLE oldGameSharedHandle;
+	IDirect3DSurface9* oldGameSurface;
+	IDirect3DSurface9* oldSharedTarget;
+	IDirect3DSurface9* pBackBuffer;
+	D3DSURFACE_DESC desc;
+	HANDLE tempSharedHandle = NULL;
+
+	// Save possible prior usage to be disposed after we recreate.
+	// Since this is multi-threaded and multi-process, we want to be careful
+	// about disposing cleanly, and not leaving dangling nulls or broken references.
+	// It's OK to replace the gGameSurface and gSharedTarget, as those are local
+	// references, and the old surfaces would still exist, just stop being 
+	// updated.  But any change to gGameSharedHandle will kick off a rebuild in the
+	// VR side, so everything must be in order before we do that.
+
+	oldGameSharedHandle = gGameSharedHandle;
+	oldGameSurface = gGameSurface;
+	oldSharedTarget = gSharedTarget;
+
+	res = pDevice9->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &pBackBuffer);
+	if (FAILED(res))
+		throw std::exception("Fail to GetBackBuffer in CreateSharedRenderTarget");
+	res = pBackBuffer->GetDesc(&desc);
+	if (FAILED(res))
+		throw std::exception("Fail to GetDesc on BackBuffer");
+	pBackBuffer->Release();
+
+	UINT width = desc.Width * 2;
+	UINT height = desc.Height;
+	D3DFORMAT format = desc.Format;
+	IDirect3DTexture9* stereoCopy = nullptr;
+
+	res = pDevice9->CreateTexture(width, height, 0, D3DUSAGE_RENDERTARGET, format, D3DPOOL_DEFAULT,
+		&stereoCopy, nullptr);
+	if (FAILED(res))
+		throw std::exception("Fail to create shared stereo Texture");
+
+	res = stereoCopy->GetSurfaceLevel(0, &gGameSurface);
+	if (FAILED(res))
+		throw std::exception("Fail to GetSurfaceLevel of stereo Texture");
+
+	// Actual shared surface, as a RenderTarget. RenderTarget because that is
+	// what the Unity side is expecting.  tempSharedHandle, to avoid kicking
+	// off changes just yet, and reusing the current gGameSharedHandle errors out.
+	res = pDevice9->CreateRenderTarget(width, height, format, D3DMULTISAMPLE_NONE, 0, true,
+		&gSharedTarget, &tempSharedHandle);
+	if (FAILED(res))
+		throw std::exception("Fail to CreateRenderTarget for copy of stereo Texture");
+
+	// Everything has been setup, or cleanly re-setup, and we can now enable the
+	// VR side to kick in and use the new surfaces.
+	gGameSharedHandle = tempSharedHandle;
+
+	// Lastly, let's clean up the old surfaces if they exist.  Strangely, the 
+	// 'HANDLE' here for gGameSharedHandle is not a 'real' HANDLE and cannot be 
+	// released.  Microsoft is sloppy as hell. Looks like we just have to leak it.
+	//if (oldGameSharedHandle)
+	//	CloseHandle(oldGameSharedHandle);
+	if (oldGameSurface)
+		oldGameSurface->Release();
+	if (oldSharedTarget)
+		oldSharedTarget->Release();
+}
+
+//-----------------------------------------------------------
+//
+// For IDirect3DDevice9->Reset, this is used to setup the backbuffer
+// again for a different resolution.  So we need to handle this and
+// rebuild our drawing chain whenever it changes.
+
+HRESULT(__stdcall *pOrigReset)(IDirect3DDevice9* This,
+	D3DPRESENT_PARAMETERS *pPresentationParameters
+) = nullptr;
+
+HRESULT __stdcall Hooked_Reset(IDirect3DDevice9* This,
+	D3DPRESENT_PARAMETERS *pPresentationParameters)
+{
+	HRESULT hr = pOrigReset(This, pPresentationParameters);
+
+#ifdef _DEBUG
+	if (pPresentationParameters)
+	{
+		wchar_t info[512];
+		swprintf_s(info, _countof(info), L"  Width: %d, Height: %d, Format: %d\n"
+			, pPresentationParameters->BackBufferWidth, pPresentationParameters->BackBufferHeight, pPresentationParameters->BackBufferFormat);
+		::OutputDebugString(info);
+}
+#endif
+
+	// Setup the shared RenderTarget again, to match this updated backbuffer.
+	// This rebuilds the entire drawing chain all the way through to VR side.
+
+	CreateSharedRenderTarget(This);
+
+	return hr;
 }
 
 
@@ -592,6 +713,11 @@ HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 		if (FAILED(dwOsErr))
 			::OutputDebugStringA("Failed to hook IDirect3DDevice9::Present\n");
 
+		dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigReset,
+			lpvtbl_Reset(pDevice9), Hooked_Reset, 0);
+		if (FAILED(dwOsErr))
+			::OutputDebugStringA("Failed to hook IDirect3DDevice9::Reset\n");
+
 		dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigCreateTexture,
 			lpvtbl_CreateTexture(pDevice9), Hooked_CreateTexture, 0);
 		if (FAILED(dwOsErr))
@@ -638,40 +764,11 @@ HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 		if (FAILED(res))
 			throw std::exception("Failed to SetGPUThreadPriority for IDirect3DDevice9Ex\n");
 
-		// Now that we have a proper Ex Device from the game, let's also make a 
-		// DX9 Surface, so that we can snapshot the game output.  This surface needs to
-		// use the Shared parameter, so that we can share it to another Device.  Because
-		// these are all DX9Ex objects, the share will work.
-		// 
-		// The Nvidia documentation suggests this should be an OffScreenPlainSurface,
-		// but that has never worked, because it is disallowed by DX9.  Experimenting
-		// quite a bit, I hit upon using CreateTexture, with the D3DUSAGE_RENDERTARGET
-		// flag set.  
-		//
-		// This Texture itself cannot be shared here.  When shared variable is set for input,
-		// the StretchRect fails at Present, and makes a mono copy.  Thus, we need to
-		// create a second RenderTarget, which will be the one passed to the VR/Unity side.
+		// Create the duplicate stereo surface, which will then be copied into the
+		// gSharedTarget to share across to VR side.
 
-		UINT width = pPresentationParameters->BackBufferWidth * 2;
-		UINT height = pPresentationParameters->BackBufferHeight;
-		D3DFORMAT format = pPresentationParameters->BackBufferFormat;
-		IDirect3DTexture9* gGameTexture = nullptr;
+		CreateSharedRenderTarget(pDevice9);
 
-		res = pDevice9->CreateTexture(width, height, 0, D3DUSAGE_RENDERTARGET, format, D3DPOOL_DEFAULT,
-			&gGameTexture, nullptr);
-		if (FAILED(res))
-			throw std::exception("Fail to create shared stereo Texture");
-			
-		res = gGameTexture->GetSurfaceLevel(0, &gGameSurface);
-		if (FAILED(res))
-			throw std::exception("Fail to GetSurfaceLevel of stereo Texture");
-
-		// Actual shared surface, as a RenderTarget. RenderTarget because its main
-		// goal at this moment is to be written to.
-		res = pDevice9->CreateRenderTarget(width, height, format, D3DMULTISAMPLE_NONE, 0, true,
-			&gSharedTarget, &gGameSharedHandle);
-		if (FAILED(res))
-			throw std::exception("Fail to CreateRenderTarget for copy of stereo Texture");
 
 		// Since we are doing setup here, also create a thread that will be used to copy
 		// from the stereo game surface into the shared surface.  This way the game will
