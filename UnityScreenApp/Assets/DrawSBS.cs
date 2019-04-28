@@ -3,6 +3,7 @@ using System.Collections;
 using System.Runtime.InteropServices;
 using System.IO;
 using System.Text;
+using System.Collections.Generic;
 
 using UnityEngine;
 using UnityEngine.UI;
@@ -10,10 +11,35 @@ using UnityEngine.UI;
 using Nektra.Deviare2;
 using System.Diagnostics;
 
+public enum FileArchitecture
+{
+    x32 = 0x014c,
+    Itanium = 0x0200,
+    x64 = 0x8664
+};
+
+
 public class DrawSBS : MonoBehaviour
 {
-    string katanga_directory;
-    string gameToLaunch;
+    /// <summary>
+    /// Add name to the big screen as info on launch.
+    /// </summary>
+    public Text infoText;
+
+    /// <summary>
+    /// Root directory of Katanga
+    /// </summary>
+    string KatangaDirectory { get; set; }
+
+    /// <summary>
+    /// Absolute file path to the executable of the game. Used to start the game.
+    /// </summary>
+    public string GameLaunchPath { get; set; }
+
+    /// <summary>
+    /// User friendly name of the game. This is shown on the big screen as info on launch.
+    /// </summary>
+    public string GameTitle { get; set; }
 
     static NktSpyMgr _spyMgr;
     static NktProcess _gameProcess;
@@ -29,7 +55,6 @@ public class DrawSBS : MonoBehaviour
     static int ResetEvent = 0;
     static int SetEvent = 1;
 
-    public Text infoText;
 
     // -----------------------------------------------------------------------------
 
@@ -39,6 +64,58 @@ public class DrawSBS : MonoBehaviour
     [DllImport("UnityNativePlugin64")]
     static extern void SelectGameDialog([MarshalAs(UnmanagedType.LPWStr)] StringBuilder unicodeFileName, int len);
 
+
+    private FileArchitecture GetFileArchitecture(string exePath)
+    {
+        if (File.Exists(exePath))
+        {
+            const int PE_POINTER_OFFSET = 60;
+            const int MACHINE_OFFSET = 4;
+            byte[] data = new byte[4096];
+            using (Stream s = new FileStream(exePath, FileMode.Open, FileAccess.Read))
+            {
+                s.Read(data, 0, 4096);
+            }
+            // dos header is 64 bytes, last element, long (4 bytes) is the address of the PE header
+            int PE_HEADER_ADDR = BitConverter.ToInt32(data, PE_POINTER_OFFSET);
+            int machineUint = BitConverter.ToUInt16(data, PE_HEADER_ADDR + MACHINE_OFFSET);
+
+            return (FileArchitecture)machineUint;
+        }
+
+        throw new Exception("File Architecture of game exe could not be detected");
+    }
+
+
+    private void RegisterDeviareComDll()
+    {
+        string deviareDllPath = "";
+
+        if (GetFileArchitecture(GameLaunchPath) == FileArchitecture.x32)
+        {
+            deviareDllPath = Path.Combine(Application.dataPath, @"Plugins\DeviareCom.dll");
+        }
+        else
+        {
+            deviareDllPath = Path.Combine(Application.dataPath, @"Plugins\DeviareCom64.dll");
+        }
+
+        if (File.Exists(deviareDllPath))
+        {
+            Process proc = new Process();
+            proc.StartInfo.FileName = "regsvr32.exe";
+            proc.StartInfo.Arguments = "\"" + deviareDllPath + "\"" + " /s";
+            proc.StartInfo.Verb = "runas";
+            proc.Start();
+            proc.WaitForExit();
+        }
+        else
+        {
+            throw new Exception("Deviare DLL could not be registered: " + deviareDllPath);
+        }
+    }
+
+
     // The very first thing that happens for the app.
     private void Awake()
     {
@@ -47,8 +124,7 @@ public class DrawSBS : MonoBehaviour
         Application.logMessageReceived += FatalExit;
 
         // We need to save and restore to this Katanga directory, or Unity editor gets super mad.
-        katanga_directory = Environment.CurrentDirectory;
-
+        KatangaDirectory = Environment.CurrentDirectory;
 
         // Check if the CmdLine arguments include a game path to be launched.
         // We are using --game-path to make it clearly different than Unity arguments.
@@ -57,12 +133,18 @@ public class DrawSBS : MonoBehaviour
         {
             print(args[i]);
             if (args[i] == "--game-path")
-                gameToLaunch = args[i + 1];
+            {
+                GameLaunchPath = args[i + 1];
+            }
+            else if (args[i] == "--game-title")
+            {
+                GameTitle = args[i + 1];
+            }
         }
 
         // If they didn't pass a --game-path argument, then bring up the GetOpenFileName
         // dialog to let them choose.
-        if (String.IsNullOrEmpty(gameToLaunch))
+        if (string.IsNullOrEmpty(GameLaunchPath))
         {
             // Ask user to select the game to run in virtual 3D.  
             // We are doing this super early because there are scenarios where Unity
@@ -73,15 +155,20 @@ public class DrawSBS : MonoBehaviour
             SelectGameDialog(sb, sb.Capacity);
 
             if (sb.Length != 0)
-                gameToLaunch = sb.ToString();
+                GameLaunchPath = sb.ToString();
         }
 
-        if (String.IsNullOrEmpty(gameToLaunch))
+        if (string.IsNullOrEmpty(GameLaunchPath))
             throw new Exception("No game specified to launch.");
 
+        // If game title wasn't passed via cmd argument then instead take the name of the game exe as the title
+        if (string.IsNullOrEmpty(GameTitle))
+        {
+            GameTitle = GameLaunchPath.Substring(GameLaunchPath.LastIndexOf('\\') + 1);
+        }
+
         // With the game properly selected, add name to the big screen as info on launch.
-        string gameName = gameToLaunch.Substring(gameToLaunch.LastIndexOf('\\') + 1);
-        infoText.text = "Launching...\n" + gameName;
+        infoText.text = "Launching...\n\n" + GameTitle;
     }
 
     // -----------------------------------------------------------------------------
@@ -91,7 +178,7 @@ public class DrawSBS : MonoBehaviour
         int hresult;
         object continueevent;
 
-        print("Running: " + gameToLaunch + "\n");
+        print("Running: " + GameLaunchPath + "\n");
 
         // ToDo: only do this when we also have a recenter key/button.
         //  This makes floor move to wherever it starts.
@@ -104,13 +191,15 @@ public class DrawSBS : MonoBehaviour
 
         string wd = System.IO.Directory.GetCurrentDirectory();
         print("WorkingDirectory: " + wd);
-        print("CurrentDirectory: " + katanga_directory);
+        print("CurrentDirectory: " + KatangaDirectory);
 
         //print("App Directory:" + Environment.CurrentDirectory);
         //foreach (var path in Directory.GetFileSystemEntries(Environment.CurrentDirectory))
         //    print(System.IO.Path.GetFileName(path)); // file name
         //foreach (var path in Directory.GetFileSystemEntries(Environment.CurrentDirectory + "\\Assets\\Plugins\\"))
         //    print(System.IO.Path.GetFileName(path)); // file name
+
+        
 
         _spyMgr = new NktSpyMgr();
         hresult = _spyMgr.Initialize();
@@ -122,6 +211,7 @@ public class DrawSBS : MonoBehaviour
 #endif
         print("Successful SpyMgr Init");
 
+        RegisterDeviareComDll();
 
         // We must set the game directory specifically, otherwise it winds up being the 
         // C# app directory which can make the game crash.  This must be done before CreateProcess.
@@ -130,14 +220,14 @@ public class DrawSBS : MonoBehaviour
         // This must be reset back to the Unity game directory, otherwise Unity will
         // crash with a fatal error.
 
-        Directory.SetCurrentDirectory(Path.GetDirectoryName(gameToLaunch));
+        Directory.SetCurrentDirectory(Path.GetDirectoryName(GameLaunchPath));
         {
             // Launch the game, but suspended, so we can hook our first call and be certain to catch it.
 
-            print("Launching: " + gameToLaunch + "...");
-            _gameProcess = _spyMgr.CreateProcess(gameToLaunch, true, out continueevent);
+            print("Launching: " + GameLaunchPath + "...");
+            _gameProcess = _spyMgr.CreateProcess(GameLaunchPath, true, out continueevent);
             if (_gameProcess == null)
-                throw new Exception("CreateProcess game launch failed: " + gameToLaunch);
+                throw new Exception("CreateProcess game launch failed: " + GameLaunchPath);
 
 
             // Load the NativePlugin for the C++ side.  The NativePlugin must be in this app folder.
@@ -158,6 +248,7 @@ public class DrawSBS : MonoBehaviour
             {
                 int lastHR = GetLastDeviareError();
                 string deadbeef = String.Format("Could not load {0}: 0x{1:X}", _nativeDLLName, lastHR);
+                Directory.SetCurrentDirectory(KatangaDirectory);
                 throw new Exception(deadbeef);
             }
 
@@ -230,9 +321,9 @@ public class DrawSBS : MonoBehaviour
             print("Continue game launch...");
             _spyMgr.ResumeProcess(_gameProcess, continueevent);
         }
-        Directory.SetCurrentDirectory(katanga_directory);
+        Directory.SetCurrentDirectory(KatangaDirectory);
 
-        print("Restored Working Directory to: " + katanga_directory);
+        print("Restored Working Directory to: " + KatangaDirectory);
 
 
         // We've gotten everything launched, hooked, and setup.  Now we need to wait for the
@@ -579,7 +670,7 @@ public class DrawSBS : MonoBehaviour
         // We set back to the katanga_directory here, in case we throw
         // an error.  This keeps the editor from crashing.
         string activeDirectory = Directory.GetCurrentDirectory();
-        Directory.SetCurrentDirectory(katanga_directory);
+        Directory.SetCurrentDirectory(KatangaDirectory);
 
         int result;
         result = GetLastErrorCode();
