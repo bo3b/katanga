@@ -45,6 +45,7 @@
 
 // DX9 - InProc_DX9.cpp
 void HookCreateDevice(IDirect3D9Ex* pDX9Ex);
+void CreateSharedRenderTarget(D3DPRESENT_PARAMETERS * pPresentationParameters, HRESULT &res, IDirect3DDevice9 * pDevice9);
 // DX11 - InProc_DX11.cpp
 void HookCreateSwapChain(IDXGIFactory* dDXGIFactory);
 void HookCreateSwapChainForHwnd(IDXGIFactory2* dDXGIFactory);
@@ -65,6 +66,7 @@ extern "C" LPVOID lpvtbl_CreateIndexBuffer(IDirect3DDevice9* pDX9Device);
 extern "C" LPVOID lpvtbl_DrawIndexedPrimitiveUP(IDirect3DDevice9* pDX9Device);
 
 extern "C" LPVOID lpvtbl_Present_DX9(IDirect3DDevice9* pDX9Device);
+extern "C" LPVOID lpvtbl_Reset(IDirect3DDevice9* pDX9Device);
 
 // DX11
 extern "C" LPVOID lpvtbl_CreateSwapChain(IDXGIFactory* dDXGIFactory);
