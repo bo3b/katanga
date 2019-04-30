@@ -12,6 +12,8 @@ using System.Diagnostics;
 
 public class DrawSBS : MonoBehaviour
 {
+    // test-comment for testing if commit breaks tool chain - please remove again
+
     string katanga_directory;
     string gameToLaunch;
 
