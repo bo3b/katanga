@@ -104,7 +104,7 @@ VOID WINAPI OnUnload()
 HRESULT WINAPI OnHookAdded(__in INktHookInfo *lpHookInfo, __in DWORD dwChainIndex,
 	__in LPCWSTR szParametersW)
 {
-	CComBSTR name;
+	BSTR name;
 	my_ssize_t address;
 	CHAR szBufA[1024];
 	INktProcess* pProc;
@@ -131,7 +131,7 @@ HRESULT WINAPI OnHookAdded(__in INktHookInfo *lpHookInfo, __in DWORD dwChainInde
 
 VOID WINAPI OnHookRemoved(__in INktHookInfo *lpHookInfo, __in DWORD dwChainIndex)
 {
-	CComBSTR name;
+	BSTR name;
 	my_ssize_t address;
 	CHAR szBufA[1024];
 
@@ -172,7 +172,7 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 {
 	HRESULT hr;
 
-	CComBSTR name;
+	BSTR name;
 	CComPtr<INktParamsEnum> paramsEnum;
 	CComPtr<INktParam> param;
 	my_ssize_t pointeraddress;
@@ -427,11 +427,16 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 		// However, we still need a proper return result from this call, so we set the 
 		// Nektra Result to be our IDirect3D9Ex object.  This will ultimately return to
 		// game, and be used as its IDirect3D9, even though it is IDirect3D9Ex.
+		//
+		// The Nektra API is poor and uses long, and long long here, so we need to
+		// carefully convert to those values.
+
+		LONG_PTR retPtr = (LONG_PTR)pDX9Ex;
 
 		hr = lpHookCallInfoPlugin->Result(&nktResult);
 		if (FAILED(hr))
 			throw std::exception("Failed Get NktResult");
-		hr = nktResult->put_PointerVal((long)pDX9Ex);
+		hr = nktResult->put_PointerVal(retPtr);
 		if (FAILED(hr))
 			throw std::exception("Failed put pointer");
 	}

@@ -239,7 +239,7 @@ void CheckDate()
 	struct tm t = { 0 };
 	static const char month_names[] = "JanFebMarAprMayJunJulAugSepOctNovDec";
 
-	sscanf(buildDateString, "%s %d %d", s_month, &day, &year);
+	sscanf_s(buildDateString, "%s %d %d", s_month, (unsigned)_countof(s_month), &day, &year);
 
 	month = (int)(strstr(month_names, s_month) - month_names) / 3;
 

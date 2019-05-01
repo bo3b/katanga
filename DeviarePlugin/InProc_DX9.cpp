@@ -160,8 +160,8 @@ void DrawStereoOnGame(IDirect3DDevice9* device, IDirect3DSurface9* surface, IDir
 {
 	D3DSURFACE_DESC bufferDesc;
 	back->GetDesc(&bufferDesc);
-	RECT backBufferRect = { 0, 0, bufferDesc.Width, bufferDesc.Height };
-	RECT stereoImageRect = { 0, 0, bufferDesc.Width * 2, bufferDesc.Height };
+	RECT backBufferRect = { 0, 0, (LONG) bufferDesc.Width, (LONG) bufferDesc.Height };
+	RECT stereoImageRect = { 0, 0, (LONG) bufferDesc.Width * 2, (LONG) bufferDesc.Height };
 
 	int insetW = 300;
 	int insetH = (int)(300.0 * stereoImageRect.bottom / stereoImageRect.right);
