@@ -17,6 +17,9 @@ public class DrawSBS : MonoBehaviour
     // Absolute file path to the executable of the game. We use this path to start the game.
     string gamePath;
 
+    // User friendly name of the game. This is shown on the big screen as info on launch.
+    public string gameTitle;
+
     static NktSpyMgr _spyMgr;
     static NktProcess _gameProcess;
     static string _nativeDLLName;
@@ -59,7 +62,13 @@ public class DrawSBS : MonoBehaviour
         {
             print(args[i]);
             if (args[i] == "--game-path")
+            {
                 gamePath = args[i + 1];
+            }
+            else if (args[i] == "--game-title")
+            {
+                gameTitle = args[i + 1];
+            }
         }
 
         // If they didn't pass a --game-path argument, then bring up the GetOpenFileName
@@ -81,9 +90,14 @@ public class DrawSBS : MonoBehaviour
         if (String.IsNullOrEmpty(gamePath))
             throw new Exception("No game specified to launch.");
 
+        // If game title wasn't passed via cmd argument then take the name of the game exe as the title instead
+        if (String.IsNullOrEmpty(gameTitle))
+        {
+            gameTitle = gamePath.Substring(gamePath.LastIndexOf('\\') + 1);
+        }
+
         // With the game properly selected, add name to the big screen as info on launch.
-        string gameName = gamePath.Substring(gamePath.LastIndexOf('\\') + 1);
-        infoText.text = "Launching...\n" + gameName;
+        infoText.text = "Launching...\n\n" + gameTitle;
     }
 
     // -----------------------------------------------------------------------------
