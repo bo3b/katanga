@@ -13,7 +13,9 @@ using System.Diagnostics;
 public class DrawSBS : MonoBehaviour
 {
     string katanga_directory;
-    string gameToLaunch;
+    
+    // Absolute file path to the executable of the game. We use this path to start the game.
+    string gamePath;
 
     static NktSpyMgr _spyMgr;
     static NktProcess _gameProcess;
@@ -57,12 +59,12 @@ public class DrawSBS : MonoBehaviour
         {
             print(args[i]);
             if (args[i] == "--game-path")
-                gameToLaunch = args[i + 1];
+                gamePath = args[i + 1];
         }
 
         // If they didn't pass a --game-path argument, then bring up the GetOpenFileName
         // dialog to let them choose.
-        if (String.IsNullOrEmpty(gameToLaunch))
+        if (String.IsNullOrEmpty(gamePath))
         {
             // Ask user to select the game to run in virtual 3D.  
             // We are doing this super early because there are scenarios where Unity
@@ -73,14 +75,14 @@ public class DrawSBS : MonoBehaviour
             SelectGameDialog(sb, sb.Capacity);
 
             if (sb.Length != 0)
-                gameToLaunch = sb.ToString();
+                gamePath = sb.ToString();
         }
 
-        if (String.IsNullOrEmpty(gameToLaunch))
+        if (String.IsNullOrEmpty(gamePath))
             throw new Exception("No game specified to launch.");
 
         // With the game properly selected, add name to the big screen as info on launch.
-        string gameName = gameToLaunch.Substring(gameToLaunch.LastIndexOf('\\') + 1);
+        string gameName = gamePath.Substring(gamePath.LastIndexOf('\\') + 1);
         infoText.text = "Launching...\n" + gameName;
     }
 
@@ -91,7 +93,7 @@ public class DrawSBS : MonoBehaviour
         int hresult;
         object continueevent;
 
-        print("Running: " + gameToLaunch + "\n");
+        print("Running: " + gamePath + "\n");
 
         // ToDo: only do this when we also have a recenter key/button.
         //  This makes floor move to wherever it starts.
@@ -130,14 +132,14 @@ public class DrawSBS : MonoBehaviour
         // This must be reset back to the Unity game directory, otherwise Unity will
         // crash with a fatal error.
 
-        Directory.SetCurrentDirectory(Path.GetDirectoryName(gameToLaunch));
+        Directory.SetCurrentDirectory(Path.GetDirectoryName(gamePath));
         {
             // Launch the game, but suspended, so we can hook our first call and be certain to catch it.
 
-            print("Launching: " + gameToLaunch + "...");
-            _gameProcess = _spyMgr.CreateProcess(gameToLaunch, true, out continueevent);
+            print("Launching: " + gamePath + "...");
+            _gameProcess = _spyMgr.CreateProcess(gamePath, true, out continueevent);
             if (_gameProcess == null)
-                throw new Exception("CreateProcess game launch failed: " + gameToLaunch);
+                throw new Exception("CreateProcess game launch failed: " + gamePath);
 
 
             // Load the NativePlugin for the C++ side.  The NativePlugin must be in this app folder.
