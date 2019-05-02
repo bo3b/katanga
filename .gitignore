@@ -51,9 +51,6 @@ Thumbs.db
 ios
 ios.app
 
-# include meta files
-!*.*.meta
-
 # Builds
 *.apk
 *.unitypackage
