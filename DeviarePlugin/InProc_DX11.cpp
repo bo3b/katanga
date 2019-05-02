@@ -138,7 +138,6 @@ ID3D11Device* CreateSharedTexture(IDXGISwapChain* pSwapChain)
 
 	// Save possible prior usage to be disposed after we recreate.
 
-	oldGameSharedHandle = gGameSharedHandle;
 	oldGameTexture = gGameTexture;
 
 	// It's more reliable to get the pDevice of an actual D3D11Device from
@@ -195,9 +194,6 @@ ID3D11Device* CreateSharedTexture(IDXGISwapChain* pSwapChain)
 	// here fills in the prior globals, to avoid possible dead structure usage in the
 	// Unity app.
 
-	// Fails because it's not a real NTHandle.  No idea how to properly dispose of this.
-	//if (oldGameSharedHandle)
-	//	CloseHandle(oldGameSharedHandle);
 	if (oldGameTexture)
 		oldGameTexture->Release();
 
@@ -352,6 +348,18 @@ HRESULT __stdcall Hooked_ResizeBuffers(IDXGISwapChain* This,
 	/* [in] */ UINT SwapChainFlags)
 {
 	HRESULT hr;
+
+	// As soon as we know we are setting up a new resolution, we want to set the
+	// gGameSharedHandle to null, to notify the VR side that this is going away.
+	// Given the async and multi-threaded nature of these pieces in different
+	// processes, it's not clear if this will work in every case. 
+	//
+	// ToDo: We might need to keep VR and game side in sync to avoid dead texture use.
+	//
+	// No good way to properly dispose of this shared handle, we cannot CloseHandle
+	// because it's not a real handle.  Microsoft.  Geez.
+
+	gGameSharedHandle = nullptr;
 
 #ifdef _DEBUG
 	wchar_t info[512];

@@ -258,24 +258,9 @@ HRESULT __stdcall Hooked_Present(IDirect3DDevice9* This,
 void CreateSharedRenderTarget(IDirect3DDevice9* pDevice9)
 {
 	HRESULT res;
-	HANDLE oldGameSharedHandle;
-	IDirect3DSurface9* oldGameSurface;
-	IDirect3DSurface9* oldSharedTarget;
 	IDirect3DSurface9* pBackBuffer;
 	D3DSURFACE_DESC desc;
 	HANDLE tempSharedHandle = NULL;
-
-	// Save possible prior usage to be disposed after we recreate.
-	// Since this is multi-threaded and multi-process, we want to be careful
-	// about disposing cleanly, and not leaving dangling nulls or broken references.
-	// It's OK to replace the gGameSurface and gSharedTarget, as those are local
-	// references, and the old surfaces would still exist, just stop being 
-	// updated.  But any change to gGameSharedHandle will kick off a rebuild in the
-	// VR side, so everything must be in order before we do that.
-
-	oldGameSharedHandle = gGameSharedHandle;
-	oldGameSurface = gGameSurface;
-	oldSharedTarget = gSharedTarget;
 
 	res = pDevice9->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &pBackBuffer);
 	if (FAILED(res))
@@ -310,16 +295,7 @@ void CreateSharedRenderTarget(IDirect3DDevice9* pDevice9)
 	// Everything has been setup, or cleanly re-setup, and we can now enable the
 	// VR side to kick in and use the new surfaces.
 	gGameSharedHandle = tempSharedHandle;
-
-	// Lastly, let's clean up the old surfaces if they exist.  Strangely, the 
-	// 'HANDLE' here for gGameSharedHandle is not a 'real' HANDLE and cannot be 
-	// released.  Microsoft is sloppy as hell. Looks like we just have to leak it.
-	//if (oldGameSharedHandle)
-	//	CloseHandle(oldGameSharedHandle);
-	if (oldGameSurface)
-		oldGameSurface->Release();
-	if (oldSharedTarget)
-		oldSharedTarget->Release();
+	
 }
 
 //-----------------------------------------------------------
@@ -335,6 +311,32 @@ HRESULT(__stdcall *pOrigReset)(IDirect3DDevice9* This,
 HRESULT __stdcall Hooked_Reset(IDirect3DDevice9* This,
 	D3DPRESENT_PARAMETERS *pPresentationParameters)
 {
+	// As soon as we know we are setting up a new resolution, we want to set the
+	// gGameSharedHandle to null, to notify the VR side that this is going away.
+	// Given the async and multi-threaded nature of these pieces in different
+	// processes, it's not clear if this will work in every case. 
+	//
+	// ToDo: We might need to keep VR and game side in sync to avoid dead texture use.
+	//
+	// No good way to properly dispose of this shared handle, we cannot CloseHandle
+	// because it's not a real handle.  Microsoft.  Geez.
+
+	gGameSharedHandle = nullptr;
+
+	// We are also supposed to release any of our rendertargets before calling
+	// Reset, so let's go ahead and release these, now that the null gGameSharedHandle
+	// will have stalled drawing in the VR side.  
+
+	if (gGameSurface)
+		gGameSurface->Release();
+	if (gSharedTarget)
+		gSharedTarget->Release();
+
+
+	// Fire off the Reset.  After this is called every single texture on the
+	// device will have been released, including our shared one.  Any drawing
+	// use our shared texture can thus crash the device.
+
 	HRESULT hr = pOrigReset(This, pPresentationParameters);
 
 #ifdef _DEBUG

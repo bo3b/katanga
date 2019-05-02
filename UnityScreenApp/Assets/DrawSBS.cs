@@ -27,8 +27,12 @@ public class DrawSBS : MonoBehaviour
     // Primary Texture received from game as shared ID3D11ShaderResourceView
     // It automatically updates as the injected DLL copies the bits into the
     // shared resource.
-    Texture2D _bothEyes;
-    System.Int32 gGameSharedHANDLE = 0;
+    Texture2D _bothEyes = null;
+    System.Int32 gGameSharedHandle = 0;
+
+    // Original grey texture for the screen at launch, used again for resolution changes.
+    Material screenMaterial;
+    Texture greyTexture;
 
     //    System.Int32 _gameEventSignal = 0;
     static int ResetEvent = 0;
@@ -117,6 +121,9 @@ public class DrawSBS : MonoBehaviour
         //UnityEngine.XR.InputTracking.Recenter();
 
 
+        // Store the current Texture2D on the Quad as the original grey
+        screenMaterial = GetComponent<Renderer>().material;
+        greyTexture = screenMaterial.mainTexture;
 
         string wd = System.IO.Directory.GetCurrentDirectory();
         print("WorkingDirectory: " + wd);
@@ -261,12 +268,6 @@ public class DrawSBS : MonoBehaviour
 
         // We've gotten everything launched, hooked, and setup.  Now we need to wait for the
         // game to call through to CreateDevice, so that we can create the shared surface.
-        //
-        // We need to setup our drawing Texture again if it ever changes in the 
-        // game side.  This can happen if they change in-game resolution, or UE4
-        // does a fullscreen switch. So this coroutine will check periodically.
-
-        StartCoroutine(PollForSharedSurface());
     }
 
 
@@ -439,24 +440,39 @@ public class DrawSBS : MonoBehaviour
         object parm = native;
         System.Int32 pollHandle = _spyMgr.CallCustomApi(_gameProcess, _nativeDLLName, "GetSharedHandle", ref parm, true);
 
-        if ((pollHandle != gGameSharedHANDLE) && (pollHandle != 0))
+        // When the game notifies us to Resize or Reset, we will set the gGameSharedHANDLE
+        // to NULL to notify this side.  When this happens, immediately set the Quad
+        // drawing texture to the original grey, so that we stop using the shared buffer 
+        // that might very well be dead by now.
+        
+        if (pollHandle == 0)
         {
-            gGameSharedHANDLE = pollHandle;
-            print("-> Got shared handle: " + gGameSharedHANDLE.ToString("x"));
+            screenMaterial.mainTexture = greyTexture;
+            return;
+        }
 
+        // The game side is going to kick gGameSharedHandle to null *before* it resets the world
+        // over there, so we'll likely get at least one frame of grey space.  If it's doing a full
+        // screen reset, it will be much longer than that.  In any case, as soon as it switches
+        // back from null to a valid Handle, we can rebuild our chain here.  This also holds
+        // true for initial setup, where it will start as null.
 
+        if (pollHandle != gGameSharedHandle)
+        {
+            gGameSharedHandle = pollHandle;
+
+            print("-> Got shared handle: " + gGameSharedHandle.ToString("x"));
+
+            
             // Call into the x64 UnityNativePlugin DLL for DX11 access, in order to create a ID3D11ShaderResourceView.
             // You'd expect this to be a ID3D11Texture2D, but that's not what Unity wants.
             // We also fetch the Width/Height/Format from the C++ side, as it's simpler than
             // making an interop for the GetDesc call.
 
-            IntPtr shared = CreateSharedTexture(gGameSharedHANDLE);
+            IntPtr shared = CreateSharedTexture(gGameSharedHandle);
             int width = GetGameWidth();
             int height = GetGameHeight();
             int format = GetGameFormat();
-
-            // This is the Unity Texture2D, double width texture, with right eye on the left half.
-            // It will always be up to date with latest game image, because we pass in 'shared'.
 
             // Really not sure how this color format works.  The DX9 values are completely different,
             // and typically the games are ARGB format there, but still look fine here once we
@@ -478,11 +494,10 @@ public class DrawSBS : MonoBehaviour
                 //throw new Exception(String.Format("Game uses unknown DXGI_FORMAT: {0}", format));
                 print(String.Format("Game uses unknown DXGI_FORMAT: {0}", format));
 
-            _bothEyes = Texture2D.CreateExternalTexture(width, height, TextureFormat.RGBA32, noMipMaps, colorSpace, shared);
+            // This is the Unity Texture2D, double width texture, with right eye on the left half.
+            // It will always be up to date with latest game image, because we pass in 'shared'.
 
-            // ToDo: might always require BGRA32, not sure.  Games typically use DXGI_FORMAT_R8G8B8A8_UNORM, 
-            //  but if it's different, not sure what's the right approach.
-            //        _bothEyes = Texture2D.CreateExternalTexture(3200, 900, TextureFormat.BGRA32, false, true, shared);
+            _bothEyes = Texture2D.CreateExternalTexture(width, height, TextureFormat.RGBA32, noMipMaps, colorSpace, shared);
 
             print("..eyes width: " + _bothEyes.width + " height: " + _bothEyes.height + " format: " + _bothEyes.format);
 
@@ -492,7 +507,7 @@ public class DrawSBS : MonoBehaviour
             // game bits.  The custom sbsShader.shader for the material takes care of 
             // showing the correct half for each eye.
 
-            GetComponent<Renderer>().material.mainTexture = _bothEyes;
+            screenMaterial.mainTexture = _bothEyes;
 
 
             // These are test Quads, and will be removed.  One for each eye. Might be deactivated.
