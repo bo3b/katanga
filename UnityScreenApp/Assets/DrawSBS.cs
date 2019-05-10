@@ -13,7 +13,7 @@ using System.Diagnostics;
 public class DrawSBS : MonoBehaviour
 {
     string katanga_directory;
-    
+
     // Absolute file path to the executable of the game. We use this path to start the game.
     string gamePath;
 
@@ -39,6 +39,10 @@ public class DrawSBS : MonoBehaviour
     static int SetEvent = 1;
 
     public Text infoText;
+
+    // We have to use a low level Keyyboard listener because Unity's built in listener doesn't 
+    // detect keyboard events when the Unity app isn't in the foreground
+    private LowLevelKeyboardListener _listener;
 
     // -----------------------------------------------------------------------------
 
@@ -106,10 +110,25 @@ public class DrawSBS : MonoBehaviour
 
     // -----------------------------------------------------------------------------
 
+    void _listener_OnKeyPressed(object sender, KeyPressedArgs e)
+    {
+        // if user pressed F12 then recenter the view of the VR headset
+        if (e.KeyPressed == 123)
+        {
+            UnityEngine.XR.XRDevice.SetTrackingSpaceType(UnityEngine.XR.TrackingSpaceType.Stationary);
+            UnityEngine.XR.InputTracking.Recenter();
+        }
+    }
+
     void Start()
     {
         int hresult;
         object continueevent;
+
+        // hook keyboard to detect when the user presses a button
+        _listener = new LowLevelKeyboardListener();
+        _listener.OnKeyPressed += _listener_OnKeyPressed;
+        _listener.HookKeyboard();
 
         print("Running: " + gamePath + "\n");
 
@@ -117,8 +136,8 @@ public class DrawSBS : MonoBehaviour
         //  This makes floor move to wherever it starts.
         // Let's recenter around wherever the headset is pointing. Seems to be the model
         // that people are expecting, instead of the facing forward based on room setup.
-        //UnityEngine.XR.XRDevice.SetTrackingSpaceType(UnityEngine.XR.TrackingSpaceType.Stationary);
-        //UnityEngine.XR.InputTracking.Recenter();
+        UnityEngine.XR.XRDevice.SetTrackingSpaceType(UnityEngine.XR.TrackingSpaceType.Stationary);
+        UnityEngine.XR.InputTracking.Recenter();
 
 
         // Store the current Texture2D on the Quad as the original grey
@@ -444,7 +463,7 @@ public class DrawSBS : MonoBehaviour
         // to NULL to notify this side.  When this happens, immediately set the Quad
         // drawing texture to the original grey, so that we stop using the shared buffer 
         // that might very well be dead by now.
-        
+
         if (pollHandle == 0)
         {
             screenMaterial.mainTexture = greyTexture;
@@ -463,7 +482,7 @@ public class DrawSBS : MonoBehaviour
 
             print("-> Got shared handle: " + gGameSharedHandle.ToString("x"));
 
-            
+
             // Call into the x64 UnityNativePlugin DLL for DX11 access, in order to create a ID3D11ShaderResourceView.
             // You'd expect this to be a ID3D11Texture2D, but that's not what Unity wants.
             // We also fetch the Width/Height/Format from the C++ side, as it's simpler than
