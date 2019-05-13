@@ -287,14 +287,14 @@ void CreateSharedRenderTarget(IDirect3DDevice9* pDevice9)
 	// Actual shared surface, as a RenderTarget. RenderTarget because that is
 	// what the Unity side is expecting.  tempSharedHandle, to avoid kicking
 	// off changes just yet, and reusing the current gGameSharedHandle errors out.
-	res = pDevice9->CreateRenderTarget(width, height, format, D3DMULTISAMPLE_NONE, 0, true,
-		&gSharedTarget, &tempSharedHandle);
-	if (FAILED(res))
-		throw std::exception("Fail to CreateRenderTarget for copy of stereo Texture");
+	//res = pDevice9->CreateRenderTarget(width, height, format, D3DMULTISAMPLE_NONE, 0, true,
+	//	&gSharedTarget, &tempSharedHandle);
+	//if (FAILED(res))
+	//	throw std::exception("Fail to CreateRenderTarget for copy of stereo Texture");
 
-	// Everything has been setup, or cleanly re-setup, and we can now enable the
-	// VR side to kick in and use the new surfaces.
-	gGameSharedHandle = tempSharedHandle;
+	//// Everything has been setup, or cleanly re-setup, and we can now enable the
+	//// VR side to kick in and use the new surfaces.
+	//gGameSharedHandle = tempSharedHandle;
 	
 }
 
@@ -340,6 +340,7 @@ HRESULT __stdcall Hooked_Reset(IDirect3DDevice9* This,
 	HRESULT hr = pOrigReset(This, pPresentationParameters);
 
 #ifdef _DEBUG
+	::OutputDebugString(L"NativePlugin::Hooked_Reset called\n");
 	if (pPresentationParameters)
 	{
 		wchar_t info[512];
@@ -352,7 +353,7 @@ HRESULT __stdcall Hooked_Reset(IDirect3DDevice9* This,
 	// Setup the shared RenderTarget again, to match this updated backbuffer.
 	// This rebuilds the entire drawing chain all the way through to VR side.
 
-	CreateSharedRenderTarget(This);
+	///CreateSharedRenderTarget(This);
 
 	return hr;
 }
@@ -689,21 +690,28 @@ HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 	// Also- this warning happens in TheBall, when run with only the debug layer. Not our fault.
 	// But, we are doing multithreaded StretchRect now, so let's add this.  Otherwise we get a
 	// a crash.  Not certain this is best, said to slow things down.
-	//BehaviorFlags |= D3DCREATE_MULTITHREADED;
+	BehaviorFlags |= D3DCREATE_MULTITHREADED;
 
 	// Run original call game is expecting.
 	// This will return a IDirect3DDevice9Ex variant regardless, but using the original
 	// call allows us to avoid a lot of weirdness with full screen handling.
 
-	hr = pOrigCreateDevice(This, Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters,
-		ppReturnedDeviceInterface);
+
+	//hr = pOrigCreateDevice(This, Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters,
+	//	ppReturnedDeviceInterface);
 	if (FAILED(hr))
 		throw std::exception("Failed to create IDirect3DDevice9");
-
 
 	// Using that fresh DX9 Device, we can now hook the Present and CreateTexture calls.
 
 	IDirect3DDevice9* pDevice9 = *ppReturnedDeviceInterface;
+
+	//IDirect3DDevice9Ex* pExDevice;
+	//hr = pDevice9->QueryInterface(__uuidof(IDirect3DDevice9Ex), (void**)(&pExDevice));
+	//if (FAILED(hr))
+	//	throw std::exception("Failed to QueryInterface for IDirect3DDevice9Ex\n");
+
+	//*ppReturnedDeviceInterface = pExDevice;
 
 	if (pOrigPresent == nullptr && SUCCEEDED(hr) && ppReturnedDeviceInterface != nullptr)
 	{
@@ -741,7 +749,7 @@ HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 			::OutputDebugStringA("Failed to hook IDirect3DDevice9::CreateIndexBuffer\n");
 
 
-		HRESULT res = NvAPI_Initialize();
+		NvAPI_Status res = NvAPI_Initialize();
 		if (FAILED(res))
 			throw std::exception("Failed to NvAPI_Initialize\n");
 
@@ -758,18 +766,14 @@ HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 		// Make the priority lower for this game thread, to allow VR side preference.
 		// ToDo: doesn't seem to change anything.
 
-		IDirect3DDevice9Ex* pExDevice;
-		res = pDevice9->QueryInterface(__uuidof(IDirect3DDevice9Ex), (void**)(&pExDevice));
-		if (FAILED(res))
-			throw std::exception("Failed to QueryInterface for IDirect3DDevice9Ex\n");
-		res = pExDevice->SetGPUThreadPriority(-1);
-		if (FAILED(res))
-			throw std::exception("Failed to SetGPUThreadPriority for IDirect3DDevice9Ex\n");
+		//res = pExDevice->SetGPUThreadPriority(-1);
+		//if (FAILED(res))
+		//	throw std::exception("Failed to SetGPUThreadPriority for IDirect3DDevice9Ex\n");
 
 		// Create the duplicate stereo surface, which will then be copied into the
 		// gSharedTarget to share across to VR side.
 
-		CreateSharedRenderTarget(pDevice9);
+	//	CreateSharedRenderTarget(pDevice9);
 
 
 		// Since we are doing setup here, also create a thread that will be used to copy
@@ -830,11 +834,11 @@ HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 // game is nearly certain to be calling CreateDevice.
 // 
 
-void HookCreateDevice(IDirect3D9Ex* pDX9Ex)
+void HookCreateDevice(IDirect3D9* pDX9)
 {
 	// This can be called multiple times by a game, so let's be sure to
 	// only hook once.
-	if (pOrigCreateDevice == nullptr && pDX9Ex != nullptr)
+	if (pOrigCreateDevice == nullptr && pDX9 != nullptr)
 	{
 #ifdef _DEBUG 
 		nktInProc.SetEnableDebugOutput(TRUE);
@@ -851,7 +855,7 @@ void HookCreateDevice(IDirect3D9Ex* pDX9Ex)
 
 		SIZE_T hook_id;
 		DWORD dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigCreateDevice,
-			lpvtbl_CreateDevice(pDX9Ex), Hooked_CreateDevice, 0);
+			lpvtbl_CreateDevice(pDX9), Hooked_CreateDevice, 0);
 
 		if (FAILED(dwOsErr))
 			throw std::exception("Failed to hook IDirect3D9::CreateDevice");

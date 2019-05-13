@@ -44,7 +44,7 @@
 // Interface to InProc side
 
 // DX9 - InProc_DX9.cpp
-void HookCreateDevice(IDirect3D9Ex* pDX9Ex);
+void HookCreateDevice(IDirect3D9* pDX9);
 void CreateSharedRenderTarget(D3DPRESENT_PARAMETERS * pPresentationParameters, HRESULT &res, IDirect3DDevice9 * pDevice9);
 // DX11 - InProc_DX11.cpp
 void HookCreateSwapChain(IDXGIFactory* dDXGIFactory);

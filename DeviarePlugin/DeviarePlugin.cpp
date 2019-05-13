@@ -399,12 +399,19 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 	//	);
 	if (wcscmp(name, L"D3D9.DLL!Direct3DCreate9") == 0 || wcscmp(name, L"D3D9.DLL!Direct3DCreate9Ex") == 0)
 	{
-		IDirect3D9Ex* pDX9Ex = nullptr;
+		IDirect3D9* pDX9 = nullptr;
 		INktParam* nktResult;
 
+		//pDX9 = Direct3DCreate9(D3D_SDK_VERSION);
+
+
+		IDirect3D9Ex* pDX9Ex;
 		hr = Direct3DCreate9Ex(D3D_SDK_VERSION, &pDX9Ex);
 		if (FAILED(hr))
 			throw std::exception("Failed Direct3DCreate9Ex");
+		
+		hr = pDX9Ex->QueryInterface(__uuidof(IDirect3D9), (void **)&pDX9);
+		//pDX9 = pDX9Ex;
 
 		// At this point, we are going to switch from using Deviare style calls
 		// to In-Proc style calls, because the routines we need to hook are not
@@ -412,7 +419,7 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 		// and then rebuilding it, but In-Proc works alongside Deviare so this
 		// approach is simpler.
 
-		HookCreateDevice(pDX9Ex);
+		HookCreateDevice(pDX9);
 
 		// The result of the Direct3DCreate9Ex function is the IDirect3D9Ex object, which you 
 		// can think of as DX9 itself. 
@@ -431,7 +438,7 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 		// The Nektra API is poor and uses long, and long long here, so we need to
 		// carefully convert to those values.
 
-		LONG_PTR retPtr = (LONG_PTR)pDX9Ex;
+		LONG_PTR retPtr = (LONG_PTR)pDX9;
 
 		hr = lpHookCallInfoPlugin->Result(&nktResult);
 		if (FAILED(hr))
