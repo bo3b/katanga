@@ -133,7 +133,6 @@ ID3D11Device* CreateSharedTexture(IDXGISwapChain* pSwapChain)
 	ID3D11Device* pDevice;
 	ID3D11Texture2D* backBuffer;
 	D3D11_TEXTURE2D_DESC desc;
-	HANDLE oldGameSharedHandle;
 	ID3D11Texture2D* oldGameTexture;
 
 	// Save possible prior usage to be disposed after we recreate.
@@ -205,9 +204,10 @@ ID3D11Device* CreateSharedTexture(IDXGISwapChain* pSwapChain)
 // This is just a hack way to be sure we are getting stereo output.
 
 #ifdef _DEBUG
-void DrawStereoOnGame(ID3D11DeviceContext* pContext, ID3D11Texture2D* surface, ID3D11Texture2D* back)
+void DrawStereoOnGame(ID3D11DeviceContext* pContext, ID3D11Texture2D* surface, ID3D11Texture2D* back, 
+	UINT width, UINT height)
 {
-	D3D11_BOX srcBox = { 300, 0, 0, 1600+300, 900, 1};
+	D3D11_BOX srcBox = { width/2, 0, 0, width + width/2, height, 1};
 	pContext->CopySubresourceRegion(back, 0, 0, 0, 0, surface, 0, &srcBox);
 }
 #endif
@@ -259,7 +259,7 @@ HRESULT __stdcall Hooked_Present(IDXGISwapChain * This,
 		hr = NvAPI_Stereo_ReverseStereoBlitControl(gNVAPI, false);
 
 #ifdef _DEBUG
-		DrawStereoOnGame(pContext, gGameTexture, backBuffer);
+		DrawStereoOnGame(pContext, gGameTexture, backBuffer, pDesc.Width, pDesc.Height);
 #endif
 		pContext->Release();
 		pDevice->Release();
