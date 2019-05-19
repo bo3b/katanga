@@ -133,7 +133,6 @@ ID3D11Device* CreateSharedTexture(IDXGISwapChain* pSwapChain)
 	ID3D11Device* pDevice;
 	ID3D11Texture2D* backBuffer;
 	D3D11_TEXTURE2D_DESC desc;
-	HANDLE oldGameSharedHandle;
 	ID3D11Texture2D* oldGameTexture;
 
 	// Save possible prior usage to be disposed after we recreate.
