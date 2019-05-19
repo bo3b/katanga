@@ -54,7 +54,9 @@ HANDLE gGameSharedHandle = nullptr;
 
 HANDLE WINAPI GetSharedHandle(int* in)
 {
+#ifdef _DEBUG
 	::OutputDebugString(L"GetSharedHandle::\n");
+#endif
 
 	return gGameSharedHandle;
 }
@@ -87,8 +89,10 @@ HRESULT WINAPI OnLoad()
 	// COM here.
 	::CoInitializeEx(NULL, COINIT_MULTITHREADED);
 
-	// bump ref count.  keep it loaded.
-	LoadLibrary(L"d3d11.dll");
+	// At this earliest moment, setup a hook for the direct d3d9.dll
+	// call of Direct3DCreate9, using the In-Proc mechanism.
+	HookDirect3DCreate9();
+
 	return S_OK;
 }
 
@@ -402,6 +406,7 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 		IDirect3D9Ex* pDX9Ex = nullptr;
 		INktParam* nktResult;
 
+		//pDX9Ex = reinterpret_cast<IDirect3D9Ex*>(Direct3DCreate9(D3D_SDK_VERSION));
 		hr = Direct3DCreate9Ex(D3D_SDK_VERSION, &pDX9Ex);
 		if (FAILED(hr))
 			throw std::exception("Failed Direct3DCreate9Ex");

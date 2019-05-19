@@ -21,8 +21,8 @@ public class DrawSBS : MonoBehaviour
     public string gameTitle;
 
     static NktSpyMgr _spyMgr;
-    static NktProcess _gameProcess;
-    static string _nativeDLLName;
+    static NktProcess _gameProcess = null;
+    static string _nativeDLLName = null;
 
     // Primary Texture received from game as shared ID3D11ShaderResourceView
     // It automatically updates as the injected DLL copies the bits into the
@@ -234,18 +234,9 @@ public class DrawSBS : MonoBehaviour
 
             // Hook the primary DX9 creation call of Direct3DCreate9, which is a direct export of 
             // the d3d9 DLL.  All DX9 games must call this interface, or the Direct3DCreate9Ex.
-            // We set this to flgOnlyPreCall, because we want to always create the IDirect3D9Ex object.
-            // By hooking this here, we can handle either DX9 or DX11 games.
-
-            print("Hook the D3D9.DLL!Direct3DCreate9...");
-            NktHook create9Hook = _spyMgr.CreateHook("D3D9.DLL!Direct3DCreate9", (int)eNktHookFlags.flgOnlyPreCall);
-            if (create9Hook == null)
-                throw new Exception("Failed to hook D3D9.DLL!Direct3DCreate9");
-
-            print("Hook the D3D9.DLL!Direct3DCreate9Ex...");
-            NktHook create9ExHook = _spyMgr.CreateHook("D3D9.DLL!Direct3DCreate9Ex", (int)eNktHookFlags.flgOnlyPreCall);
-            if (create9ExHook == null)
-                throw new Exception("Failed to hook D3D9.DLL!Direct3DCreate9Ex");
+            // This is not hooked here though, it is hooked in DeviarePlugin at OnLoad.
+            // We need to do special handling to fetch the System32 version of d3d9.dll,
+            // in order to avoid unhooking HelixMod's d3d9.dll.
 
             // Make sure the CustomHandler in the NativePlugin at OnFunctionCall gets called when this 
             // object is created. At that point, the native code will take over.
@@ -254,9 +245,6 @@ public class DrawSBS : MonoBehaviour
             deviceAndSwapChainHook.AddCustomHandler(_nativeDLLName, 0, "");
             factoryHook.AddCustomHandler(_nativeDLLName, 0, "");
             factory1Hook.AddCustomHandler(_nativeDLLName, 0, "");
-
-            create9Hook.AddCustomHandler(_nativeDLLName, 0, "");
-            create9ExHook.AddCustomHandler(_nativeDLLName, 0, "");
 
             // Finally attach and activate the hook in the still suspended game process.
 
@@ -268,11 +256,6 @@ public class DrawSBS : MonoBehaviour
             factoryHook.Hook(true);
             factory1Hook.Attach(_gameProcess, true);
             factory1Hook.Hook(true);
-
-            create9Hook.Attach(_gameProcess, true);
-            create9Hook.Hook(true);
-            create9ExHook.Attach(_gameProcess, true);
-            create9ExHook.Hook(true);
 
             // Ready to go.  Let the game startup.  When it calls Direct3DCreate9, we'll be
             // called in the NativePlugin::OnFunctionCall

@@ -859,3 +859,88 @@ void HookCreateDevice(IDirect3D9Ex* pDX9Ex)
 }
 
 
+//-----------------------------------------------------------
+//
+// This section handles the Direct3DCreate9 hooking.
+
+IDirect3D9* (__stdcall *pOrigDirect3DCreate9)(
+	UINT SDKVersion
+	) = nullptr;
+
+IDirect3D9* __stdcall Hooked_Direct3DCreate9(
+	UINT SDKVersion)
+{
+
+#ifdef _DEBUG
+	wchar_t info[512];
+	swprintf_s(info, _countof(info),
+		L"NativePlugin::Hooked_Direct3DCreate9 - SDK: %d\n", SDKVersion);
+	::OutputDebugString(info);
+#endif
+
+	IDirect3D9Ex* pDX9Ex = nullptr;
+	HRESULT hr = Direct3DCreate9Ex(D3D_SDK_VERSION, &pDX9Ex);
+	if (FAILED(hr))
+		throw std::exception("Failed Direct3DCreate9Ex");
+
+	// Hook the next level of CreateDevice so that ultimately we
+	// can get to the SwapChain->Present.
+
+	HookCreateDevice(pDX9Ex);
+
+	return pDX9Ex;
+}
+
+
+// Here we want to start the daisy chain of hooking DX9 interfaces, to
+// ultimately get access to IDirect3DDevice9::Present
+//
+// At this point, we are at initial game launch, before anything has been
+// created, and need to install a hook on Direct3DCreate9.
+// 
+// It is a different mechanism than that used for COM objects, because this
+// call is directly exported by the d3d9.dll.  We need to hook this call
+// here instead of with Deviare calls, because we need to get the address
+// of the System32 d3d9.dll.  If we don't do this special handling, we get
+// the address of the proxy HelixMod d3d9.dll, and cannot return our 
+// required IDirect3D9Ex object to HelixMod.  Without this, we just unhook
+// HelixMod, and we need it to fix the 3D effects.
+
+void HookDirect3DCreate9()
+{
+	WCHAR d3d9SystemPath[MAX_PATH];
+
+	UINT size = GetSystemDirectory(d3d9SystemPath, MAX_PATH);
+	if (size == 0)
+		throw std::exception("Failed to GetSystemDirectory at HookDirect3DCreat9");
+
+	errno_t err = wcscat_s(d3d9SystemPath, MAX_PATH, L"\\D3D9.DLL");
+	if (err != 0)
+		throw std::exception("Failed to concat string at HookDirect3DCreat9");
+
+	HMODULE hSystemD3D9 = LoadLibrary(d3d9SystemPath);
+	if (hSystemD3D9 == NULL)
+		throw std::exception("Failed to LoadLibrary for System32 d3d9.dll");
+
+	FARPROC systemDirect3DCreate9 = GetProcAddress(hSystemD3D9, "Direct3DCreate9");
+	if (systemDirect3DCreate9 == NULL)
+		throw std::exception("Failed to getProcedureAddress for system Direct3DCreate9");
+
+	// This can be called multiple times by a game, so let's be sure to
+	// only hook once.
+	if (pOrigDirect3DCreate9 == nullptr && systemDirect3DCreate9 != nullptr)
+	{
+#ifdef _DEBUG 
+		nktInProc.SetEnableDebugOutput(TRUE);
+#endif
+
+		SIZE_T hook_id;
+		DWORD dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigDirect3DCreate9,
+			systemDirect3DCreate9, Hooked_Direct3DCreate9, 0);
+
+		if (FAILED(dwOsErr))
+			throw std::exception("Failed to hook D3D9.DLL::Direct3DCreate9");
+	}
+}
+
+
