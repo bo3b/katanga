@@ -480,7 +480,7 @@ public class DrawSBS : MonoBehaviour
             // and typically the games are ARGB format there, but still look fine here once we
             // create DX11 texture with RGBA format.
             // DXGI_FORMAT_R8G8B8A8_UNORM = 28,
-            // DXGI_FORMAT_R8G8B8A8_UNORM_SRGB = 29,
+            // DXGI_FORMAT_R8G8B8A8_UNORM_SRGB = 29,    (The Surge, DX11)
             // DXGI_FORMAT_B8G8R8A8_UNORM = 87          (The Ball, DX9)
             // DXGI_FORMAT_B8G8R8A8_UNORM_SRGB = 91,
             // DXGI_FORMAT_R10G10B10A2_UNORM = 24       ME:Andromenda   Unity RenderTextureFormat, but not TextureFormat
