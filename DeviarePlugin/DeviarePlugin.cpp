@@ -93,6 +93,10 @@ HRESULT WINAPI OnLoad()
 	// call of Direct3DCreate9, using the In-Proc mechanism.
 	HookDirect3DCreate9();
 
+	// Hook the NVAPI.DLL!nvapi_QueryInterface, so that we can watch
+	// for Direct Mode by games.  ToDo: DX9 variant?
+	HookNvapiQueryInterface();
+
 	return S_OK;
 }
 

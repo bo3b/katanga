@@ -37,6 +37,12 @@
 
 ID3D11Texture2D* gGameTexture = nullptr;
 
+// If we are in 3D Vision Direct Mode, we need to copy the textures from each
+// eye, instead of using the ReverseStereoBlit.  This changes the mode of
+// copying in Present.
+
+bool gDirectMode = false;
+
 // --------------------------------------------------------------------------------------------------
 
 // Custom routines for this DeviarePlugin.dll, that the master app can call,
@@ -231,6 +237,10 @@ HRESULT (__stdcall *pOrigPresent)(IDXGISwapChain * This,
 // which the game will call for every frame.  At each call, we will make a copy
 // of whatever the game drew, and that will be passed along via the shared surface
 // to the VR layer.
+//
+// If we are in DirectMode, we use SetActiveEye to fetch each eye's bits, and 
+// update the double-wide stereo surface gGameTexture.  In Automatic mode, we
+// just copy the double wide stereo backbuffer directly.
 
 HRESULT __stdcall Hooked_Present(IDXGISwapChain * This,
 	/* [in] */ UINT SyncInterval,
@@ -249,13 +259,22 @@ HRESULT __stdcall Hooked_Present(IDXGISwapChain * This,
 		backBuffer->GetDevice(&pDevice);
 		pDevice->GetImmediateContext(&pContext);
 
-		hr = NvAPI_Stereo_ReverseStereoBlitControl(gNVAPI, true);
+		if (gDirectMode)
 		{
+			hr = NvAPI_Stereo_SetActiveEye(gNVAPI, NVAPI_STEREO_EYE_RIGHT);
 			pContext->CopySubresourceRegion(gGameTexture, 0, 0, 0, 0, backBuffer, 0, nullptr);
 
-//			SetEvent(gFreshBits);		// Signal other thread to start StretchRect
+			hr = NvAPI_Stereo_SetActiveEye(gNVAPI, NVAPI_STEREO_EYE_LEFT);
+			pContext->CopySubresourceRegion(gGameTexture, 0, pDesc.Width, 0, 0, backBuffer, 0, nullptr);
 		}
-		hr = NvAPI_Stereo_ReverseStereoBlitControl(gNVAPI, false);
+		else
+		{
+			hr = NvAPI_Stereo_ReverseStereoBlitControl(gNVAPI, true);
+
+			pContext->CopySubresourceRegion(gGameTexture, 0, 0, 0, 0, backBuffer, 0, nullptr);
+
+			hr = NvAPI_Stereo_ReverseStereoBlitControl(gNVAPI, false);
+		}
 
 #ifdef _DEBUG
 		DrawStereoOnGame(pContext, gGameTexture, backBuffer);
@@ -266,13 +285,6 @@ HRESULT __stdcall Hooked_Present(IDXGISwapChain * This,
 	backBuffer->Release();
 
 	HRESULT hrp = pOrigPresent(This, SyncInterval, Flags);
-
-	// Sync starting next frame with VR app.
-	//DWORD object;
-	//do
-	//{
-	//	object = WaitForSingleObject(gFreshBits, 0);
-	//} while (object != WAIT_OBJECT_0);
 
 	return hrp;
 }
@@ -644,3 +656,77 @@ void HookPresent(IDXGISwapChain* pSwapChain)
 	}
 }
 
+
+// --------------------------------------------------------------------------------------------------
+
+// nvapi_QueryInterfaceType is not actually defined in any nvapi header files, as it is
+// internal to the .lib normally used.  We'll just create a definition using 3Dmigoto
+// code as a reference.
+//
+// The return result from this function is actually the address of the function 
+// specified by the offset.  In our case, 0x5E8F0BEC is for _NvAPI_Stereo_SetDriverMode.
+
+UINT32* (__cdecl *pOrignvapi_QueryInterface)(UINT32 offset) = nullptr;
+//UINT32* (__stdcall *pOrignvapi_QueryInterface)(
+//	UINT32 offset
+//	) = nullptr;
+
+extern "C" UINT32* __cdecl Hooked_nvapi_QueryInterface(UINT32 offset)
+//UINT32* __stdcall Hooked_nvapi_QueryInterface(
+//	UINT32 offset)
+{
+
+#ifdef _DEBUG
+	wchar_t info[512];
+	swprintf_s(info, _countof(info),
+		L"NativePlugin::Hooked_nvapi_QueryInterfaceType - offset: 0x%x\n", offset);
+	::OutputDebugString(info);
+#endif
+
+	// We don't need to do any processing here, we just need to notice whenever
+	// a game sets the DriverMode to Direct.  So pass through everything normally.
+
+	UINT32* ptr = pOrignvapi_QueryInterface(offset);
+
+	// If we are calling for _NvAPI_Stereo_SetDriverMode(0x5E8F0BEC), save the input.
+	if (offset == 0x5E8F0BEC)
+		gDirectMode = true;
+
+	return ptr;
+}
+
+
+// Hook the nvapi.  This is required to support Direct Mode in the driver, for 
+// games like Tomb Raider and Deus Ex that have no SBS.
+// There is only one call in the nvidia dll, nvapi_QueryInterface.  That will
+// be hooked, and then the _NvAPI_Stereo_SetDriverMode call will be watched
+// so that we can see when a game sets Direct Mode and change behavior in Present.
+// This is also done in DeviarePlugin at OnLoad.
+
+void HookNvapiQueryInterface()
+{
+	HMODULE hNvapi = LoadLibrary(L"nvapi.dll");
+	if (hNvapi == NULL)
+		throw std::exception("Failed to LoadLibrary for nvapi.dll");
+
+	FARPROC pQueryInterface = GetProcAddress(hNvapi, "nvapi_QueryInterface");
+	if (pQueryInterface == NULL)
+		throw std::exception("Failed to GetProcAddress for nvapi_QueryInterface");
+
+	// This could be called multiple times by a game, so let's be sure to
+	// only hook once.
+	if (pOrignvapi_QueryInterface == nullptr && pQueryInterface != nullptr)
+	{
+#ifdef _DEBUG 
+		nktInProc.SetEnableDebugOutput(TRUE);
+#endif
+
+		SIZE_T hook_id;
+		DWORD dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrignvapi_QueryInterface,
+			pQueryInterface, Hooked_nvapi_QueryInterface, 0);
+
+		if (FAILED(dwOsErr))
+			throw std::exception("Failed to hook NVAPI.DLL::nvapi_QueryInterface");
+	}
+
+}

@@ -238,6 +238,14 @@ public class DrawSBS : MonoBehaviour
             // We need to do special handling to fetch the System32 version of d3d9.dll,
             // in order to avoid unhooking HelixMod's d3d9.dll.
 
+            // Hook the nvapi.  This is required to support Direct Mode in the driver, for 
+            // games like Tomb Raider and Deus Ex that have no SBS.
+            // There is only one call in the nvidia dll, nvapi_QueryInterface.  That will
+            // be hooked, and then the _NvAPI_Stereo_SetDriverMode call will be hooked
+            // so that we can see when a game sets Direct Mode and change behavior in Present.
+            // This is also done in DeviarePlugin at OnLoad.
+
+
             // Make sure the CustomHandler in the NativePlugin at OnFunctionCall gets called when this 
             // object is created. At that point, the native code will take over.
 
