@@ -659,6 +659,31 @@ void HookPresent(IDXGISwapChain* pSwapChain)
 
 // --------------------------------------------------------------------------------------------------
 
+// The SetDriverMode override, where we can check the input mode.
+// This will be called directly after QueryInterface as the overriden
+// routine, and will call through to the original function.
+
+typedef NvAPI_Status(__cdecl *tNvAPI_Stereo_SetDriverMode)(NV_STEREO_DRIVER_MODE mode);
+tNvAPI_Stereo_SetDriverMode pOrigNvAPI_Stereo_SetDriverMode = nullptr;
+
+NvAPI_Status __cdecl Hooked_NvAPI_Stereo_SetDriverMode(NV_STEREO_DRIVER_MODE mode)
+{
+	if (mode == NVAPI_STEREO_DRIVER_MODE_DIRECT)
+		gDirectMode = true;
+
+	NvAPI_Status ret = pOrigNvAPI_Stereo_SetDriverMode(mode);
+
+#ifdef _DEBUG
+	wchar_t info[512];
+	swprintf_s(info, _countof(info),
+		L"NativePlugin::Hooked_NvAPI_Stereo_SetDriverMode - mode: %d  ret: %d\n", mode, ret);
+	::OutputDebugString(info);
+#endif
+
+	return ret;
+}
+
+
 // nvapi_QueryInterfaceType is not actually defined in any nvapi header files, as it is
 // internal to the .lib normally used.  We'll just create a definition using 3Dmigoto
 // code as a reference.  It's worth noting that this function requires __cdecl, not __stdcall.
@@ -688,9 +713,15 @@ UINT32* __cdecl Hooked_nvapi_QueryInterface(
 
 	UINT32* ptr = pOrignvapi_QueryInterface(offset);
 
-	// If we are calling for _NvAPI_Stereo_SetDriverMode(0x5E8F0BEC), save the input.
+	
+	// If we are calling for _NvAPI_Stereo_SetDriverMode(0x5E8F0BEC), set the return
+	// pointer to be our override routine instead.
+
 	if (offset == SetDriverMode)
-		gDirectMode = true;
+	{
+		pOrigNvAPI_Stereo_SetDriverMode = reinterpret_cast<tNvAPI_Stereo_SetDriverMode>(ptr);
+		ptr = reinterpret_cast<UINT32*>(Hooked_NvAPI_Stereo_SetDriverMode);
+	}
 
 	return ptr;
 }
