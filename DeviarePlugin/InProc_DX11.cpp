@@ -661,19 +661,19 @@ void HookPresent(IDXGISwapChain* pSwapChain)
 
 // nvapi_QueryInterfaceType is not actually defined in any nvapi header files, as it is
 // internal to the .lib normally used.  We'll just create a definition using 3Dmigoto
-// code as a reference.
+// code as a reference.  It's worth noting that this function requires __cdecl, not __stdcall.
 //
 // The return result from this function is actually the address of the function 
 // specified by the offset.  In our case, 0x5E8F0BEC is for _NvAPI_Stereo_SetDriverMode.
 
-UINT32* (__cdecl *pOrignvapi_QueryInterface)(UINT32 offset) = nullptr;
-//UINT32* (__stdcall *pOrignvapi_QueryInterface)(
-//	UINT32 offset
-//	) = nullptr;
+UINT32 SetDriverMode = 0x5E8F0BEC;
 
-extern "C" UINT32* __cdecl Hooked_nvapi_QueryInterface(UINT32 offset)
-//UINT32* __stdcall Hooked_nvapi_QueryInterface(
-//	UINT32 offset)
+UINT32* (__cdecl *pOrignvapi_QueryInterface)(
+	UINT32 offset
+	) = nullptr;
+
+UINT32* __cdecl Hooked_nvapi_QueryInterface(
+	UINT32 offset)
 {
 
 #ifdef _DEBUG
@@ -689,7 +689,7 @@ extern "C" UINT32* __cdecl Hooked_nvapi_QueryInterface(UINT32 offset)
 	UINT32* ptr = pOrignvapi_QueryInterface(offset);
 
 	// If we are calling for _NvAPI_Stereo_SetDriverMode(0x5E8F0BEC), save the input.
-	if (offset == 0x5E8F0BEC)
+	if (offset == SetDriverMode)
 		gDirectMode = true;
 
 	return ptr;
