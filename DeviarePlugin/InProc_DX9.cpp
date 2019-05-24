@@ -750,21 +750,13 @@ HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 		if (FAILED(res))
 			throw std::exception("Failed to NvAPI_Stereo_CreateHandleFromIUnknown\n");
 
-		res = NvAPI_Stereo_SetSurfaceCreationMode(__in gNVAPI, __in NVAPI_STEREO_SURFACECREATEMODE_FORCESTEREO);
-		if (FAILED(res))
-			throw std::exception("Failed to NvAPI_Stereo_SetSurfaceCreationMode\n");
+		// ToDo: Is this necessary?
+		// Seems like I just added it without knowing impact. Since we create 2x buffer, might just 
+		// cause problems.
+		//res = NvAPI_Stereo_SetSurfaceCreationMode(__in gNVAPI, __in NVAPI_STEREO_SURFACECREATEMODE_FORCESTEREO);
+		//if (FAILED(res))
+		//	throw std::exception("Failed to NvAPI_Stereo_SetSurfaceCreationMode\n");
 
-
-		// Make the priority lower for this game thread, to allow VR side preference.
-		// ToDo: doesn't seem to change anything.
-
-		IDirect3DDevice9Ex* pExDevice;
-		res = pDevice9->QueryInterface(__uuidof(IDirect3DDevice9Ex), (void**)(&pExDevice));
-		if (FAILED(res))
-			throw std::exception("Failed to QueryInterface for IDirect3DDevice9Ex\n");
-		res = pExDevice->SetGPUThreadPriority(-1);
-		if (FAILED(res))
-			throw std::exception("Failed to SetGPUThreadPriority for IDirect3DDevice9Ex\n");
 
 		// Create the duplicate stereo surface, which will then be copied into the
 		// gSharedTarget to share across to VR side.
