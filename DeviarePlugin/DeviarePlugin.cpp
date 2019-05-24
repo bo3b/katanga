@@ -95,7 +95,7 @@ HRESULT WINAPI OnLoad()
 
 	// Hook the NVAPI.DLL!nvapi_QueryInterface, so that we can watch
 	// for Direct Mode by games.  ToDo: DX9 variant?
-	HookNvapiQueryInterface();
+	HookNvapiSetDriverMode();
 
 	return S_OK;
 }
