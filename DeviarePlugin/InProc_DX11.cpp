@@ -736,7 +736,13 @@ UINT32* __cdecl Hooked_nvapi_QueryInterface(
 
 void HookNvapiQueryInterface()
 {
-	HMODULE hNvapi = LoadLibrary(L"nvapi.dll");
+#if (_WIN64)
+#define REAL_NVAPI_DLL L"nvapi64.dll"
+#else
+#define REAL_NVAPI_DLL L"nvapi.dll"
+#endif
+
+	HMODULE hNvapi = LoadLibrary(REAL_NVAPI_DLL);
 	if (hNvapi == NULL)
 		throw std::exception("Failed to LoadLibrary for nvapi.dll");
 
