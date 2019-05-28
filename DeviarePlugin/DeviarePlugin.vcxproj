@@ -73,7 +73,6 @@
     <OutDir>$(SolutionDir)UnityScreenApp\Assets\Plugins\</OutDir>
     <IntDir>$(PlatformShortName)\</IntDir>
     <TargetName>$(ProjectName)</TargetName>
-    <LibraryPath>$(ProjectDir)nvapi;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>false</LinkIncremental>
@@ -81,7 +80,6 @@
     <OutDir>$(SolutionDir)UnityScreenApp\Assets\Plugins\</OutDir>
     <IntDir>$(PlatformShortName)\</IntDir>
     <TargetName>$(ProjectName)$(PlatformArchitecture)</TargetName>
-    <LibraryPath>$(ProjectDir)nvapi;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
@@ -89,7 +87,6 @@
     <OutDir>$(SolutionDir)UnityScreenApp\Assets\Plugins\</OutDir>
     <IntDir>$(PlatformShortName)\</IntDir>
     <TargetName>$(ProjectName)</TargetName>
-    <LibraryPath>$(ProjectDir)nvapi;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
@@ -97,7 +94,6 @@
     <OutDir>$(SolutionDir)UnityScreenApp\Assets\Plugins\</OutDir>
     <IntDir>$(PlatformShortName)\</IntDir>
     <TargetName>$(ProjectName)$(PlatformArchitecture)</TargetName>
-    <LibraryPath>$(ProjectDir)nvapi;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -110,12 +106,14 @@
       <PrecompiledHeaderOutputFile />
       <ShowIncludes>false</ShowIncludes>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <AdditionalIncludeDirectories>$(ProjectDir)nvapi;$(ProjectDir)nektra</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>d3d9.lib;NktHookLib_Debug.lib;nvapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ModuleDefinitionFile>DeviarePlugin.def</ModuleDefinitionFile>
+      <AdditionalLibraryDirectories>$(ProjectDir)nvapi;$(ProjectDir)nektra</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -131,12 +129,14 @@
       </PrecompiledHeaderOutputFile>
       <ShowIncludes>false</ShowIncludes>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <AdditionalIncludeDirectories>$(ProjectDir)nvapi;$(ProjectDir)nektra</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>d3d9.lib;NktHookLib64_Debug.lib;nvapi64.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ModuleDefinitionFile>DeviarePlugin.def</ModuleDefinitionFile>
+      <AdditionalLibraryDirectories>$(ProjectDir)nvapi;$(ProjectDir)nektra</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -151,6 +151,7 @@
       <PrecompiledHeaderFile />
       <PrecompiledHeaderOutputFile />
       <ShowIncludes>false</ShowIncludes>
+      <AdditionalIncludeDirectories>$(ProjectDir)nvapi;$(ProjectDir)nektra</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -159,6 +160,7 @@
       <OptimizeReferences>true</OptimizeReferences>
       <AdditionalDependencies>d3d9.lib;NktHookLib.lib;nvapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ModuleDefinitionFile>DeviarePlugin.def</ModuleDefinitionFile>
+      <AdditionalLibraryDirectories>$(ProjectDir)nvapi;$(ProjectDir)nektra</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -175,6 +177,7 @@
       <PrecompiledHeaderOutputFile>
       </PrecompiledHeaderOutputFile>
       <ShowIncludes>false</ShowIncludes>
+      <AdditionalIncludeDirectories>$(ProjectDir)nvapi;$(ProjectDir)nektra</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -183,11 +186,12 @@
       <OptimizeReferences>true</OptimizeReferences>
       <AdditionalDependencies>d3d9.lib;NktHookLib64.lib;nvapi64.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ModuleDefinitionFile>DeviarePlugin.def</ModuleDefinitionFile>
+      <AdditionalLibraryDirectories>$(ProjectDir)nvapi;$(ProjectDir)nektra</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="DeviarePlugin.h" />
-    <ClInclude Include="NktHookLib.h" />
+    <ClInclude Include="nektra\NktHookLib.h" />
     <ClInclude Include="nvapi\nvapi.h" />
     <ClInclude Include="nvapi\nvapi_lite_common.h" />
     <ClInclude Include="nvapi\nvapi_lite_d3dext.h" />
@@ -218,6 +222,16 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="DeviarePlugin.def" />
+    <None Include="nektra\NktHookLib.pdb" />
+    <None Include="nektra\NktHookLib64.pdb" />
+    <None Include="nektra\NktHookLib64_Debug.pdb" />
+    <None Include="nektra\NktHookLib_Debug.pdb" />
+  </ItemGroup>
+  <ItemGroup>
+    <Library Include="nektra\NktHookLib.lib" />
+    <Library Include="nektra\NktHookLib64.lib" />
+    <Library Include="nektra\NktHookLib64_Debug.lib" />
+    <Library Include="nektra\NktHookLib_Debug.lib" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -8,7 +8,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DeviarePlugin.h" />
-    <ClInclude Include="NktHookLib.h" />
     <ClInclude Include="nvapi\nvapi.h">
       <Filter>nvapi</Filter>
     </ClInclude>
@@ -33,13 +32,45 @@
     <ClInclude Include="nvapi\nvapi_lite_surround.h">
       <Filter>nvapi</Filter>
     </ClInclude>
+    <ClInclude Include="nektra\NktHookLib.h">
+      <Filter>nektra</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="DeviarePlugin.def" />
+    <None Include="nektra\NktHookLib.pdb">
+      <Filter>nektra</Filter>
+    </None>
+    <None Include="nektra\NktHookLib_Debug.pdb">
+      <Filter>nektra</Filter>
+    </None>
+    <None Include="nektra\NktHookLib64.pdb">
+      <Filter>nektra</Filter>
+    </None>
+    <None Include="nektra\NktHookLib64_Debug.pdb">
+      <Filter>nektra</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="nvapi">
       <UniqueIdentifier>{bd9f962f-059d-4193-9a60-107fd8a83446}</UniqueIdentifier>
     </Filter>
+    <Filter Include="nektra">
+      <UniqueIdentifier>{b68a0538-510c-459f-906e-fc5d9b2afbb5}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <Library Include="nektra\NktHookLib.lib">
+      <Filter>nektra</Filter>
+    </Library>
+    <Library Include="nektra\NktHookLib_Debug.lib">
+      <Filter>nektra</Filter>
+    </Library>
+    <Library Include="nektra\NktHookLib64.lib">
+      <Filter>nektra</Filter>
+    </Library>
+    <Library Include="nektra\NktHookLib64_Debug.lib">
+      <Filter>nektra</Filter>
+    </Library>
   </ItemGroup>
 </Project>

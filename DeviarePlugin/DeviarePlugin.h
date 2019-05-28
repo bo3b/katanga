@@ -33,7 +33,7 @@
 #include <exception>
 
 #include "NktHookLib.h"
-#include "nvapi\nvapi.h"
+#include "nvapi.h"
 
 
 //-----------------------------------------------------------
