@@ -696,9 +696,21 @@ HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 	// This will return a IDirect3DDevice9Ex variant regardless, but using the original
 	// call allows us to avoid a lot of weirdness with full screen handling.
 
+	IDirect3D9Ex* pDX9Ex;
+	hr = This->QueryInterface(__uuidof(IDirect3D9Ex), (void **)&pDX9Ex);
+	if (FAILED(hr))
+		throw std::exception("Failed to create IDirect3DDevice9");
+
+	D3DDISPLAYMODEEX* pFullscreenDisplayMode;
+	IDirect3DDevice9Ex* exDevice;
+	hr = pDX9Ex->CreateDeviceEx(Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters, nullptr, &exDevice);
 
 	//hr = pOrigCreateDevice(This, Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters,
 	//	ppReturnedDeviceInterface);
+	if (FAILED(hr))
+		throw std::exception("Failed to create IDirect3DDevice9");
+
+	hr = exDevice->QueryInterface(__uuidof(IDirect3DDevice9), (void **)ppReturnedDeviceInterface);
 	if (FAILED(hr))
 		throw std::exception("Failed to create IDirect3DDevice9");
 
