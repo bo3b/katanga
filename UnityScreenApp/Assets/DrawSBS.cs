@@ -110,13 +110,19 @@ public class DrawSBS : MonoBehaviour
 
     // -----------------------------------------------------------------------------
 
+    readonly int VK_F12 = 123;
+
     void _listener_OnKeyPressed(object sender, KeyPressedArgs e)
     {
         // if user pressed F12 then recenter the view of the VR headset
-        if (e.KeyPressed == 123)
+        if (e.KeyPressed == VK_F12)
         {
-            UnityEngine.XR.XRDevice.SetTrackingSpaceType(UnityEngine.XR.TrackingSpaceType.Stationary);
-            UnityEngine.XR.InputTracking.Recenter();
+            UnityEngine.XR.TrackingSpaceType currType = UnityEngine.XR.XRDevice.GetTrackingSpaceType();
+            {
+                UnityEngine.XR.XRDevice.SetTrackingSpaceType(UnityEngine.XR.TrackingSpaceType.Stationary);
+                UnityEngine.XR.InputTracking.Recenter();
+            }
+            UnityEngine.XR.XRDevice.SetTrackingSpaceType(currType);
         }
     }
 
@@ -280,6 +286,15 @@ public class DrawSBS : MonoBehaviour
         // game to call through to CreateDevice, so that we can create the shared surface.
     }
 
+    
+    // On Quit, we need to unhook our keyboard handler or the Editor will crash with
+    // a bad handler.
+    // ToDo: anything else needs to be disposed or cleaned up?
+
+    private void OnApplicationQuit()
+    {
+        _listener.UnHookKeyboard();
+    }
 
 
     // -----------------------------------------------------------------------------
@@ -495,6 +510,8 @@ public class DrawSBS : MonoBehaviour
             //  No SRGB variant of R10G10B10A2.
             // DXGI_FORMAT_B8G8R8X8_UNORM = 88,         Trine   Unity RGB24
 
+            // ToDo: This colorSpace doesn't do anything.
+            //  Tested back to back, setting to false/true has no effect on TV gamma
             bool colorSpace = linearColorSpace;
             if (format == 28 || format == 87 || format == 88)
                 colorSpace = linearColorSpace;
