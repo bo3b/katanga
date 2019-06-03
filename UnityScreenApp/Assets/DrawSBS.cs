@@ -111,6 +111,8 @@ public class DrawSBS : MonoBehaviour
     // -----------------------------------------------------------------------------
 
     readonly int VK_F12 = 123;
+    readonly int VK_LSB = 219;  // [ key
+    readonly int VK_RSB = 221;  // ] key
 
     void _listener_OnKeyPressed(object sender, KeyPressedArgs e)
     {
@@ -124,6 +126,13 @@ public class DrawSBS : MonoBehaviour
             }
             UnityEngine.XR.XRDevice.SetTrackingSpaceType(currType);
         }
+
+        // If user presses ], let's bump the Quality to the next level and rebuild
+        // the environment.  [ will lower quality setting.  Mostly AA settings.
+        if (e.KeyPressed == VK_LSB)
+            QualitySettings.DecreaseLevel(true);
+        if (e.KeyPressed == VK_RSB)
+            QualitySettings.IncreaseLevel(true);
     }
 
     void Start()
