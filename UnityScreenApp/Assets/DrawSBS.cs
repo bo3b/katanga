@@ -512,14 +512,20 @@ public class DrawSBS : MonoBehaviour
 
             // ToDo: This colorSpace doesn't do anything.
             //  Tested back to back, setting to false/true has no effect on TV gamma
+
+            // After quite a bit of testing, this CreateExternalTexture does not appear to respect the
+            // input parameters for TextureFormat, nor colorSpace.  It appears to use whatever is 
+            // defined in the Shared texture as the creation parameters.  
+            // If we see a format we are not presently handling properly, it's better to know about
+            // it than silently do something wrong, so fire off a FatalExit.
+
             bool colorSpace = linearColorSpace;
             if (format == 28 || format == 87 || format == 88)
                 colorSpace = linearColorSpace;
             else if (format == 29 || format == 91)
                 colorSpace = !linearColorSpace;
             else
-                //throw new Exception(String.Format("Game uses unknown DXGI_FORMAT: {0}", format));
-                print(String.Format("Game uses unknown DXGI_FORMAT: {0}", format));
+                FatalExit(String.Format("Game uses unknown DXGI_FORMAT: {0}", format), null, LogType.Exception);
 
             // This is the Unity Texture2D, double width texture, with right eye on the left half.
             // It will always be up to date with latest game image, because we pass in 'shared'.

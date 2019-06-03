@@ -167,6 +167,19 @@ ID3D11Device* CreateSharedTexture(IDXGISwapChain* pSwapChain)
 	backBuffer->GetDesc(&desc);
 	backBuffer->Release();
 
+	// Some games like TheSurge and Dishonored2 will specify a DXGI_FORMAT_R8G8B8A8_UNORM_SRGB
+	// as their backbuffer.  This doesn't work for us because our output is going to the VR HMD,
+	// and thus we get a doubled up sRGB/gamma curve, which makes it too dark, and the in-game
+	// slider doesn't have enough range to correct.  
+	// If we get one of these sRGB formats, we are going to strip that and return the Linear
+	// version instead, so that we avoid this problem.  This allows us to use Gamma for the Unity
+	// app itself, which matches 90% of the games, and still handle these oddball games automatically.
+
+	if (desc.Format == DXGI_FORMAT_R8G8B8A8_UNORM_SRGB)
+		desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	if (desc.Format == DXGI_FORMAT_B8G8R8A8_UNORM_SRGB)
+		desc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+
 	// This texture needs to use the Shared flag, so that we can share it to 
 	// another Device.  Because these are all DX11 objects, the share will work.
 
