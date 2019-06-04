@@ -126,7 +126,7 @@ QualitySettings:
     PSM: 3
     PSP2: 0
     Samsung TV: 0
-    Standalone: 3
+    Standalone: 2
     Tizen: 0
     Web: 3
     WebGL: 1
