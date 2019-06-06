@@ -46,13 +46,11 @@
 // DX9 - InProc_DX9.cpp
 void HookDirect3DCreate9();
 void HookCreateDevice(IDirect3D9Ex* pDX9Ex);
-void CreateSharedRenderTarget(D3DPRESENT_PARAMETERS * pPresentationParameters, HRESULT &res, IDirect3DDevice9 * pDevice9);
 // DX11 - InProc_DX11.cpp
 void HookNvapiSetDriverMode();
 void HookCreateSwapChain(IDXGIFactory* dDXGIFactory);
 void HookCreateSwapChainForHwnd(IDXGIFactory2* dDXGIFactory);
 void HookPresent(IDXGISwapChain* pSwapChain);
-void HookResizeBuffers(IDXGISwapChain* pSwapChain);
 
 
 // These need to be declared as extern "C" so that the names are not mangled.
