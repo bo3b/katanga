@@ -14,6 +14,27 @@
 #include <time.h>
 
 
+// ----------------------------------------------------------------------
+// Fatal error handling.  This is for scenarios that should never happen,
+// but should be checked just for reliability and unforeseen scenarios.
+//
+// We tried using std::exception, but that was mostly useless because nearly every
+// game has an exception handler of some form that wraps and silently kills any
+// exceptions, which looked to the end-user as just a game-hang.  
+//
+// This attempt here is to put up a MessageBox with the informative error text
+// and exit the game.  This should be better than simple logging, because at
+// least the user gets immediate notification and does not have to sift around
+// to find log files.  
+
+void FatalExit(LPCWSTR errorString)
+{
+	MessageBox(NULL, errorString, L"Fatal Error", MB_OK);
+	exit(1);
+}
+
+
+// ----------------------------------------------------------------------
 class RenderAPI_D3D11 : public RenderAPI
 {
 public:
@@ -315,8 +336,7 @@ ID3D11ShaderResourceView* RenderAPI_D3D11::CreateSharedSurface(HANDLE shared)
 
 	hr = m_Device->OpenSharedResource(shared, __uuidof(ID3D11Resource), (void**)(&resource));
 	{
-		if (FAILED(hr))
-			throw std::exception("Failed to open shared.");
+		if (FAILED(hr)) FatalExit(L"Failed to open shared.");
 
 		if (resource == nullptr)
 			return nullptr;
@@ -324,8 +344,7 @@ ID3D11ShaderResourceView* RenderAPI_D3D11::CreateSharedSurface(HANDLE shared)
 		// Even though the input shared surface is a RenderTarget Surface, this
 		// Query for Texture still works.  Not sure if it is good or bad.
 		hr = resource->QueryInterface(__uuidof(ID3D11Texture2D), (void**)(&texture));
-		if (FAILED(hr))
-			throw std::exception("Failed to QueryInterface of ID3D11Texture2D.");
+		if (FAILED(hr)) FatalExit(L"Failed to QueryInterface of ID3D11Texture2D.");
 
 		// By capturing the Width/Height/Format here, we can let Unity side
 		// know what buffer to build to match.
@@ -355,10 +374,10 @@ ID3D11ShaderResourceView* RenderAPI_D3D11::CreateSharedSurface(HANDLE shared)
 	// specifies, so passing NULL to make it identical.
 
 	hr = m_Device->CreateShaderResourceView(texture, NULL, &pSRView);
-	if (FAILED(hr))
-		throw std::exception("Failed to CreateShaderResourceView.");
+	if (FAILED(hr))	FatalExit(L"Failed to CreateShaderResourceView.");
 
 	return pSRView;
 }
 
 #endif // #if SUPPORT_D3D11
+
