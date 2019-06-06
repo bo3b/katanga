@@ -41,6 +41,13 @@
 // compilation units, InProc_DX9, InProc_DX11, and DeviarePlugin.
 // Anything declared here can conflict or be lost from the other units.
 
+// All unexpected errors are expected to call this function and exit.
+// Checking all errors from function calls, using this to handle the
+// 'should never happen' scenarios.
+
+void FatalExit(LPCWSTR errorString);
+
+
 // Interface to InProc side
 
 // DX9 - InProc_DX9.cpp

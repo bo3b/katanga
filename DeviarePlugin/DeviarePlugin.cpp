@@ -120,7 +120,7 @@ HRESULT WINAPI OnHookAdded(__in INktHookInfo *lpHookInfo, __in DWORD dwChainInde
 
 	HRESULT hr = lpHookInfo->get_FunctionName(&name);
 	if (FAILED(hr))
-		throw std::exception("Failed GetFunctionName");
+		FatalExit(L"Failed GetFunctionName");
 	lpHookInfo->get_Address(&address);
 	sprintf_s(szBufA, 1024, "DeviarePlugin::OnHookAdded called [Hook: %S @ 0x%IX / Chain:%lu]\n",
 		name, address, dwChainIndex);
@@ -128,10 +128,10 @@ HRESULT WINAPI OnHookAdded(__in INktHookInfo *lpHookInfo, __in DWORD dwChainInde
 
 	hr = lpHookInfo->CurrentProcess(&pProc);
 	if (FAILED(hr))
-		throw std::exception("Failed CurrentProcess");
+		FatalExit(L"Failed CurrentProcess");
 	hr = pProc->get_Id(&gGamePID);
 	if (FAILED(hr))
-		throw std::exception("Failed get_Id");
+		FatalExit(L"Failed get_Id");
 
 	return S_OK;
 }
@@ -145,7 +145,7 @@ VOID WINAPI OnHookRemoved(__in INktHookInfo *lpHookInfo, __in DWORD dwChainIndex
 
 	HRESULT hr = lpHookInfo->get_FunctionName(&name);
 	if (FAILED(hr))
-		throw std::exception("Failed GetFunctionName");
+		FatalExit(L"Failed GetFunctionName");
 	lpHookInfo->get_Address(&address);
 	sprintf_s(szBufA, 1024, "DeviarePlugin::OnHookRemoved called [Hook: %S @ 0x%IX / Chain:%lu]\n",
 		name, address, dwChainIndex);
@@ -193,7 +193,7 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 
 	hr = lpHookInfo->get_FunctionName(&name);
 	if (FAILED(hr))
-		throw std::exception("Failed GetFunctionName");
+		FatalExit(L"Failed GetFunctionName");
 
 #ifdef _DEBUG
 	my_ssize_t address;
@@ -224,11 +224,11 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 	{
 		hr = lpHookCallInfoPlugin->Params(&paramsEnum);
 		if (FAILED(hr))
-			throw std::exception("Failed Nektra lpHookCallInfoPlugin->Params");
+			FatalExit(L"Failed Nektra lpHookCallInfoPlugin->Params");
 
 		lpHookCallInfoPlugin->get_IsPreCall(&isPreCall);
 		if (FAILED(hr))
-			throw std::exception("Failed Nektra get_IsPreCall");
+			FatalExit(L"Failed Nektra get_IsPreCall");
 
 		if (isPreCall)
 		{
@@ -236,16 +236,16 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 			unsigned long flags;	// should be UINT. long and int are both 32 bits on windows.
 			hr = paramsEnum->GetAt(3, &param.p);
 			if (FAILED(hr))
-				throw std::exception("Failed Nektra paramsEnum->GetAt(3)");
+				FatalExit(L"Failed Nektra paramsEnum->GetAt(3)");
 			hr = param->get_ULongVal(&flags);
 			if (FAILED(hr))
-				throw std::exception("Failed Nektra paramsEnum->get_ULongVal()");
+				FatalExit(L"Failed Nektra paramsEnum->get_ULongVal()");
 
 			flags |= D3D11_CREATE_DEVICE_DEBUG;
 
 			hr = param->put_ULongVal(flags);
 			if (FAILED(hr))
-				throw std::exception("Failed Nektra paramsEnum->put_ULongVal()");
+				FatalExit(L"Failed Nektra paramsEnum->put_ULongVal()");
 #endif
 			return S_OK;
 		}
@@ -254,18 +254,18 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 		// Param 8 is returned _COM_Outptr_opt_ IDXGISwapChain** ppSwapChain
 		hr = paramsEnum->GetAt(8, &param.p);
 		if (FAILED(hr))
-			throw std::exception("Failed Nektra paramsEnum->GetAt(8)");
+			FatalExit(L"Failed Nektra paramsEnum->GetAt(8)");
 		hr = param->get_IsNullPointer(&isNull);
 		if (FAILED(hr))
-			throw std::exception("Failed Nektra param->get_IsNullPointer");
+			FatalExit(L"Failed Nektra param->get_IsNullPointer");
 		if (!isNull)
 		{
 			hr = param->Evaluate(&param.p);
 			if (FAILED(hr))
-				throw std::exception("Failed Nektra param->Evaluate");
+				FatalExit(L"Failed Nektra param->Evaluate");
 			hr = param->get_PointerVal(&pointeraddress);
 			if (FAILED(hr))
-				throw std::exception("Failed Nektra param->get_PointerVal");
+				FatalExit(L"Failed Nektra param->get_PointerVal");
 			pSwapChain = reinterpret_cast<IDXGISwapChain*>(pointeraddress);
 		}
 
@@ -290,11 +290,11 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 	{
 		hr = lpHookCallInfoPlugin->Params(&paramsEnum);
 		if (FAILED(hr))
-			throw std::exception("Failed Nektra lpHookCallInfoPlugin->Params");
+			FatalExit(L"Failed Nektra lpHookCallInfoPlugin->Params");
 
 		lpHookCallInfoPlugin->get_IsPreCall(&isPreCall);
 		if (FAILED(hr))
-			throw std::exception("Failed Nektra get_IsPreCall");
+			FatalExit(L"Failed Nektra get_IsPreCall");
 
 		if (isPreCall)
 		{
@@ -302,16 +302,16 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 			unsigned long flags;	// should be UINT. long and int are both 32 bits on windows.
 			hr = paramsEnum->GetAt(3, &param.p);
 			if (FAILED(hr))
-				throw std::exception("Failed Nektra paramsEnum->GetAt(3)");
+				FatalExit(L"Failed Nektra paramsEnum->GetAt(3)");
 			hr = param->get_ULongVal(&flags);
 			if (FAILED(hr))
-				throw std::exception("Failed Nektra paramsEnum->get_ULongVal()");
+				FatalExit(L"Failed Nektra paramsEnum->get_ULongVal()");
 
 			flags |= D3D11_CREATE_DEVICE_DEBUG;
 
 			hr = param->put_ULongVal(flags);
 			if (FAILED(hr))
-				throw std::exception("Failed Nektra paramsEnum->put_ULongVal()");
+				FatalExit(L"Failed Nektra paramsEnum->put_ULongVal()");
 #endif
 			return S_OK;
 		}
@@ -319,18 +319,18 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 		// Param 7 is returned ID3D11Device** ppDevice
 		hr = paramsEnum->GetAt(7, &param.p);
 		if (FAILED(hr))
-			throw std::exception("Failed Nektra paramsEnum->GetAt(7)");
+			FatalExit(L"Failed Nektra paramsEnum->GetAt(7)");
 		hr = param->get_IsNullPointer(&isNull);
 		if (FAILED(hr))
-			throw std::exception("Failed Nektra param->get_IsNullPointer");
+			FatalExit(L"Failed Nektra param->get_IsNullPointer");
 		if (!isNull)
 		{
 			hr = param->Evaluate(&param.p);
 			if (FAILED(hr))
-				throw std::exception("Failed Nektra param->Evaluate");
+				FatalExit(L"Failed Nektra param->Evaluate");
 			hr = param->get_PointerVal(&pointeraddress);
 			if (FAILED(hr))
-				throw std::exception("Failed Nektra param->get_PointerVal");
+				FatalExit(L"Failed Nektra param->get_PointerVal");
 			pDevice = reinterpret_cast<ID3D11Device*>(pointeraddress);
 		}
 	}
@@ -352,17 +352,17 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 	{
 		hr = lpHookCallInfoPlugin->Params(&paramsEnum);
 		if (FAILED(hr))
-			throw std::exception("Failed Nektra lpHookCallInfoPlugin->Params");
+			FatalExit(L"Failed Nektra lpHookCallInfoPlugin->Params");
 
 		hr = paramsEnum->GetAt(1, &param.p);
 		if (FAILED(hr))
-			throw std::exception("Failed Nektra paramsEnum->GetAt(1)");
+			FatalExit(L"Failed Nektra paramsEnum->GetAt(1)");
 		hr = param->Evaluate(&param.p);
 		if (FAILED(hr))
-			throw std::exception("Failed Nektra param->Evaluate");
+			FatalExit(L"Failed Nektra param->Evaluate");
 		hr = param->get_PointerVal(&pointeraddress);
 		if (FAILED(hr))
-			throw std::exception("Failed Nektra param->get_PointerVal");
+			FatalExit(L"Failed Nektra param->get_PointerVal");
 		pDXGIFactory = reinterpret_cast<IDXGIFactory*>(pointeraddress);
 
 		//ToDo: Not sure this is best way.
@@ -370,12 +370,12 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 		IUnknown* pUnknown;
 		hr = pDXGIFactory->QueryInterface(__uuidof(IUnknown), (void **)&pUnknown);
 		if (FAILED(hr))
-			throw std::exception("Failed QueryInterface for IUnknown");
+			FatalExit(L"Failed QueryInterface for IUnknown");
 
 		IDXGIFactory2* pFactory2;
 		hr = pUnknown->QueryInterface(__uuidof(IDXGIFactory2), (void **)&pFactory2);
 		if (FAILED(hr))
-			throw std::exception("Failed QueryInterface for IDXGIFactory2");
+			FatalExit(L"Failed QueryInterface for IDXGIFactory2");
 
 		HookCreateSwapChain(pFactory2);
 		HookCreateSwapChainForHwnd(pFactory2);
@@ -413,7 +413,7 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 		//pDX9Ex = reinterpret_cast<IDirect3D9Ex*>(Direct3DCreate9(D3D_SDK_VERSION));
 		hr = Direct3DCreate9Ex(D3D_SDK_VERSION, &pDX9Ex);
 		if (FAILED(hr))
-			throw std::exception("Failed Direct3DCreate9Ex");
+			FatalExit(L"Failed Direct3DCreate9Ex");
 
 		// At this point, we are going to switch from using Deviare style calls
 		// to In-Proc style calls, because the routines we need to hook are not
@@ -431,7 +431,7 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 
 		hr = lpHookCallInfoPlugin->SkipCall();
 		if (FAILED(hr))
-			throw std::exception("Failed SkipCall");
+			FatalExit(L"Failed SkipCall");
 
 		// However, we still need a proper return result from this call, so we set the 
 		// Nektra Result to be our IDirect3D9Ex object.  This will ultimately return to
@@ -444,20 +444,20 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 
 		hr = lpHookCallInfoPlugin->Result(&nktResult);
 		if (FAILED(hr))
-			throw std::exception("Failed Get NktResult");
+			FatalExit(L"Failed Get NktResult");
 		hr = nktResult->put_PointerVal(retPtr);
 		if (FAILED(hr))
-			throw std::exception("Failed put pointer");
+			FatalExit(L"Failed put pointer");
 	}
 
 	// ToDo: wrong get I think for CreateDXGIFactory
 	//INktParam* nktResult;
 	//hr = lpHookCallInfoPlugin->Result(&nktResult);
 	//if (FAILED(hr))
-	//	throw std::exception("Failed Get NktResult");
+	//	FatalExit(L"Failed Get NktResult");
 	//hr = nktResult->get_PointerVal((__int64*)&pDXGIFactory);
 	//if (FAILED(hr))
-	//	throw std::exception("Failed put pointer");
+	//	FatalExit\(L"Failed put pointer"\);
 
 	// At this point, we are going to switch from using Deviare style calls
 	// to In-Proc style calls, because the routines we need to hook are not
@@ -471,3 +471,22 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 	return S_OK;
 }
 
+
+// ----------------------------------------------------------------------
+// Fatal error handling.  This is for scenarios that should never happen,
+// but should be checked just for reliability and unforeseen scenarios.
+//
+// We tried using std::exception, but that was mostly useless because nearly every
+// game has an exception handler of some form that wraps and silently kills any
+// exceptions, which looked to the end-user as just a game-hang.  
+//
+// This attempt here is to put up a MessageBox with the informative error text
+// and exit the game.  This should be better than simple logging, because at
+// least the user gets immediate notification and does not have to sift around
+// to find log files.  
+
+void FatalExit(LPCWSTR errorString)
+{
+	MessageBox(NULL, errorString, L"Fatal Error", MB_OK);
+	exit(1);
+}

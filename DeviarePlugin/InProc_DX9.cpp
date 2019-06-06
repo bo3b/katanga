@@ -263,11 +263,9 @@ void CreateSharedRenderTarget(IDirect3DDevice9* pDevice9)
 	HANDLE tempSharedHandle = NULL;
 
 	res = pDevice9->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &pBackBuffer);
-	if (FAILED(res))
-		throw std::exception("Fail to GetBackBuffer in CreateSharedRenderTarget");
+	if (FAILED(res)) FatalExit(L"Fail to GetBackBuffer in CreateSharedRenderTarget");
 	res = pBackBuffer->GetDesc(&desc);
-	if (FAILED(res))
-		throw std::exception("Fail to GetDesc on BackBuffer");
+	if (FAILED(res)) FatalExit(L"Fail to GetDesc on BackBuffer");
 	pBackBuffer->Release();
 
 	UINT width = desc.Width * 2;
@@ -277,20 +275,17 @@ void CreateSharedRenderTarget(IDirect3DDevice9* pDevice9)
 
 	res = pDevice9->CreateTexture(width, height, 0, D3DUSAGE_RENDERTARGET, format, D3DPOOL_DEFAULT,
 		&stereoCopy, nullptr);
-	if (FAILED(res))
-		throw std::exception("Fail to create shared stereo Texture");
+	if (FAILED(res)) FatalExit(L"Fail to create shared stereo Texture");
 
 	res = stereoCopy->GetSurfaceLevel(0, &gGameSurface);
-	if (FAILED(res))
-		throw std::exception("Fail to GetSurfaceLevel of stereo Texture");
+	if (FAILED(res)) FatalExit(L"Fail to GetSurfaceLevel of stereo Texture");
 
 	// Actual shared surface, as a RenderTarget. RenderTarget because that is
 	// what the Unity side is expecting.  tempSharedHandle, to avoid kicking
 	// off changes just yet, and reusing the current gGameSharedHandle errors out.
 	res = pDevice9->CreateRenderTarget(width, height, format, D3DMULTISAMPLE_NONE, 0, true,
 		&gSharedTarget, &tempSharedHandle);
-	if (FAILED(res))
-		throw std::exception("Fail to CreateRenderTarget for copy of stereo Texture");
+	if (FAILED(res)) FatalExit(L"Fail to CreateRenderTarget for copy of stereo Texture");
 
 	// Everything has been setup, or cleanly re-setup, and we can now enable the
 	// VR side to kick in and use the new surfaces.
@@ -697,8 +692,7 @@ HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 
 	hr = pOrigCreateDevice(This, Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters,
 		ppReturnedDeviceInterface);
-	if (FAILED(hr))
-		throw std::exception("Failed to create IDirect3DDevice9");
+	if (FAILED(hr)) FatalExit(L"Failed to create IDirect3DDevice9");
 
 
 	// Using that fresh DX9 Device, we can now hook the Present and CreateTexture calls.
@@ -742,20 +736,17 @@ HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 
 
 		HRESULT res = NvAPI_Initialize();
-		if (FAILED(res))
-			throw std::exception("Failed to NvAPI_Initialize\n");
+		if (FAILED(res)) FatalExit(L"Failed to NvAPI_Initialize\n");
 
 		// ToDo: need to handle stereo disabled...
 		res = NvAPI_Stereo_CreateHandleFromIUnknown(pDevice9, &gNVAPI);
-		if (FAILED(res))
-			throw std::exception("Failed to NvAPI_Stereo_CreateHandleFromIUnknown\n");
+		if (FAILED(res)) FatalExit(L"Failed to NvAPI_Stereo_CreateHandleFromIUnknown\n");
 
 		// ToDo: Is this necessary?
 		// Seems like I just added it without knowing impact. Since we create 2x buffer, might just 
 		// cause problems.
 		//res = NvAPI_Stereo_SetSurfaceCreationMode(__in gNVAPI, __in NVAPI_STEREO_SURFACECREATEMODE_FORCESTEREO);
-		//if (FAILED(res))
-		//	throw std::exception("Failed to NvAPI_Stereo_SetSurfaceCreationMode\n");
+		//if (FAILED(res)) FatalExit(L"Failed to NvAPI_Stereo_SetSurfaceCreationMode\n");
 
 
 		// Create the duplicate stereo surface, which will then be copied into the
@@ -775,8 +766,7 @@ HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 		//	TRUE,               // manual, not auto-reset event
 		//	FALSE,              // initial state is nonsignaled
 		//	nullptr);			// object name
-		//if (gFreshBits == nullptr)
-		//	throw std::exception("Fail to CreateEvent for gFreshBits");
+		//if (gFreshBits == nullptr) FatalExit(L"Fail to CreateEvent for gFreshBits");
 
 		//gSharedThread = CreateThread(
 		//	NULL,                   // default security attributes
@@ -785,8 +775,7 @@ HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 		//	pDevice9,		        // device, as argument to thread function 
 		//	0,				        // runs immediately, to a pause state. 
 		//	nullptr);			    // returns the thread identifier 
-		//if (gSharedThread == nullptr)
-		//	throw std::exception("Fail to CreateThread for GameToShared");
+		//if (gSharedThread == nullptr) FatalExit(L"Fail to CreateThread for GameToShared");
 
 		// We are certain to be being called from the game's primary thread here,
 		// as this is CreateDevice.  Save the reference.
@@ -845,8 +834,7 @@ void HookCreateDevice(IDirect3D9Ex* pDX9Ex)
 		DWORD dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigCreateDevice,
 			lpvtbl_CreateDevice(pDX9Ex), Hooked_CreateDevice, 0);
 
-		if (FAILED(dwOsErr))
-			throw std::exception("Failed to hook IDirect3D9::CreateDevice");
+		if (FAILED(dwOsErr)) FatalExit(L"Failed to hook IDirect3D9::CreateDevice");
 	}
 }
 
@@ -872,8 +860,7 @@ IDirect3D9* __stdcall Hooked_Direct3DCreate9(
 
 	IDirect3D9Ex* pDX9Ex = nullptr;
 	HRESULT hr = Direct3DCreate9Ex(D3D_SDK_VERSION, &pDX9Ex);
-	if (FAILED(hr))
-		throw std::exception("Failed Direct3DCreate9Ex");
+	if (FAILED(hr)) FatalExit(L"Failed Direct3DCreate9Ex");
 
 	// Hook the next level of CreateDevice so that ultimately we
 	// can get to the SwapChain->Present.
@@ -903,20 +890,16 @@ void HookDirect3DCreate9()
 	WCHAR d3d9SystemPath[MAX_PATH];
 
 	UINT size = GetSystemDirectory(d3d9SystemPath, MAX_PATH);
-	if (size == 0)
-		throw std::exception("Failed to GetSystemDirectory at HookDirect3DCreat9");
+	if (size == 0) FatalExit(L"Failed to GetSystemDirectory at HookDirect3DCreat9");
 
 	errno_t err = wcscat_s(d3d9SystemPath, MAX_PATH, L"\\D3D9.DLL");
-	if (err != 0)
-		throw std::exception("Failed to concat string at HookDirect3DCreat9");
+	if (err != 0) FatalExit(L"Failed to concat string at HookDirect3DCreat9");
 
 	HMODULE hSystemD3D9 = LoadLibrary(d3d9SystemPath);
-	if (hSystemD3D9 == NULL)
-		throw std::exception("Failed to LoadLibrary for System32 d3d9.dll");
+	if (hSystemD3D9 == NULL) FatalExit(L"Failed to LoadLibrary for System32 d3d9.dll");
 
 	FARPROC systemDirect3DCreate9 = GetProcAddress(hSystemD3D9, "Direct3DCreate9");
-	if (systemDirect3DCreate9 == NULL)
-		throw std::exception("Failed to getProcedureAddress for system Direct3DCreate9");
+	if (systemDirect3DCreate9 == NULL) FatalExit(L"Failed to getProcedureAddress for system Direct3DCreate9");
 
 	// This can be called multiple times by a game, so let's be sure to
 	// only hook once.
@@ -930,8 +913,7 @@ void HookDirect3DCreate9()
 		DWORD dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigDirect3DCreate9,
 			systemDirect3DCreate9, Hooked_Direct3DCreate9, 0);
 
-		if (FAILED(dwOsErr))
-			throw std::exception("Failed to hook D3D9.DLL::Direct3DCreate9");
+		if (FAILED(dwOsErr)) FatalExit(L"Failed to hook D3D9.DLL::Direct3DCreate9");
 	}
 }
 

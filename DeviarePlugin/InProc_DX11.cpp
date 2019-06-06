@@ -150,8 +150,7 @@ ID3D11Device* CreateSharedTexture(IDXGISwapChain* pSwapChain)
 	// DXGIDevice, which is not usable here.
 
 	hr = pSwapChain->GetDevice(__uuidof(ID3D11Device), (void**)&pDevice);
-	if (FAILED(hr))
-		throw std::exception("Failed to GetDevice");
+	if (FAILED(hr)) FatalExit(L"Failed to GetDevice");
 
 
 	// Now that we have a proper SwapChain from the game, let's also make a 
@@ -161,8 +160,7 @@ ID3D11Device* CreateSharedTexture(IDXGISwapChain* pSwapChain)
 	// using ReverseStereoBlit will work.
 
 	hr = pSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&backBuffer);
-	if (FAILED(hr))
-		throw std::exception("Fail to get backbuffer");
+	if (FAILED(hr)) FatalExit(L"Fail to get backbuffer");
 
 	backBuffer->GetDesc(&desc);
 	backBuffer->Release();
@@ -188,8 +186,7 @@ ID3D11Device* CreateSharedTexture(IDXGISwapChain* pSwapChain)
 	desc.MiscFlags = D3D11_RESOURCE_MISC_SHARED;	// To be shared. maybe D3D11_RESOURCE_MISC_SHARED_KEYEDMUTEX is better
 
 	hr = pDevice->CreateTexture2D(&desc, NULL, &gGameTexture);
-	if (FAILED(hr))
-		throw std::exception("Fail to create shared stereo Texture");
+	if (FAILED(hr)) FatalExit(L"Fail to create shared stereo Texture");
 
 	// Now create the HANDLE which is used to share surfaces.  This follows the model from:
 	// https://docs.microsoft.com/en-us/windows/desktop/api/d3d11/nf-d3d11-id3d11device-opensharedresource
@@ -197,15 +194,12 @@ ID3D11Device* CreateSharedTexture(IDXGISwapChain* pSwapChain)
 	IDXGIResource* pDXGIResource = NULL;
 
 	hr = gGameTexture->QueryInterface(__uuidof(IDXGIResource), (LPVOID*)&pDXGIResource);
-	if (FAILED(hr))
-		throw std::exception("Fail to QueryInterface on shared surface");
+	if (FAILED(hr))	FatalExit(L"Fail to QueryInterface on shared surface");
 
 	hr = pDXGIResource->GetSharedHandle(&gGameSharedHandle);
-	if (FAILED(hr))
-		throw std::exception("Fail to pDXGIResource->GetSharedHandle");
+	if (FAILED(hr) || gGameSharedHandle == nullptr)	FatalExit(L"Fail to pDXGIResource->GetSharedHandle");
+	
 	pDXGIResource->Release();
-	if (gGameSharedHandle == nullptr)
-		throw std::exception("Fail to create gGameSharedHandle");
 
 
 	// If we already had created one, let the old one go.  We do it after the recreation
@@ -267,7 +261,7 @@ HRESULT __stdcall Hooked_Present(IDXGISwapChain * This,
 	ID3D11DeviceContext* pContext = nullptr;
 
 	hr = This->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&backBuffer);
-	if (SUCCEEDED(hr) && gGameTexture > 0)
+	if (SUCCEEDED(hr) && gGameTexture != nullptr)
 	{
 		backBuffer->GetDesc(&pDesc);
 		backBuffer->GetDevice(&pDevice);
@@ -399,8 +393,7 @@ HRESULT __stdcall Hooked_ResizeBuffers(IDXGISwapChain* This,
 	// Run original call game is expecting.
 
 	hr = pOrigResizeBuffers(This, BufferCount, Width, Height, NewFormat, SwapChainFlags);
-	if (FAILED(hr))
-		throw std::exception("Failed to IDXGISwapChain->ResizeBuffers");
+	if (FAILED(hr)) FatalExit(L"Failed to IDXGISwapChain->ResizeBuffers");
 
 	// Refresh our shared texture and shared HANDLE to match, otherwise we draw only
 	// a partial image on the big screen.
@@ -448,8 +441,7 @@ HRESULT __stdcall Hooked_CreateSwapChainForHwnd(IDXGIFactory2 * This,
 	// Run original call game is expecting.
 
 	hr = pOrigCreateSwapChainForHwnd(This, pDevice, hWnd, pDesc, pFullscreenDesc, pRestrictToOutput, ppSwapChain);
-	if (FAILED(hr))
-		throw std::exception("Failed to create CreateSwapChainForHwnd");
+	if (FAILED(hr)) FatalExit(L"Failed to create CreateSwapChainForHwnd");
 
 
 	// Using that fresh IDXGISwapChain, we can now hook the Present call, which 
@@ -499,8 +491,7 @@ HRESULT __stdcall Hooked_CreateSwapChain(IDXGIFactory1 * This,
 	// Run original call game is expecting.
 
 	hr = pOrigCreateSwapChain(This, pDevice, pDesc, ppSwapChain);
-	if (FAILED(hr))
-		throw std::exception("Failed to create CreateSwapChain");
+	if (FAILED(hr)) FatalExit(L"Failed to create CreateSwapChain");
 
 
 	// Using that fresh IDXGISwapChain, we can now hook the Present call, which 
@@ -548,8 +539,7 @@ void HookCreateSwapChain(IDXGIFactory* dDXGIFactory)
 		DWORD dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigCreateSwapChain,
 			lpvtbl_CreateSwapChain(dDXGIFactory), Hooked_CreateSwapChain, 0);
 
-		if (dwOsErr != S_OK)
-			throw std::exception("Failed to hook IDXGIFactory1::CreateSwapChain");
+		if (dwOsErr != S_OK) FatalExit(L"Failed to hook IDXGIFactory1::CreateSwapChain");
 	}
 }
 
@@ -579,8 +569,7 @@ void HookCreateSwapChainForHwnd(IDXGIFactory2* dDXGIFactory)
 		DWORD dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigCreateSwapChainForHwnd,
 			lpvtbl_CreateSwapChainForHwnd(dDXGIFactory), Hooked_CreateSwapChainForHwnd, 0);
 
-		if (dwOsErr != S_OK)
-			throw std::exception("Failed to hook IDXGIFactory1::CreateSwapChainForHwnd");
+		if (dwOsErr != S_OK) FatalExit(L"Failed to hook IDXGIFactory1::CreateSwapChainForHwnd");
 	}
 }
 
@@ -627,13 +616,11 @@ void HookPresent(IDXGISwapChain* pSwapChain)
 		// stereo so that we can fetch the stereo backbuffer during Present.
 
 		NvAPI_Status res = NvAPI_Initialize();
-		if (res != NVAPI_OK)
-			throw std::exception("Failed to NvAPI_Initialize\n");
+		if (res != NVAPI_OK) FatalExit(L"Failed to NvAPI_Initialize\n");
 
 		// ToDo: need to handle stereo disabled...
 		res = NvAPI_Stereo_CreateHandleFromIUnknown(pDevice, &gNVAPI);
-		if (res != NVAPI_OK)
-			throw std::exception("Failed to NvAPI_Stereo_CreateHandleFromIUnknown\n");
+		if (res != NVAPI_OK) FatalExit(L"Failed to NvAPI_Stereo_CreateHandleFromIUnknown\n");
 
 
 		// Since we are doing setup here, also create a thread that will be used to copy
@@ -648,8 +635,7 @@ void HookPresent(IDXGISwapChain* pSwapChain)
 		//	TRUE,               // manual, not auto-reset event
 		//	FALSE,              // initial state is nonsignaled
 		//	nullptr);			// object name
-		//if (gFreshBits == nullptr)
-		//	throw std::exception("Fail to CreateEvent for gFreshBits");
+		//if (gFreshBits == nullptr) FatalExit(L"Fail to CreateEvent for gFreshBits");
 
 		//gSharedThread = CreateThread(
 		//	NULL,                   // default security attributes
@@ -658,8 +644,7 @@ void HookPresent(IDXGISwapChain* pSwapChain)
 		//	pDevice9,		        // device, as argument to thread function 
 		//	0,				        // runs immediately, to a pause state. 
 		//	nullptr);			    // returns the thread identifier 
-		//if (gSharedThread == nullptr)
-		//	throw std::exception("Fail to CreateThread for GameToShared");
+		//if (gSharedThread == nullptr) FatalExit(L"Fail to CreateThread for GameToShared");
 
 		// We are certain to be being called from the game's primary thread here,
 		// as this is CreateSwapChain.  Save the reference.
@@ -727,12 +712,10 @@ void HookNvapiSetDriverMode()
 #endif
 
 	HMODULE hNvapi = LoadLibrary(REAL_NVAPI_DLL);
-	if (hNvapi == NULL)
-		throw std::exception("Failed to LoadLibrary for nvapi.dll");
+	if (hNvapi == NULL) FatalExit(L"Failed to LoadLibrary for nvapi.dll");
 
 	FARPROC pQueryInterface = GetProcAddress(hNvapi, "nvapi_QueryInterface");
-	if (pQueryInterface == NULL)
-		throw std::exception("Failed to GetProcAddress for nvapi_QueryInterface");
+	if (pQueryInterface == NULL) FatalExit(L"Failed to GetProcAddress for nvapi_QueryInterface");
 
 	// This could be called multiple times by a game, so let's be sure to
 	// only hook once.
@@ -752,7 +735,6 @@ void HookNvapiSetDriverMode()
 		DWORD dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigNvAPI_Stereo_SetDriverMode,
 			pSetDriverMode, Hooked_NvAPI_Stereo_SetDriverMode, 0);
 
-		if (FAILED(dwOsErr))
-			throw std::exception("Failed to hook NVAPI.DLL NvAPI_Stereo_SetDriverMode");
+		if (FAILED(dwOsErr)) FatalExit(L"Failed to hook NVAPI.DLL NvAPI_Stereo_SetDriverMode");
 	}
 }
