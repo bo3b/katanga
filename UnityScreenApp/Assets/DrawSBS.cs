@@ -110,6 +110,18 @@ public class DrawSBS : MonoBehaviour
 
     // -----------------------------------------------------------------------------
 
+    // Not positive this is the correct way to recenter, but seems to be working.
+
+    private static void RecenterHMD()
+    {
+        UnityEngine.XR.TrackingSpaceType currentType = UnityEngine.XR.XRDevice.GetTrackingSpaceType();
+        {
+            UnityEngine.XR.XRDevice.SetTrackingSpaceType(UnityEngine.XR.TrackingSpaceType.Stationary);
+            UnityEngine.XR.InputTracking.Recenter();
+        }
+        UnityEngine.XR.XRDevice.SetTrackingSpaceType(currentType);
+    }
+
     readonly int VK_F12 = 123;
     readonly int VK_LSB = 219;  // [ key
     readonly int VK_RSB = 221;  // ] key
@@ -118,14 +130,7 @@ public class DrawSBS : MonoBehaviour
     {
         // if user pressed F12 then recenter the view of the VR headset
         if (e.KeyPressed == VK_F12)
-        {
-            UnityEngine.XR.TrackingSpaceType currType = UnityEngine.XR.XRDevice.GetTrackingSpaceType();
-            {
-                UnityEngine.XR.XRDevice.SetTrackingSpaceType(UnityEngine.XR.TrackingSpaceType.Stationary);
-                UnityEngine.XR.InputTracking.Recenter();
-            }
-            UnityEngine.XR.XRDevice.SetTrackingSpaceType(currType);
-        }
+            RecenterHMD();
 
         // If user presses ], let's bump the Quality to the next level and rebuild
         // the environment.  [ will lower quality setting.  Mostly AA settings.
@@ -145,19 +150,15 @@ public class DrawSBS : MonoBehaviour
         _listener.OnKeyPressed += _listener_OnKeyPressed;
         _listener.HookKeyboard();
 
-        print("Running: " + gamePath + "\n");
-
-        // ToDo: only do this when we also have a recenter key/button.
-        //  This makes floor move to wherever it starts.
         // Let's recenter around wherever the headset is pointing. Seems to be the model
         // that people are expecting, instead of the facing forward based on room setup.
-        UnityEngine.XR.XRDevice.SetTrackingSpaceType(UnityEngine.XR.TrackingSpaceType.Stationary);
-        UnityEngine.XR.InputTracking.Recenter();
-
+        RecenterHMD();
 
         // Store the current Texture2D on the Quad as the original grey
         screenMaterial = GetComponent<Renderer>().material;
         greyTexture = screenMaterial.mainTexture;
+
+        print("Running: " + gamePath + "\n");
 
         string wd = System.IO.Directory.GetCurrentDirectory();
         print("WorkingDirectory: " + wd);
