@@ -33,7 +33,7 @@
 #include <exception>
 
 #include "NktHookLib.h"
-#include "nvapi\nvapi.h"
+#include "nvapi.h"
 
 
 //-----------------------------------------------------------
@@ -44,9 +44,11 @@
 // Interface to InProc side
 
 // DX9 - InProc_DX9.cpp
+void HookDirect3DCreate9();
 void HookCreateDevice(IDirect3D9Ex* pDX9Ex);
 void CreateSharedRenderTarget(D3DPRESENT_PARAMETERS * pPresentationParameters, HRESULT &res, IDirect3DDevice9 * pDevice9);
 // DX11 - InProc_DX11.cpp
+void HookNvapiSetDriverMode();
 void HookCreateSwapChain(IDXGIFactory* dDXGIFactory);
 void HookCreateSwapChainForHwnd(IDXGIFactory2* dDXGIFactory);
 void HookPresent(IDXGISwapChain* pSwapChain);

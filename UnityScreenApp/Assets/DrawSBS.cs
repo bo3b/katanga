@@ -13,7 +13,7 @@ using System.Diagnostics;
 public class DrawSBS : MonoBehaviour
 {
     string katanga_directory;
-    
+
     // Absolute file path to the executable of the game. We use this path to start the game.
     string gamePath;
 
@@ -21,8 +21,8 @@ public class DrawSBS : MonoBehaviour
     public string gameTitle;
 
     static NktSpyMgr _spyMgr;
-    static NktProcess _gameProcess;
-    static string _nativeDLLName;
+    static NktProcess _gameProcess = null;
+    static string _nativeDLLName = null;
 
     // Primary Texture received from game as shared ID3D11ShaderResourceView
     // It automatically updates as the injected DLL copies the bits into the
@@ -39,6 +39,10 @@ public class DrawSBS : MonoBehaviour
     static int SetEvent = 1;
 
     public Text infoText;
+
+    // We have to use a low level Keyyboard listener because Unity's built in listener doesn't 
+    // detect keyboard events when the Unity app isn't in the foreground
+    private LowLevelKeyboardListener _listener;
 
     // -----------------------------------------------------------------------------
 
@@ -106,10 +110,40 @@ public class DrawSBS : MonoBehaviour
 
     // -----------------------------------------------------------------------------
 
+    readonly int VK_F12 = 123;
+    readonly int VK_LSB = 219;  // [ key
+    readonly int VK_RSB = 221;  // ] key
+
+    void _listener_OnKeyPressed(object sender, KeyPressedArgs e)
+    {
+        // if user pressed F12 then recenter the view of the VR headset
+        if (e.KeyPressed == VK_F12)
+        {
+            UnityEngine.XR.TrackingSpaceType currType = UnityEngine.XR.XRDevice.GetTrackingSpaceType();
+            {
+                UnityEngine.XR.XRDevice.SetTrackingSpaceType(UnityEngine.XR.TrackingSpaceType.Stationary);
+                UnityEngine.XR.InputTracking.Recenter();
+            }
+            UnityEngine.XR.XRDevice.SetTrackingSpaceType(currType);
+        }
+
+        // If user presses ], let's bump the Quality to the next level and rebuild
+        // the environment.  [ will lower quality setting.  Mostly AA settings.
+        if (e.KeyPressed == VK_LSB)
+            QualitySettings.DecreaseLevel(true);
+        if (e.KeyPressed == VK_RSB)
+            QualitySettings.IncreaseLevel(true);
+    }
+
     void Start()
     {
         int hresult;
         object continueevent;
+
+        // hook keyboard to detect when the user presses a button
+        _listener = new LowLevelKeyboardListener();
+        _listener.OnKeyPressed += _listener_OnKeyPressed;
+        _listener.HookKeyboard();
 
         print("Running: " + gamePath + "\n");
 
@@ -117,8 +151,8 @@ public class DrawSBS : MonoBehaviour
         //  This makes floor move to wherever it starts.
         // Let's recenter around wherever the headset is pointing. Seems to be the model
         // that people are expecting, instead of the facing forward based on room setup.
-        //UnityEngine.XR.XRDevice.SetTrackingSpaceType(UnityEngine.XR.TrackingSpaceType.Stationary);
-        //UnityEngine.XR.InputTracking.Recenter();
+        UnityEngine.XR.XRDevice.SetTrackingSpaceType(UnityEngine.XR.TrackingSpaceType.Stationary);
+        UnityEngine.XR.InputTracking.Recenter();
 
 
         // Store the current Texture2D on the Quad as the original grey
@@ -215,18 +249,17 @@ public class DrawSBS : MonoBehaviour
 
             // Hook the primary DX9 creation call of Direct3DCreate9, which is a direct export of 
             // the d3d9 DLL.  All DX9 games must call this interface, or the Direct3DCreate9Ex.
-            // We set this to flgOnlyPreCall, because we want to always create the IDirect3D9Ex object.
-            // By hooking this here, we can handle either DX9 or DX11 games.
+            // This is not hooked here though, it is hooked in DeviarePlugin at OnLoad.
+            // We need to do special handling to fetch the System32 version of d3d9.dll,
+            // in order to avoid unhooking HelixMod's d3d9.dll.
 
-            print("Hook the D3D9.DLL!Direct3DCreate9...");
-            NktHook create9Hook = _spyMgr.CreateHook("D3D9.DLL!Direct3DCreate9", (int)eNktHookFlags.flgOnlyPreCall);
-            if (create9Hook == null)
-                throw new Exception("Failed to hook D3D9.DLL!Direct3DCreate9");
+            // Hook the nvapi.  This is required to support Direct Mode in the driver, for 
+            // games like Tomb Raider and Deus Ex that have no SBS.
+            // There is only one call in the nvidia dll, nvapi_QueryInterface.  That will
+            // be hooked, and then the _NvAPI_Stereo_SetDriverMode call will be hooked
+            // so that we can see when a game sets Direct Mode and change behavior in Present.
+            // This is also done in DeviarePlugin at OnLoad.
 
-            print("Hook the D3D9.DLL!Direct3DCreate9Ex...");
-            NktHook create9ExHook = _spyMgr.CreateHook("D3D9.DLL!Direct3DCreate9Ex", (int)eNktHookFlags.flgOnlyPreCall);
-            if (create9ExHook == null)
-                throw new Exception("Failed to hook D3D9.DLL!Direct3DCreate9Ex");
 
             // Make sure the CustomHandler in the NativePlugin at OnFunctionCall gets called when this 
             // object is created. At that point, the native code will take over.
@@ -235,9 +268,6 @@ public class DrawSBS : MonoBehaviour
             deviceAndSwapChainHook.AddCustomHandler(_nativeDLLName, 0, "");
             factoryHook.AddCustomHandler(_nativeDLLName, 0, "");
             factory1Hook.AddCustomHandler(_nativeDLLName, 0, "");
-
-            create9Hook.AddCustomHandler(_nativeDLLName, 0, "");
-            create9ExHook.AddCustomHandler(_nativeDLLName, 0, "");
 
             // Finally attach and activate the hook in the still suspended game process.
 
@@ -249,11 +279,6 @@ public class DrawSBS : MonoBehaviour
             factoryHook.Hook(true);
             factory1Hook.Attach(_gameProcess, true);
             factory1Hook.Hook(true);
-
-            create9Hook.Attach(_gameProcess, true);
-            create9Hook.Hook(true);
-            create9ExHook.Attach(_gameProcess, true);
-            create9ExHook.Hook(true);
 
             // Ready to go.  Let the game startup.  When it calls Direct3DCreate9, we'll be
             // called in the NativePlugin::OnFunctionCall
@@ -270,6 +295,15 @@ public class DrawSBS : MonoBehaviour
         // game to call through to CreateDevice, so that we can create the shared surface.
     }
 
+    
+    // On Quit, we need to unhook our keyboard handler or the Editor will crash with
+    // a bad handler.
+    // ToDo: anything else needs to be disposed or cleaned up?
+
+    private void OnApplicationQuit()
+    {
+        _listener.UnHookKeyboard();
+    }
 
 
     // -----------------------------------------------------------------------------
@@ -444,7 +478,7 @@ public class DrawSBS : MonoBehaviour
         // to NULL to notify this side.  When this happens, immediately set the Quad
         // drawing texture to the original grey, so that we stop using the shared buffer 
         // that might very well be dead by now.
-        
+
         if (pollHandle == 0)
         {
             screenMaterial.mainTexture = greyTexture;
@@ -463,7 +497,7 @@ public class DrawSBS : MonoBehaviour
 
             print("-> Got shared handle: " + gGameSharedHandle.ToString("x"));
 
-            
+
             // Call into the x64 UnityNativePlugin DLL for DX11 access, in order to create a ID3D11ShaderResourceView.
             // You'd expect this to be a ID3D11Texture2D, but that's not what Unity wants.
             // We also fetch the Width/Height/Format from the C++ side, as it's simpler than
@@ -478,12 +512,21 @@ public class DrawSBS : MonoBehaviour
             // and typically the games are ARGB format there, but still look fine here once we
             // create DX11 texture with RGBA format.
             // DXGI_FORMAT_R8G8B8A8_UNORM = 28,
-            // DXGI_FORMAT_R8G8B8A8_UNORM_SRGB = 29,
+            // DXGI_FORMAT_R8G8B8A8_UNORM_SRGB = 29,    (The Surge, DX11)
             // DXGI_FORMAT_B8G8R8A8_UNORM = 87          (The Ball, DX9)
             // DXGI_FORMAT_B8G8R8A8_UNORM_SRGB = 91,
             // DXGI_FORMAT_R10G10B10A2_UNORM = 24       ME:Andromenda   Unity RenderTextureFormat, but not TextureFormat
             //  No SRGB variant of R10G10B10A2.
             // DXGI_FORMAT_B8G8R8X8_UNORM = 88,         Trine   Unity RGB24
+
+            // ToDo: This colorSpace doesn't do anything.
+            //  Tested back to back, setting to false/true has no effect on TV gamma
+
+            // After quite a bit of testing, this CreateExternalTexture does not appear to respect the
+            // input parameters for TextureFormat, nor colorSpace.  It appears to use whatever is 
+            // defined in the Shared texture as the creation parameters.  
+            // If we see a format we are not presently handling properly, it's better to know about
+            // it than silently do something wrong, so fire off a FatalExit.
 
             bool colorSpace = linearColorSpace;
             if (format == 28 || format == 87 || format == 88)
@@ -491,8 +534,7 @@ public class DrawSBS : MonoBehaviour
             else if (format == 29 || format == 91)
                 colorSpace = !linearColorSpace;
             else
-                //throw new Exception(String.Format("Game uses unknown DXGI_FORMAT: {0}", format));
-                print(String.Format("Game uses unknown DXGI_FORMAT: {0}", format));
+                FatalExit(String.Format("Game uses unknown DXGI_FORMAT: {0}", format), null, LogType.Exception);
 
             // This is the Unity Texture2D, double width texture, with right eye on the left half.
             // It will always be up to date with latest game image, because we pass in 'shared'.
