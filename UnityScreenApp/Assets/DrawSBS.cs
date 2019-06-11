@@ -118,12 +118,10 @@ public class DrawSBS : MonoBehaviour
 
     private static void RecenterHMD()
     {
-        UnityEngine.XR.TrackingSpaceType currentType = UnityEngine.XR.XRDevice.GetTrackingSpaceType();
-        {
-            UnityEngine.XR.XRDevice.SetTrackingSpaceType(UnityEngine.XR.TrackingSpaceType.Stationary);
-            UnityEngine.XR.InputTracking.Recenter();
-        }
-        UnityEngine.XR.XRDevice.SetTrackingSpaceType(currentType);
+        bool success = UnityEngine.XR.XRDevice.SetTrackingSpaceType(UnityEngine.XR.TrackingSpaceType.Stationary);
+        if (!success)
+            print("Failure to reset tracking space for RecenterHMD");
+        UnityEngine.XR.InputTracking.Recenter();
     }
 
     readonly int VK_F12 = 123;
