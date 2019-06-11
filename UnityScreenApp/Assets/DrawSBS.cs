@@ -39,6 +39,7 @@ public class DrawSBS : MonoBehaviour
     static int SetEvent = 1;
 
     public Text infoText;
+    public Text qualityText;
 
     // We have to use a low level Keyyboard listener because Unity's built in listener doesn't 
     // detect keyboard events when the Unity app isn't in the foreground
@@ -106,6 +107,9 @@ public class DrawSBS : MonoBehaviour
 
         // With the game properly selected, add name to the big screen as info on launch.
         infoText.text = "Launching...\n\n" + gameTitle;
+
+        // Set the Quality level text on the floor to match whatever we start with.
+        qualityText.text = "Quality: " + QualitySettings.names[QualitySettings.GetQualityLevel()];
     }
 
     // -----------------------------------------------------------------------------
@@ -135,12 +139,18 @@ public class DrawSBS : MonoBehaviour
         // If user presses ], let's bump the Quality to the next level and rebuild
         // the environment.  [ will lower quality setting.  Mostly AA settings.
         if (e.KeyPressed == VK_LSB)
+        {
             QualitySettings.DecreaseLevel(true);
+            qualityText.text = "Quality: " + QualitySettings.names[QualitySettings.GetQualityLevel()];
+        }
         if (e.KeyPressed == VK_RSB)
+        {
             QualitySettings.IncreaseLevel(true);
+            qualityText.text = "Quality: " + QualitySettings.names[QualitySettings.GetQualityLevel()];
+        }
     }
 
-    void Start()
+void Start()
     {
         int hresult;
         object continueevent;
