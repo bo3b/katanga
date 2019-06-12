@@ -31,6 +31,7 @@ public class DrawSBS : MonoBehaviour
     System.Int32 gGameSharedHandle = 0;
 
     // Original grey texture for the screen at launch, used again for resolution changes.
+    public Renderer screen;
     Material screenMaterial;
     Texture greyTexture;
 
@@ -163,7 +164,7 @@ void Start()
         RecenterHMD();
 
         // Store the current Texture2D on the Quad as the original grey
-        screenMaterial = GetComponent<Renderer>().material;
+        screenMaterial = screen.material;
         greyTexture = screenMaterial.mainTexture;
 
         print("Running: " + gamePath + "\n");
