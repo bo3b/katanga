@@ -545,7 +545,7 @@ public class DrawSBS : MonoBehaviour
             else if (format == 29 || format == 91)
                 colorSpace = !linearColorSpace;
             else
-                FatalExit(String.Format("Game uses unknown DXGI_FORMAT: {0}", format), null, LogType.Exception);
+                MessageBox(IntPtr.Zero, String.Format("Game uses unknown DXGI_FORMAT: {0}", format), "Unknown format", 0);
 
             // This is the Unity Texture2D, double width texture, with right eye on the left half.
             // It will always be up to date with latest game image, because we pass in 'shared'.
