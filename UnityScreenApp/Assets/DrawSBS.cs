@@ -526,7 +526,7 @@ public class DrawSBS : MonoBehaviour
             // DXGI_FORMAT_R8G8B8A8_UNORM_SRGB = 29,    (The Surge, DX11)
             // DXGI_FORMAT_B8G8R8A8_UNORM = 87          (The Ball, DX9)
             // DXGI_FORMAT_B8G8R8A8_UNORM_SRGB = 91,
-            // DXGI_FORMAT_R10G10B10A2_UNORM = 24       ME:Andromenda   Unity RenderTextureFormat, but not TextureFormat
+            // DXGI_FORMAT_R10G10B10A2_UNORM = 24       ME:Andromenda, Alien, CallOfCthulu   Unity RenderTextureFormat, but not TextureFormat
             //  No SRGB variant of R10G10B10A2.
             // DXGI_FORMAT_B8G8R8X8_UNORM = 88,         Trine   Unity RGB24
 
@@ -544,6 +544,8 @@ public class DrawSBS : MonoBehaviour
                 colorSpace = linearColorSpace;
             else if (format == 29 || format == 91)
                 colorSpace = !linearColorSpace;
+            else if (format == 24)
+                colorSpace = linearColorSpace;
             else
                 MessageBox(IntPtr.Zero, String.Format("Game uses unknown DXGI_FORMAT: {0}", format), "Unknown format", 0);
 
