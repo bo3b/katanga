@@ -241,6 +241,10 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="SteamVR_Actions.csproj">
+      <Project>{5C307B7E-977A-C9FF-456C-B0880147461A}</Project>
+      <Name>SteamVR_Actions</Name>
+    </ProjectReference>
     <ProjectReference Include="SteamVR_Input_Editor.csproj">
       <Project>{E6594F2C-2DC5-CB04-5892-01F5D49638B7}</Project>
       <Name>SteamVR_Input_Editor</Name>
@@ -257,12 +261,9 @@
       <Project>{58A108A4-18E9-33FA-75FB-B906B95B871B}</Project>
       <Name>SteamVR_Windows_EditorHelper</Name>
     </ProjectReference>
-    <ProjectReference Include="SteamVR_Actions.csproj">
-      <Project>{5C307B7E-977A-C9FF-456C-B0880147461A}</Project>
-      <Name>SteamVR_Actions</Name>
-    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Assets\ControllerHints.cs" />
     <Compile Include="Assets\DrawSBS.cs" />
     <Compile Include="Assets\LowLevelKeyboardListener.cs" />
   </ItemGroup>

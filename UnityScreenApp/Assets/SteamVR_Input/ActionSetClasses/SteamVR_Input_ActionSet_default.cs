@@ -89,6 +89,14 @@ namespace Valve.VR
             }
         }
         
+        public virtual SteamVR_Action_Boolean ToggleHintAction
+        {
+            get
+            {
+                return SteamVR_Actions.default_ToggleHintAction;
+            }
+        }
+        
         public virtual SteamVR_Action_Vibration Haptic
         {
             get
