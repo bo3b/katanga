@@ -7,6 +7,7 @@ namespace Valve.VR.InteractionSystem.Sample
     //-------------------------------------------------------------------------
     public class ControllerHints : MonoBehaviour
     {
+        // hintAction is attached in RightHand Controller under Player
         public SteamVR_Action_Boolean hintAction;
         public Hand hand;
 

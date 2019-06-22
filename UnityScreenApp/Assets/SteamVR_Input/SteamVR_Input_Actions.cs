@@ -17,10 +17,6 @@ namespace Valve.VR
     public partial class SteamVR_Actions
     {
         
-        private static SteamVR_Action_Boolean p_default_InteractUI;
-        
-        private static SteamVR_Action_Boolean p_default_Teleport;
-        
         private static SteamVR_Action_Pose p_default_Pose;
         
         private static SteamVR_Action_Skeleton p_default_SkeletonLeftHand;
@@ -30,22 +26,6 @@ namespace Valve.VR
         private static SteamVR_Action_Boolean p_default_HeadsetOnHead;
         
         private static SteamVR_Action_Boolean p_default_ToggleHintAction;
-        
-        public static SteamVR_Action_Boolean default_InteractUI
-        {
-            get
-            {
-                return SteamVR_Actions.p_default_InteractUI.GetCopy <SteamVR_Action_Boolean>();
-            }
-        }
-        
-        public static SteamVR_Action_Boolean default_Teleport
-        {
-            get
-            {
-                return SteamVR_Actions.p_default_Teleport.GetCopy <SteamVR_Action_Boolean>();
-            }
-        }
         
         public static SteamVR_Action_Pose default_Pose
         {
@@ -91,8 +71,6 @@ namespace Valve.VR
         {
             Valve.VR.SteamVR_Input.actions = new Valve.VR.SteamVR_Action[]
             {
-                    SteamVR_Actions.default_InteractUI,
-                    SteamVR_Actions.default_Teleport,
                     SteamVR_Actions.default_Pose,
                     SteamVR_Actions.default_SkeletonLeftHand,
                     SteamVR_Actions.default_SkeletonRightHand,
@@ -100,8 +78,6 @@ namespace Valve.VR
                     SteamVR_Actions.default_ToggleHintAction};
             Valve.VR.SteamVR_Input.actionsIn = new Valve.VR.ISteamVR_Action_In[]
             {
-                    SteamVR_Actions.default_InteractUI,
-                    SteamVR_Actions.default_Teleport,
                     SteamVR_Actions.default_Pose,
                     SteamVR_Actions.default_SkeletonLeftHand,
                     SteamVR_Actions.default_SkeletonRightHand,
@@ -114,8 +90,6 @@ namespace Valve.VR
                     SteamVR_Actions.default_Pose};
             Valve.VR.SteamVR_Input.actionsBoolean = new Valve.VR.SteamVR_Action_Boolean[]
             {
-                    SteamVR_Actions.default_InteractUI,
-                    SteamVR_Actions.default_Teleport,
                     SteamVR_Actions.default_HeadsetOnHead,
                     SteamVR_Actions.default_ToggleHintAction};
             Valve.VR.SteamVR_Input.actionsSingle = new Valve.VR.SteamVR_Action_Single[0];
@@ -127,16 +101,12 @@ namespace Valve.VR
                     SteamVR_Actions.default_SkeletonRightHand};
             Valve.VR.SteamVR_Input.actionsNonPoseNonSkeletonIn = new Valve.VR.ISteamVR_Action_In[]
             {
-                    SteamVR_Actions.default_InteractUI,
-                    SteamVR_Actions.default_Teleport,
                     SteamVR_Actions.default_HeadsetOnHead,
                     SteamVR_Actions.default_ToggleHintAction};
         }
         
         private static void PreInitActions()
         {
-            SteamVR_Actions.p_default_InteractUI = ((SteamVR_Action_Boolean)(SteamVR_Action.Create <SteamVR_Action_Boolean>("/actions/default/in/InteractUI")));
-            SteamVR_Actions.p_default_Teleport = ((SteamVR_Action_Boolean)(SteamVR_Action.Create <SteamVR_Action_Boolean>("/actions/default/in/Teleport")));
             SteamVR_Actions.p_default_Pose = ((SteamVR_Action_Pose)(SteamVR_Action.Create <SteamVR_Action_Pose>("/actions/default/in/Pose")));
             SteamVR_Actions.p_default_SkeletonLeftHand = ((SteamVR_Action_Skeleton)(SteamVR_Action.Create <SteamVR_Action_Skeleton>("/actions/default/in/SkeletonLeftHand")));
             SteamVR_Actions.p_default_SkeletonRightHand = ((SteamVR_Action_Skeleton)(SteamVR_Action.Create <SteamVR_Action_Skeleton>("/actions/default/in/SkeletonRightHand")));

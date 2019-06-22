@@ -669,7 +669,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   hintAction:
     actionPath: /actions/default/in/ToggleHintAction
-    needsReinit: 0
+    needsReinit: 1
   hand: {fileID: 0}
 --- !u!1 &1732388120
 GameObject:
