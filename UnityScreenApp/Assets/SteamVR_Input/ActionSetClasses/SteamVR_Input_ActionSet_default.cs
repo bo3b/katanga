@@ -56,5 +56,13 @@ namespace Valve.VR
                 return SteamVR_Actions.default_ToggleHintAction;
             }
         }
+        
+        public virtual SteamVR_Action_Vector2 ScreenDistanceAction
+        {
+            get
+            {
+                return SteamVR_Actions.default_ScreenDistanceAction;
+            }
+        }
     }
 }
