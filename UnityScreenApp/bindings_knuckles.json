@@ -20,16 +20,7 @@
           "path": "/user/hand/right/pose/raw"
         }
       ],
-      "haptics": [
-        {
-          "output": "/actions/default/out/haptic",
-          "path": "/user/hand/left/output/haptic"
-        },
-        {
-          "output": "/actions/default/out/haptic",
-          "path": "/user/hand/right/output/haptic"
-        }
-      ],
+      "haptics": [],
       "sources": [
         {
           "path": "/user/hand/left/input/trigger",
@@ -38,26 +29,6 @@
           "inputs": {
             "click": {
               "output": "/actions/default/in/interactui"
-            }
-          }
-        },
-        {
-          "path": "/user/hand/left/input/grip",
-          "mode": "force_sensor",
-          "parameters": {},
-          "inputs": {
-            "force": {
-              "output": "/actions/default/in/squeeze"
-            }
-          }
-        },
-        {
-          "path": "/user/hand/right/input/grip",
-          "mode": "force_sensor",
-          "parameters": {},
-          "inputs": {
-            "force": {
-              "output": "/actions/default/in/squeeze"
             }
           }
         },
@@ -88,58 +59,6 @@
           "inputs": {
             "click": {
               "output": "/actions/default/in/teleport"
-            }
-          }
-        },
-        {
-          "path": "/user/hand/left/input/grip",
-          "mode": "grab",
-          "parameters": {
-            "force_hold_threshold": "0.02",
-            "force_release_threshold": "0.01"
-          },
-          "inputs": {
-            "grab": {
-              "output": "/actions/default/in/grabgrip"
-            }
-          }
-        },
-        {
-          "path": "/user/hand/right/input/grip",
-          "mode": "grab",
-          "parameters": {
-            "force_hold_threshold": "0.02",
-            "force_release_threshold": "0.01"
-          },
-          "inputs": {
-            "grab": {
-              "output": "/actions/default/in/grabgrip"
-            }
-          }
-        },
-        {
-          "path": "/user/hand/left/input/pinch",
-          "mode": "grab",
-          "parameters": {
-            "force_hold_threshold": "0.02",
-            "force_release_threshold": "0.01"
-          },
-          "inputs": {
-            "grab": {
-              "output": "/actions/default/in/grabpinch"
-            }
-          }
-        },
-        {
-          "path": "/user/hand/right/input/pinch",
-          "mode": "grab",
-          "parameters": {
-            "force_hold_threshold": "0.02",
-            "force_release_threshold": "0.01"
-          },
-          "inputs": {
-            "grab": {
-              "output": "/actions/default/in/grabpinch"
             }
           }
         }
