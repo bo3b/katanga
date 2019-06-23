@@ -266,6 +266,7 @@
     <Compile Include="Assets\ControllerHints.cs" />
     <Compile Include="Assets\DrawSBS.cs" />
     <Compile Include="Assets\LowLevelKeyboardListener.cs" />
+    <Compile Include="Assets\ScreenDistance.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Assets\SteamVR\InteractionSystem\Core\Shaders\SeeThru.shader" />
