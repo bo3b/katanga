@@ -29,6 +29,8 @@ namespace Valve.VR
         
         private static SteamVR_Action_Vector2 p_default_ScreenDistanceAction;
         
+        private static SteamVR_Action_Vector2 p_default_ScreenSizingAction;
+        
         public static SteamVR_Action_Pose default_Pose
         {
             get
@@ -77,6 +79,14 @@ namespace Valve.VR
             }
         }
         
+        public static SteamVR_Action_Vector2 default_ScreenSizingAction
+        {
+            get
+            {
+                return SteamVR_Actions.p_default_ScreenSizingAction.GetCopy <SteamVR_Action_Vector2>();
+            }
+        }
+        
         private static void InitializeActionArrays()
         {
             Valve.VR.SteamVR_Input.actions = new Valve.VR.SteamVR_Action[]
@@ -86,7 +96,8 @@ namespace Valve.VR
                     SteamVR_Actions.default_SkeletonRightHand,
                     SteamVR_Actions.default_HeadsetOnHead,
                     SteamVR_Actions.default_ToggleHintAction,
-                    SteamVR_Actions.default_ScreenDistanceAction};
+                    SteamVR_Actions.default_ScreenDistanceAction,
+                    SteamVR_Actions.default_ScreenSizingAction};
             Valve.VR.SteamVR_Input.actionsIn = new Valve.VR.ISteamVR_Action_In[]
             {
                     SteamVR_Actions.default_Pose,
@@ -94,7 +105,8 @@ namespace Valve.VR
                     SteamVR_Actions.default_SkeletonRightHand,
                     SteamVR_Actions.default_HeadsetOnHead,
                     SteamVR_Actions.default_ToggleHintAction,
-                    SteamVR_Actions.default_ScreenDistanceAction};
+                    SteamVR_Actions.default_ScreenDistanceAction,
+                    SteamVR_Actions.default_ScreenSizingAction};
             Valve.VR.SteamVR_Input.actionsOut = new Valve.VR.ISteamVR_Action_Out[0];
             Valve.VR.SteamVR_Input.actionsVibration = new Valve.VR.SteamVR_Action_Vibration[0];
             Valve.VR.SteamVR_Input.actionsPose = new Valve.VR.SteamVR_Action_Pose[]
@@ -107,7 +119,8 @@ namespace Valve.VR
             Valve.VR.SteamVR_Input.actionsSingle = new Valve.VR.SteamVR_Action_Single[0];
             Valve.VR.SteamVR_Input.actionsVector2 = new Valve.VR.SteamVR_Action_Vector2[]
             {
-                    SteamVR_Actions.default_ScreenDistanceAction};
+                    SteamVR_Actions.default_ScreenDistanceAction,
+                    SteamVR_Actions.default_ScreenSizingAction};
             Valve.VR.SteamVR_Input.actionsVector3 = new Valve.VR.SteamVR_Action_Vector3[0];
             Valve.VR.SteamVR_Input.actionsSkeleton = new Valve.VR.SteamVR_Action_Skeleton[]
             {
@@ -117,7 +130,8 @@ namespace Valve.VR
             {
                     SteamVR_Actions.default_HeadsetOnHead,
                     SteamVR_Actions.default_ToggleHintAction,
-                    SteamVR_Actions.default_ScreenDistanceAction};
+                    SteamVR_Actions.default_ScreenDistanceAction,
+                    SteamVR_Actions.default_ScreenSizingAction};
         }
         
         private static void PreInitActions()
@@ -128,6 +142,7 @@ namespace Valve.VR
             SteamVR_Actions.p_default_HeadsetOnHead = ((SteamVR_Action_Boolean)(SteamVR_Action.Create <SteamVR_Action_Boolean>("/actions/default/in/HeadsetOnHead")));
             SteamVR_Actions.p_default_ToggleHintAction = ((SteamVR_Action_Boolean)(SteamVR_Action.Create <SteamVR_Action_Boolean>("/actions/default/in/ToggleHintAction")));
             SteamVR_Actions.p_default_ScreenDistanceAction = ((SteamVR_Action_Vector2)(SteamVR_Action.Create <SteamVR_Action_Vector2>("/actions/default/in/ScreenDistanceAction")));
+            SteamVR_Actions.p_default_ScreenSizingAction = ((SteamVR_Action_Vector2)(SteamVR_Action.Create <SteamVR_Action_Vector2>("/actions/default/in/ScreenSizingAction")));
         }
     }
 }
