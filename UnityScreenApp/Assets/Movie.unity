@@ -424,24 +424,6 @@ MonoBehaviour:
   sizingAction:
     actionPath: /actions/default/in/ScreenSizingAction
     needsReinit: 0
---- !u!1 &716097228 stripped
-GameObject:
-  m_PrefabParentObject: {fileID: 144230, guid: dc06161b6d97feb419f45f03b62e14b9, type: 2}
-  m_PrefabInternal: {fileID: 1506634339}
---- !u!114 &716097229
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_PrefabParentObject: {fileID: 0}
-  m_PrefabInternal: {fileID: 0}
-  m_GameObject: {fileID: 716097228}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c3671a89f244c084db2fa33965df67e6, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  hintAction:
-    actionPath: /actions/default/in/ToggleHintAction
-    needsReinit: 0
 --- !u!1 &770579895
 GameObject:
   m_ObjectHideFlags: 0
@@ -517,13 +499,13 @@ Transform:
 GameObject:
   m_PrefabParentObject: {fileID: 160596, guid: dc06161b6d97feb419f45f03b62e14b9, type: 2}
   m_PrefabInternal: {fileID: 1506634339}
---- !u!114 &803564216
+--- !u!114 &803564219
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_PrefabParentObject: {fileID: 0}
   m_PrefabInternal: {fileID: 0}
   m_GameObject: {fileID: 803564215}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: c3671a89f244c084db2fa33965df67e6, type: 3}
   m_Name: 
@@ -531,6 +513,7 @@ MonoBehaviour:
   hintAction:
     actionPath: /actions/default/in/ToggleHintAction
     needsReinit: 0
+  hand: {fileID: 0}
 --- !u!1 &1058094502
 GameObject:
   m_ObjectHideFlags: 0
