@@ -424,6 +424,9 @@ MonoBehaviour:
   sizingAction:
     actionPath: /actions/default/in/ScreenSizingAction
     needsReinit: 0
+  heightAction:
+    actionPath: /actions/default/in/ScreenHeightAction
+    needsReinit: 0
 --- !u!1 &770579895
 GameObject:
   m_ObjectHideFlags: 0

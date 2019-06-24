@@ -30,6 +30,10 @@
     {
       "name": "/actions/default/in/ScreenSizingAction",
       "type": "vector2"
+    },
+    {
+      "name": "/actions/default/in/ScreenHeightAction",
+      "type": "vector2"
     }
   ],
   "action_sets": [
@@ -85,7 +89,8 @@
       "/actions/default/in/SkeletonRightHand": "Skeleton (Right)",
       "/actions/default/in/ToggleHintAction": "Toggle Hints",
       "/actions/default/in/ScreenDistanceAction": "Screen Distance",
-      "/actions/default/in/ScreenSizingAction": "Screen Sizing"
+      "/actions/default/in/ScreenSizingAction": "Screen Sizing",
+      "/actions/default/in/ScreenHeightAction": "Screen Height"
     }
   ]
 }
