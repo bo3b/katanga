@@ -12,10 +12,13 @@ using Valve.VR.InteractionSystem;
 
 public class ScreenDistance : MonoBehaviour {
 
-    public SteamVR_Action_Vector2 distanceAction;
-    public SteamVR_Action_Vector2 sizingAction;
-    public SteamVR_Action_Vector2 heightAction;
+    public SteamVR_Action_Boolean fartherAction;
+    public SteamVR_Action_Boolean nearerAction;
+    //public SteamVR_Action_Vector2 sizingAction;
+    //public SteamVR_Action_Vector2 heightAction;
 
+    // This script is attached to the main Screen object, as the most logical place
+    // to put all the screen sizing and location code.
     private GameObject mainScreen;
 
     //-------------------------------------------------
@@ -23,44 +26,35 @@ public class ScreenDistance : MonoBehaviour {
     {
         mainScreen = GameObject.Find("Screen");
 
-        if (distanceAction == null)
-        {
-            Debug.LogError("<b>[SteamVR Interaction]</b> No screen distance action assigned");
-            return;
-        }
-        if (sizingAction == null)
-        {
-            Debug.LogError("<b>[SteamVR Interaction]</b> No screen sizing action assigned");
-            return;
-        }
-        if (heightAction == null)
-        {
-            Debug.LogError("<b>[SteamVR Interaction]</b> No screen vertical action assigned");
-            return;
-        }
-
-        distanceAction.AddOnChangeListener(OnDistanceScroll, SteamVR_Input_Sources.RightHand);
-        sizingAction.AddOnChangeListener(OnSizingScroll, SteamVR_Input_Sources.LeftHand);
-        heightAction.AddOnChangeListener(OnHeightScroll, SteamVR_Input_Sources.LeftHand);
+        fartherAction.AddOnStateDownListener(OnFartherAction, SteamVR_Input_Sources.RightHand);
+        nearerAction.AddOnStateDownListener(OnNearerAction, SteamVR_Input_Sources.RightHand);
+        //sizingAction.AddOnChangeListener(OnSizingScroll, SteamVR_Input_Sources.LeftHand);
+        //heightAction.AddOnChangeListener(OnHeightScroll, SteamVR_Input_Sources.LeftHand);
     }
 
     private void OnDisable()
     {
-        if (distanceAction != null)
-            distanceAction.RemoveOnChangeListener(OnDistanceScroll, SteamVR_Input_Sources.RightHand);
-        if (sizingAction != null)
-            sizingAction.RemoveOnChangeListener(OnSizingScroll, SteamVR_Input_Sources.LeftHand);
-        if (heightAction != null)
-            heightAction.RemoveOnChangeListener(OnHeightScroll, SteamVR_Input_Sources.LeftHand);
+        if (fartherAction != null)
+            fartherAction.RemoveOnStateDownListener(OnFartherAction, SteamVR_Input_Sources.RightHand);
+        if (nearerAction != null)
+            nearerAction.RemoveOnStateDownListener(OnNearerAction, SteamVR_Input_Sources.RightHand);
+        //if (sizingAction != null)
+        //    sizingAction.RemoveOnChangeListener(OnSizingScroll, SteamVR_Input_Sources.LeftHand);
+        //if (heightAction != null)
+        //    heightAction.RemoveOnChangeListener(OnHeightScroll, SteamVR_Input_Sources.LeftHand);
     }
 
     //-------------------------------------------------
-    // Whenever we get vertical scroll on controller touchpad, let's move the Screen either in or out.
-    // Using 1/10 a delta as a smaller chunk, so each tick is 10cm.
-    private void OnDistanceScroll(SteamVR_Action_Vector2 fromAction, SteamVR_Input_Sources fromSource, Vector2 axis, Vector2 delta)
+    // Whenever we get an up click on controller touchpad, let's move the Screen either out.
+    // Each tick is 10cm.
+    private void OnFartherAction(SteamVR_Action_Boolean fromAction, SteamVR_Input_Sources fromSource)
     {
-        if (axis.y != 0)
-            mainScreen.transform.Translate(new Vector3(0, 0, delta.y / 10.0f));
+        mainScreen.transform.Translate(new Vector3(0, 0, 0.1f));
+    }
+
+    private void OnNearerAction(SteamVR_Action_Boolean fromAction, SteamVR_Input_Sources fromSource)
+    {
+        mainScreen.transform.Translate(new Vector3(0, 0, -0.1f));
     }
 
     // For horizontal scroll on Left trackpad, we want to grow or shrink the screen rectangle.

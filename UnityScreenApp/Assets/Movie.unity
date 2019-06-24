@@ -281,6 +281,7 @@ GameObject:
   - component: {fileID: 488365435}
   - component: {fileID: 488365434}
   - component: {fileID: 488365432}
+  - component: {fileID: 488365433}
   m_Layer: 0
   m_Name: Screen
   m_TagString: Untagged
@@ -322,6 +323,23 @@ MeshRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
+--- !u!114 &488365433
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  m_GameObject: {fileID: 488365431}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a02b48adae826a04fb650215fdf75298, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  fartherAction:
+    actionPath: /actions/default/in/ScreenFartherAction
+    needsReinit: 0
+  nearerAction:
+    actionPath: /actions/default/in/ScreenNearerAction
+    needsReinit: 0
 --- !u!33 &488365434
 MeshFilter:
   m_ObjectHideFlags: 0
@@ -403,30 +421,6 @@ Canvas:
   m_SortingLayerID: 0
   m_SortingOrder: 0
   m_TargetDisplay: 0
---- !u!1 &668353223 stripped
-GameObject:
-  m_PrefabParentObject: {fileID: 114188, guid: dc06161b6d97feb419f45f03b62e14b9, type: 2}
-  m_PrefabInternal: {fileID: 1506634339}
---- !u!114 &668353224
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_PrefabParentObject: {fileID: 0}
-  m_PrefabInternal: {fileID: 0}
-  m_GameObject: {fileID: 668353223}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a02b48adae826a04fb650215fdf75298, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  distanceAction:
-    actionPath: /actions/default/in/ScreenDistanceAction
-    needsReinit: 0
-  sizingAction:
-    actionPath: /actions/default/in/ScreenSizingAction
-    needsReinit: 0
-  heightAction:
-    actionPath: /actions/default/in/ScreenHeightAction
-    needsReinit: 0
 --- !u!1 &770579895
 GameObject:
   m_ObjectHideFlags: 0
