@@ -66,6 +66,27 @@
                   "sub_mode" : "click"
                },
                "path" : "/user/hand/right/input/trackpad"
+            },
+            {
+               "inputs" : {
+                  "east" : {
+                     "output" : "/actions/default/in/screenbiggeraction"
+                  },
+                  "north" : {
+                     "output" : "/actions/default/in/screenhigheraction"
+                  },
+                  "south" : {
+                     "output" : "/actions/default/in/screenloweraction"
+                  },
+                  "west" : {
+                     "output" : "/actions/default/in/screensmalleraction"
+                  }
+               },
+               "mode" : "dpad",
+               "parameters" : {
+                  "sub_mode" : "click"
+               },
+               "path" : "/user/hand/left/input/trackpad"
             }
          ]
       },

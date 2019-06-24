@@ -30,6 +30,22 @@
     {
       "name": "/actions/default/in/ScreenNearerAction",
       "type": "boolean"
+    },
+    {
+      "name": "/actions/default/in/ScreenBiggerAction",
+      "type": "boolean"
+    },
+    {
+      "name": "/actions/default/in/ScreenSmallerAction",
+      "type": "boolean"
+    },
+    {
+      "name": "/actions/default/in/ScreenHigherAction",
+      "type": "boolean"
+    },
+    {
+      "name": "/actions/default/in/ScreenLowerAction",
+      "type": "boolean"
     }
   ],
   "action_sets": [
@@ -85,7 +101,11 @@
       "/actions/default/in/SkeletonRightHand": "Skeleton (Right)",
       "/actions/default/in/ToggleHintAction": "Toggle Hints",
       "/actions/default/in/ScreenFartherAction": "Screen Farther",
-      "/actions/default/in/ScreenNearerAction": "Screen Nearer"
+      "/actions/default/in/ScreenNearerAction": "Screen Nearer",
+      "/actions/default/in/ScreenBiggerAction": "Screen Bigger",
+      "/actions/default/in/ScreenSmallerAction": "Screen Smaller",
+      "/actions/default/in/ScreenHigherAction": "Screen Higher",
+      "/actions/default/in/ScreenLowerAction": "Screen Lower"
     }
   ]
 }

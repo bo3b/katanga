@@ -31,6 +31,14 @@ namespace Valve.VR
         
         private static SteamVR_Action_Boolean p_default_ScreenNearerAction;
         
+        private static SteamVR_Action_Boolean p_default_ScreenBiggerAction;
+        
+        private static SteamVR_Action_Boolean p_default_ScreenSmallerAction;
+        
+        private static SteamVR_Action_Boolean p_default_ScreenHigherAction;
+        
+        private static SteamVR_Action_Boolean p_default_ScreenLowerAction;
+        
         public static SteamVR_Action_Pose default_Pose
         {
             get
@@ -87,6 +95,38 @@ namespace Valve.VR
             }
         }
         
+        public static SteamVR_Action_Boolean default_ScreenBiggerAction
+        {
+            get
+            {
+                return SteamVR_Actions.p_default_ScreenBiggerAction.GetCopy <SteamVR_Action_Boolean>();
+            }
+        }
+        
+        public static SteamVR_Action_Boolean default_ScreenSmallerAction
+        {
+            get
+            {
+                return SteamVR_Actions.p_default_ScreenSmallerAction.GetCopy <SteamVR_Action_Boolean>();
+            }
+        }
+        
+        public static SteamVR_Action_Boolean default_ScreenHigherAction
+        {
+            get
+            {
+                return SteamVR_Actions.p_default_ScreenHigherAction.GetCopy <SteamVR_Action_Boolean>();
+            }
+        }
+        
+        public static SteamVR_Action_Boolean default_ScreenLowerAction
+        {
+            get
+            {
+                return SteamVR_Actions.p_default_ScreenLowerAction.GetCopy <SteamVR_Action_Boolean>();
+            }
+        }
+        
         private static void InitializeActionArrays()
         {
             Valve.VR.SteamVR_Input.actions = new Valve.VR.SteamVR_Action[]
@@ -97,7 +137,11 @@ namespace Valve.VR
                     SteamVR_Actions.default_HeadsetOnHead,
                     SteamVR_Actions.default_ToggleHintAction,
                     SteamVR_Actions.default_ScreenFartherAction,
-                    SteamVR_Actions.default_ScreenNearerAction};
+                    SteamVR_Actions.default_ScreenNearerAction,
+                    SteamVR_Actions.default_ScreenBiggerAction,
+                    SteamVR_Actions.default_ScreenSmallerAction,
+                    SteamVR_Actions.default_ScreenHigherAction,
+                    SteamVR_Actions.default_ScreenLowerAction};
             Valve.VR.SteamVR_Input.actionsIn = new Valve.VR.ISteamVR_Action_In[]
             {
                     SteamVR_Actions.default_Pose,
@@ -106,7 +150,11 @@ namespace Valve.VR
                     SteamVR_Actions.default_HeadsetOnHead,
                     SteamVR_Actions.default_ToggleHintAction,
                     SteamVR_Actions.default_ScreenFartherAction,
-                    SteamVR_Actions.default_ScreenNearerAction};
+                    SteamVR_Actions.default_ScreenNearerAction,
+                    SteamVR_Actions.default_ScreenBiggerAction,
+                    SteamVR_Actions.default_ScreenSmallerAction,
+                    SteamVR_Actions.default_ScreenHigherAction,
+                    SteamVR_Actions.default_ScreenLowerAction};
             Valve.VR.SteamVR_Input.actionsOut = new Valve.VR.ISteamVR_Action_Out[0];
             Valve.VR.SteamVR_Input.actionsVibration = new Valve.VR.SteamVR_Action_Vibration[0];
             Valve.VR.SteamVR_Input.actionsPose = new Valve.VR.SteamVR_Action_Pose[]
@@ -117,7 +165,11 @@ namespace Valve.VR
                     SteamVR_Actions.default_HeadsetOnHead,
                     SteamVR_Actions.default_ToggleHintAction,
                     SteamVR_Actions.default_ScreenFartherAction,
-                    SteamVR_Actions.default_ScreenNearerAction};
+                    SteamVR_Actions.default_ScreenNearerAction,
+                    SteamVR_Actions.default_ScreenBiggerAction,
+                    SteamVR_Actions.default_ScreenSmallerAction,
+                    SteamVR_Actions.default_ScreenHigherAction,
+                    SteamVR_Actions.default_ScreenLowerAction};
             Valve.VR.SteamVR_Input.actionsSingle = new Valve.VR.SteamVR_Action_Single[0];
             Valve.VR.SteamVR_Input.actionsVector2 = new Valve.VR.SteamVR_Action_Vector2[0];
             Valve.VR.SteamVR_Input.actionsVector3 = new Valve.VR.SteamVR_Action_Vector3[0];
@@ -130,7 +182,11 @@ namespace Valve.VR
                     SteamVR_Actions.default_HeadsetOnHead,
                     SteamVR_Actions.default_ToggleHintAction,
                     SteamVR_Actions.default_ScreenFartherAction,
-                    SteamVR_Actions.default_ScreenNearerAction};
+                    SteamVR_Actions.default_ScreenNearerAction,
+                    SteamVR_Actions.default_ScreenBiggerAction,
+                    SteamVR_Actions.default_ScreenSmallerAction,
+                    SteamVR_Actions.default_ScreenHigherAction,
+                    SteamVR_Actions.default_ScreenLowerAction};
         }
         
         private static void PreInitActions()
@@ -142,6 +198,10 @@ namespace Valve.VR
             SteamVR_Actions.p_default_ToggleHintAction = ((SteamVR_Action_Boolean)(SteamVR_Action.Create <SteamVR_Action_Boolean>("/actions/default/in/ToggleHintAction")));
             SteamVR_Actions.p_default_ScreenFartherAction = ((SteamVR_Action_Boolean)(SteamVR_Action.Create <SteamVR_Action_Boolean>("/actions/default/in/ScreenFartherAction")));
             SteamVR_Actions.p_default_ScreenNearerAction = ((SteamVR_Action_Boolean)(SteamVR_Action.Create <SteamVR_Action_Boolean>("/actions/default/in/ScreenNearerAction")));
+            SteamVR_Actions.p_default_ScreenBiggerAction = ((SteamVR_Action_Boolean)(SteamVR_Action.Create <SteamVR_Action_Boolean>("/actions/default/in/ScreenBiggerAction")));
+            SteamVR_Actions.p_default_ScreenSmallerAction = ((SteamVR_Action_Boolean)(SteamVR_Action.Create <SteamVR_Action_Boolean>("/actions/default/in/ScreenSmallerAction")));
+            SteamVR_Actions.p_default_ScreenHigherAction = ((SteamVR_Action_Boolean)(SteamVR_Action.Create <SteamVR_Action_Boolean>("/actions/default/in/ScreenHigherAction")));
+            SteamVR_Actions.p_default_ScreenLowerAction = ((SteamVR_Action_Boolean)(SteamVR_Action.Create <SteamVR_Action_Boolean>("/actions/default/in/ScreenLowerAction")));
         }
     }
 }

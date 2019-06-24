@@ -340,6 +340,18 @@ MonoBehaviour:
   nearerAction:
     actionPath: /actions/default/in/ScreenNearerAction
     needsReinit: 0
+  biggerAction:
+    actionPath: /actions/default/in/ScreenBiggerAction
+    needsReinit: 0
+  smallerAction:
+    actionPath: /actions/default/in/ScreenSmallerAction
+    needsReinit: 0
+  higherAction:
+    actionPath: /actions/default/in/ScreenHigherAction
+    needsReinit: 0
+  lowerAction:
+    actionPath: /actions/default/in/ScreenLowerAction
+    needsReinit: 0
 --- !u!33 &488365434
 MeshFilter:
   m_ObjectHideFlags: 0

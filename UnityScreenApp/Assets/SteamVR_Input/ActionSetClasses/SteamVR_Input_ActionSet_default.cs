@@ -72,5 +72,37 @@ namespace Valve.VR
                 return SteamVR_Actions.default_ScreenNearerAction;
             }
         }
+        
+        public virtual SteamVR_Action_Boolean ScreenBiggerAction
+        {
+            get
+            {
+                return SteamVR_Actions.default_ScreenBiggerAction;
+            }
+        }
+        
+        public virtual SteamVR_Action_Boolean ScreenSmallerAction
+        {
+            get
+            {
+                return SteamVR_Actions.default_ScreenSmallerAction;
+            }
+        }
+        
+        public virtual SteamVR_Action_Boolean ScreenHigherAction
+        {
+            get
+            {
+                return SteamVR_Actions.default_ScreenHigherAction;
+            }
+        }
+        
+        public virtual SteamVR_Action_Boolean ScreenLowerAction
+        {
+            get
+            {
+                return SteamVR_Actions.default_ScreenLowerAction;
+            }
+        }
     }
 }
