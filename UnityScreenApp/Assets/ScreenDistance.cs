@@ -26,8 +26,8 @@ public class ScreenDistance : MonoBehaviour {
     {
         mainScreen = GameObject.Find("Screen");
 
-        fartherAction.AddOnStateDownListener(OnFartherAction, SteamVR_Input_Sources.RightHand);
-        nearerAction.AddOnStateDownListener(OnNearerAction, SteamVR_Input_Sources.RightHand);
+        fartherAction.AddOnChangeListener(OnFartherAction, SteamVR_Input_Sources.RightHand);
+        nearerAction.AddOnChangeListener(OnNearerAction, SteamVR_Input_Sources.RightHand);
         //sizingAction.AddOnChangeListener(OnSizingScroll, SteamVR_Input_Sources.LeftHand);
         //heightAction.AddOnChangeListener(OnHeightScroll, SteamVR_Input_Sources.LeftHand);
     }
@@ -35,9 +35,9 @@ public class ScreenDistance : MonoBehaviour {
     private void OnDisable()
     {
         if (fartherAction != null)
-            fartherAction.RemoveOnStateDownListener(OnFartherAction, SteamVR_Input_Sources.RightHand);
+            fartherAction.RemoveOnChangeListener(OnFartherAction, SteamVR_Input_Sources.RightHand);
         if (nearerAction != null)
-            nearerAction.RemoveOnStateDownListener(OnNearerAction, SteamVR_Input_Sources.RightHand);
+            nearerAction.RemoveOnChangeListener(OnNearerAction, SteamVR_Input_Sources.RightHand);
         //if (sizingAction != null)
         //    sizingAction.RemoveOnChangeListener(OnSizingScroll, SteamVR_Input_Sources.LeftHand);
         //if (heightAction != null)
@@ -45,16 +45,44 @@ public class ScreenDistance : MonoBehaviour {
     }
 
     //-------------------------------------------------
-    // Whenever we get an up click on controller touchpad, let's move the Screen either out.
-    // Each tick is 10cm.
-    private void OnFartherAction(SteamVR_Action_Boolean fromAction, SteamVR_Input_Sources fromSource)
+    // Whenever we get a down click on controller touchpad, let's loop moving the Screen out.
+    Coroutine moveOut;
+    private void OnFartherAction(SteamVR_Action_Boolean fromAction, SteamVR_Input_Sources fromSource, bool active)
     {
-        mainScreen.transform.Translate(new Vector3(0, 0, 0.1f));
+        if (active)
+            moveOut = StartCoroutine(MovingFarther());
+        else
+            StopCoroutine(moveOut);
+    }
+    IEnumerator MovingFarther()
+    {
+        while (true)
+        {
+            // Each tick is 10cm.
+            mainScreen.transform.Translate(new Vector3(0, 0, 0.1f));
+            print("State down loop");
+            yield return new WaitForSeconds(0.1f);
+        }
     }
 
-    private void OnNearerAction(SteamVR_Action_Boolean fromAction, SteamVR_Input_Sources fromSource)
+    // Same, but moving screen in for D-pad down.
+    Coroutine moveIn;
+    private void OnNearerAction(SteamVR_Action_Boolean fromAction, SteamVR_Input_Sources fromSource, bool active)
     {
-        mainScreen.transform.Translate(new Vector3(0, 0, -0.1f));
+        if (active)
+            moveIn = StartCoroutine(MovingNearer());
+        else
+            StopCoroutine(moveIn);
+    }
+    IEnumerator MovingNearer()
+    {
+        while (true)
+        {
+            // Each tick is 10cm.
+            mainScreen.transform.Translate(new Vector3(0, 0, -0.1f));
+            print("State down loop");
+            yield return new WaitForSeconds(0.1f);
+        }
     }
 
     // For horizontal scroll on Left trackpad, we want to grow or shrink the screen rectangle.
