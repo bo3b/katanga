@@ -141,13 +141,35 @@ public class LaunchAndPlay : MonoBehaviour
 
     
     // We'll also handle the Right Controller Grip action as a RecenterHMD command.
-
+    
     public SteamVR_Action_Boolean recenterAction;
 
     private void OnRecenterAction(SteamVR_Action_Boolean fromAction, SteamVR_Input_Sources fromSource, bool active)
     {
         if (active)
             RecenterHMD();
+    }
+
+    // Hide the floor on center click of left trackpad. Toggle on/off.
+    // Creating our own Toggle here, because the touchpad is setup as d-pad and center 
+    // cannot be toggle by itself.
+
+    public SteamVR_Action_Boolean hideFloorAction;
+    public GameObject floor;
+    private bool hidden = false;
+
+    private void OnHideFloorAction(SteamVR_Action_Boolean fromAction, SteamVR_Input_Sources fromSource)
+    {
+        if (hidden)
+        {
+            floor.SetActive(true);
+            hidden = false;
+        }
+        else
+        {
+            floor.SetActive(false);
+            hidden = true;
+        }
     }
 
 
@@ -188,6 +210,8 @@ public class LaunchAndPlay : MonoBehaviour
 
         // Setup to handle Right hand Grip actions as Recenter
         recenterAction.AddOnChangeListener(OnRecenterAction, SteamVR_Input_Sources.RightHand);
+        // Setup to handle Left hand center click as hiding the floor
+        hideFloorAction.AddOnStateDownListener(OnHideFloorAction, SteamVR_Input_Sources.LeftHand);
 
         // Here at launch, let's recenter around wherever the headset is pointing. Seems to be the 
         // model that people are expecting, instead of the facing forward based on room setup.
@@ -345,6 +369,8 @@ public class LaunchAndPlay : MonoBehaviour
         _listener.UnHookKeyboard();
         if (recenterAction != null)
             recenterAction.RemoveOnChangeListener(OnRecenterAction, SteamVR_Input_Sources.RightHand);
+        if (hideFloorAction != null)
+            hideFloorAction.RemoveOnStateDownListener(OnHideFloorAction, SteamVR_Input_Sources.LeftHand);
     }
 
 

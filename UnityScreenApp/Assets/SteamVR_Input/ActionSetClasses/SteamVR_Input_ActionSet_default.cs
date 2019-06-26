@@ -112,5 +112,13 @@ namespace Valve.VR
                 return SteamVR_Actions.default_RecenterAction;
             }
         }
+        
+        public virtual SteamVR_Action_Boolean HideFloorAction
+        {
+            get
+            {
+                return SteamVR_Actions.default_HideFloorAction;
+            }
+        }
     }
 }

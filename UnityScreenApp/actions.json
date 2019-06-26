@@ -50,6 +50,10 @@
     {
       "name": "/actions/default/in/RecenterAction",
       "type": "boolean"
+    },
+    {
+      "name": "/actions/default/in/HideFloorAction",
+      "type": "boolean"
     }
   ],
   "action_sets": [
@@ -110,7 +114,8 @@
       "/actions/default/in/ScreenSmallerAction": "Screen Smaller",
       "/actions/default/in/ScreenHigherAction": "Screen Higher",
       "/actions/default/in/ScreenLowerAction": "Screen Lower",
-      "/actions/default/in/RecenterAction": "Recenter"
+      "/actions/default/in/RecenterAction": "Recenter",
+      "/actions/default/in/HideFloorAction": "Hide Floor"
     }
   ]
 }
