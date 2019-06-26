@@ -716,6 +716,10 @@ Prefab:
     m_RemovedComponents: []
   m_ParentPrefab: {fileID: 100100000, guid: dc06161b6d97feb419f45f03b62e14b9, type: 2}
   m_IsPrefabParent: 0
+--- !u!4 &1506634340 stripped
+Transform:
+  m_PrefabParentObject: {fileID: 429506, guid: dc06161b6d97feb419f45f03b62e14b9, type: 2}
+  m_PrefabInternal: {fileID: 1506634339}
 --- !u!1 &1732388120
 GameObject:
   m_ObjectHideFlags: 0
@@ -802,10 +806,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fed100669b400f84a9a4e840472f0eab, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  gameTitle: 
   screen: {fileID: 488365432}
   infoText: {fileID: 2070569918}
   qualityText: {fileID: 74748573}
+  vrCamera: {fileID: 1506634340}
+  player: {fileID: 1751585949}
+  recenterAction:
+    actionPath: /actions/default/in/RecenterAction
+    needsReinit: 0
+--- !u!4 &1751585949 stripped
+Transform:
+  m_PrefabParentObject: {fileID: 447954, guid: dc06161b6d97feb419f45f03b62e14b9, type: 2}
+  m_PrefabInternal: {fileID: 1506634339}
 --- !u!1 &2070569916
 GameObject:
   m_ObjectHideFlags: 0

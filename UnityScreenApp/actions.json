@@ -46,6 +46,10 @@
     {
       "name": "/actions/default/in/ScreenLowerAction",
       "type": "boolean"
+    },
+    {
+      "name": "/actions/default/in/RecenterAction",
+      "type": "boolean"
     }
   ],
   "action_sets": [
@@ -105,7 +109,8 @@
       "/actions/default/in/ScreenBiggerAction": "Screen Bigger",
       "/actions/default/in/ScreenSmallerAction": "Screen Smaller",
       "/actions/default/in/ScreenHigherAction": "Screen Higher",
-      "/actions/default/in/ScreenLowerAction": "Screen Lower"
+      "/actions/default/in/ScreenLowerAction": "Screen Lower",
+      "/actions/default/in/RecenterAction": "Recenter"
     }
   ]
 }

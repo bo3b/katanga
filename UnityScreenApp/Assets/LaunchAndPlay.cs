@@ -9,6 +9,7 @@ using UnityEngine.UI;
 
 using Nektra.Deviare2;
 using System.Diagnostics;
+using Valve.VR;
 
 public class LaunchAndPlay : MonoBehaviour
 {
@@ -18,7 +19,7 @@ public class LaunchAndPlay : MonoBehaviour
     string gamePath;
 
     // User friendly name of the game. This is shown on the big screen as info on launch.
-    public string gameTitle;
+    private string gameTitle;
 
     static NktSpyMgr _spyMgr;
     static NktProcess _gameProcess = null;
@@ -115,15 +116,40 @@ public class LaunchAndPlay : MonoBehaviour
 
     // -----------------------------------------------------------------------------
 
-    // Not positive this is the correct way to recenter, but seems to be working.
+    // We need to allow Recenter, even for room-scale, because people ask for it. 
+    // The usual Recenter does not work for room-scale because the assumption is that
+    // you will simply rotate to see.  This following code sequence works in all cases.
+    // https://forum.unity.com/threads/openvr-how-to-reset-camera-properly.417509/#post-2792972
 
-    private static void RecenterHMD()
+    public Transform vrCamera;
+    public Transform player;
+
+    private void RecenterHMD()
     {
-        bool success = UnityEngine.XR.XRDevice.SetTrackingSpaceType(UnityEngine.XR.TrackingSpaceType.Stationary);
-        if (!success)
-            print("Failure to reset tracking space for RecenterHMD");
-        UnityEngine.XR.InputTracking.Recenter();
+        //ROTATION
+        // Get current head heading in scene (y-only, to avoid tilting the floor)
+        float offsetAngle = vrCamera.rotation.eulerAngles.y;
+        // Now rotate CameraRig in opposite direction to compensate
+        player.Rotate(0f, -offsetAngle, 0f);
+
+        //POSITION
+        // Calculate postional offset between CameraRig and Camera
+//        Vector3 offsetPos = steamCamera.position - cameraRig.position;
+        // Reposition CameraRig to desired position minus offset
+//        cameraRig.position = (desiredHeadPos.position - offsetPos);
     }
+
+    
+    // We'll also handle the Right Controller Grip action as a RecenterHMD command.
+
+    public SteamVR_Action_Boolean recenterAction;
+
+    private void OnRecenterAction(SteamVR_Action_Boolean fromAction, SteamVR_Input_Sources fromSource, bool active)
+    {
+        if (active)
+            RecenterHMD();
+    }
+
 
     readonly int VK_F12 = 123;
     readonly int VK_LSB = 219;  // [ key
@@ -160,9 +186,12 @@ public class LaunchAndPlay : MonoBehaviour
         _listener.OnKeyPressed += _listener_OnKeyPressed;
         _listener.HookKeyboard();
 
-        // Let's recenter around wherever the headset is pointing. Seems to be the model
-        // that people are expecting, instead of the facing forward based on room setup.
-       // RecenterHMD();
+        // Setup to handle Right hand Grip actions as Recenter
+        recenterAction.AddOnChangeListener(OnRecenterAction, SteamVR_Input_Sources.RightHand);
+
+        // Here at launch, let's recenter around wherever the headset is pointing. Seems to be the 
+        // model that people are expecting, instead of the facing forward based on room setup.
+        RecenterHMD();
 
         // Store the current Texture2D on the Quad as the original grey
         screenMaterial = screen.material;
@@ -314,6 +343,8 @@ public class LaunchAndPlay : MonoBehaviour
     private void OnApplicationQuit()
     {
         _listener.UnHookKeyboard();
+        if (recenterAction != null)
+            recenterAction.RemoveOnChangeListener(OnRecenterAction, SteamVR_Input_Sources.RightHand);
     }
 
 

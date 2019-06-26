@@ -104,5 +104,13 @@ namespace Valve.VR
                 return SteamVR_Actions.default_ScreenLowerAction;
             }
         }
+        
+        public virtual SteamVR_Action_Boolean RecenterAction
+        {
+            get
+            {
+                return SteamVR_Actions.default_RecenterAction;
+            }
+        }
     }
 }
