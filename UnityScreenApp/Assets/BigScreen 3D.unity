@@ -716,25 +716,6 @@ Prefab:
     m_RemovedComponents: []
   m_ParentPrefab: {fileID: 100100000, guid: dc06161b6d97feb419f45f03b62e14b9, type: 2}
   m_IsPrefabParent: 0
---- !u!1 &1506634340 stripped
-GameObject:
-  m_PrefabParentObject: {fileID: 125964, guid: dc06161b6d97feb419f45f03b62e14b9, type: 2}
-  m_PrefabInternal: {fileID: 1506634339}
---- !u!114 &1506634341
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_PrefabParentObject: {fileID: 0}
-  m_PrefabInternal: {fileID: 0}
-  m_GameObject: {fileID: 1506634340}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: fed100669b400f84a9a4e840472f0eab, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  gameTitle: 
-  screen: {fileID: 488365432}
-  infoText: {fileID: 2070569918}
-  qualityText: {fileID: 74748573}
 --- !u!1 &1732388120
 GameObject:
   m_ObjectHideFlags: 0
@@ -806,6 +787,25 @@ Transform:
   m_Father: {fileID: 0}
   m_RootOrder: 4
   m_LocalEulerAnglesHint: {x: 0, y: -90, z: 0}
+--- !u!1 &1751585946 stripped
+GameObject:
+  m_PrefabParentObject: {fileID: 107946, guid: dc06161b6d97feb419f45f03b62e14b9, type: 2}
+  m_PrefabInternal: {fileID: 1506634339}
+--- !u!114 &1751585947
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  m_GameObject: {fileID: 1751585946}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fed100669b400f84a9a4e840472f0eab, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  gameTitle: 
+  screen: {fileID: 488365432}
+  infoText: {fileID: 2070569918}
+  qualityText: {fileID: 74748573}
 --- !u!1 &2070569916
 GameObject:
   m_ObjectHideFlags: 0
@@ -894,7 +894,7 @@ GameObject:
   m_Layer: 0
   m_Name: Floor
   m_TagString: Untagged
-  m_Icon: {fileID: 0}
+  m_Icon: {fileID: 5721338939258241955, guid: 0000000000000000d000000000000000, type: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 4294967295
   m_IsActive: 1
