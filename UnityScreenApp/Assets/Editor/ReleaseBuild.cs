@@ -14,7 +14,7 @@ public class ReleaseBuild : MonoBehaviour
         FileUtil.DeleteFileOrDirectory(releaseFolder);
 
         BuildPlayerOptions buildPlayerOptions = new BuildPlayerOptions();
-        buildPlayerOptions.scenes = new[] { "Assets/Movie.unity" };
+        buildPlayerOptions.scenes = new[] { "Assets/BigScreen 3D.unity" };
         buildPlayerOptions.locationPathName = releaseFolder + "katanga.exe";
         buildPlayerOptions.target = BuildTarget.StandaloneWindows64;
         buildPlayerOptions.options = BuildOptions.None;
@@ -37,7 +37,7 @@ public class ReleaseBuild : MonoBehaviour
         FileUtil.DeleteFileOrDirectory(releaseFolder);
 
         BuildPlayerOptions buildPlayerOptions = new BuildPlayerOptions();
-        buildPlayerOptions.scenes = new[] { "Assets/Movie.unity" };
+        buildPlayerOptions.scenes = new[] { "Assets/BigScreen 3D.unity" };
         buildPlayerOptions.locationPathName = releaseFolder + "katanga.exe";
         buildPlayerOptions.target = BuildTarget.StandaloneWindows64;
         buildPlayerOptions.options = BuildOptions.Development | BuildOptions.ShowBuiltPlayer;
