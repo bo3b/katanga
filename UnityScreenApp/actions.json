@@ -54,6 +54,14 @@
     {
       "name": "/actions/default/in/HideFloorAction",
       "type": "boolean"
+    },
+    {
+      "name": "/actions/default/in/GrabPinch",
+      "type": "boolean"
+    },
+    {
+      "name": "/actions/default/in/GrabGrip",
+      "type": "boolean"
     }
   ],
   "action_sets": [
@@ -115,7 +123,9 @@
       "/actions/default/in/ScreenHigherAction": "Screen Higher",
       "/actions/default/in/ScreenLowerAction": "Screen Lower",
       "/actions/default/in/RecenterAction": "Recenter",
-      "/actions/default/in/HideFloorAction": "Hide Floor"
+      "/actions/default/in/HideFloorAction": "Hide Floor",
+      "/actions/default/in/GrabPinch": "grab pinch",
+      "/actions/default/in/GrabGrip": "GrabGrip"
     }
   ]
 }
