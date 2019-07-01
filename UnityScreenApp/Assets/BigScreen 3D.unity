@@ -523,6 +523,10 @@ MonoBehaviour:
     actionPath: /actions/default/in/ToggleHintAction
     needsReinit: 0
   hand: {fileID: 0}
+--- !u!4 &987663060 stripped
+Transform:
+  m_PrefabParentObject: {fileID: 429506, guid: dc06161b6d97feb419f45f03b62e14b9, type: 2}
+  m_PrefabInternal: {fileID: 1506634339}
 --- !u!1 &1058094502
 GameObject:
   m_ObjectHideFlags: 0
@@ -698,12 +702,12 @@ Prefab:
     - target: {fileID: 11401046, guid: dc06161b6d97feb419f45f03b62e14b9, type: 2}
       propertyPath: renderModelPrefab
       value: 
-      objectReference: {fileID: 1000012617731570, guid: d07386f0ec952ec409dc7753bcf5746b,
+      objectReference: {fileID: 1000012617731570, guid: 837f93beb9a614743ae3a2c0ada7c388,
         type: 2}
     - target: {fileID: 11450312, guid: dc06161b6d97feb419f45f03b62e14b9, type: 2}
       propertyPath: renderModelPrefab
       value: 
-      objectReference: {fileID: 1000011547835092, guid: 8ade79fed86bbd141926d1cd94c98457,
+      objectReference: {fileID: 1000011547835092, guid: d5082f7d9f947374197e0a97786f4e40,
         type: 2}
     - target: {fileID: 11450312, guid: dc06161b6d97feb419f45f03b62e14b9, type: 2}
       propertyPath: m_Enabled
@@ -713,13 +717,13 @@ Prefab:
       propertyPath: m_Enabled
       value: 1
       objectReference: {fileID: 0}
+    - target: {fileID: 11450312, guid: dc06161b6d97feb419f45f03b62e14b9, type: 2}
+      propertyPath: showDebugText
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_ParentPrefab: {fileID: 100100000, guid: dc06161b6d97feb419f45f03b62e14b9, type: 2}
   m_IsPrefabParent: 0
---- !u!4 &1506634340 stripped
-Transform:
-  m_PrefabParentObject: {fileID: 429506, guid: dc06161b6d97feb419f45f03b62e14b9, type: 2}
-  m_PrefabInternal: {fileID: 1506634339}
 --- !u!1 &1732388120
 GameObject:
   m_ObjectHideFlags: 0
@@ -809,7 +813,7 @@ MonoBehaviour:
   screen: {fileID: 488365432}
   infoText: {fileID: 2070569918}
   qualityText: {fileID: 74748573}
-  vrCamera: {fileID: 1506634340}
+  vrCamera: {fileID: 987663060}
   player: {fileID: 1751585949}
   recenterAction:
     actionPath: /actions/default/in/RecenterAction
@@ -969,7 +973,7 @@ RectTransform:
   m_GameObject: {fileID: 2144272173}
   m_LocalRotation: {x: 0.7071068, y: 0, z: 0, w: 0.7071068}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 5, y: 5, z: 1}
+  m_LocalScale: {x: 3, y: 2, z: 1}
   m_Children:
   - {fileID: 1058094503}
   m_Father: {fileID: 0}

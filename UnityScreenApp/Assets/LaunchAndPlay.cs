@@ -132,16 +132,21 @@ public class LaunchAndPlay : MonoBehaviour
         // Now rotate CameraRig in opposite direction to compensate
         player.Rotate(0f, -offsetAngle, 0f);
 
+        // Let's rotate the floor itself back, so that it remains stable and
+        // matches their play space.  We have to use the unintuitive Z direction here, 
+        // because the floor is rotated 90 degrees in X already.
+        floor.transform.Rotate(0f, 0f, offsetAngle);
+
         //POSITION
         // Calculate postional offset between CameraRig and Camera
-//        Vector3 offsetPos = steamCamera.position - cameraRig.position;
+        //        Vector3 offsetPos = steamCamera.position - cameraRig.position;
         // Reposition CameraRig to desired position minus offset
-//        cameraRig.position = (desiredHeadPos.position - offsetPos);
+        //        cameraRig.position = (desiredHeadPos.position - offsetPos);
     }
 
-    
+
     // We'll also handle the Right Controller Grip action as a RecenterHMD command.
-    
+
     public SteamVR_Action_Boolean recenterAction;
 
     private void OnRecenterAction(SteamVR_Action_Boolean fromAction, SteamVR_Input_Sources fromSource, bool active)
@@ -213,9 +218,21 @@ public class LaunchAndPlay : MonoBehaviour
         // Setup to handle Left hand center click as hiding the floor
         hideFloorAction.AddOnStateDownListener(OnHideFloorAction, SteamVR_Input_Sources.LeftHand);
 
+        // Here at Start, let's also clip the floor to whatever the size of the user's boundary.
+        // If it's not yet fully tracking, that's OK, we'll just leave as is.  This seems better
+        // than adding in the SteamVR_PlayArea script.
+        var chaperone = OpenVR.Chaperone;
+        if (chaperone != null)
+        {
+            float width = 0, height = 0;
+            if (chaperone.GetPlayAreaSize(ref width, ref height))
+                floor.transform.localScale = new Vector3(width, height, 1);
+        }
+
         // Here at launch, let's recenter around wherever the headset is pointing. Seems to be the 
         // model that people are expecting, instead of the facing forward based on room setup.
         RecenterHMD();
+
 
         // Store the current Texture2D on the Quad as the original grey
         screenMaterial = screen.material;
