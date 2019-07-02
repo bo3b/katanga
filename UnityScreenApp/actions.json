@@ -62,6 +62,10 @@
     {
       "name": "/actions/default/in/GrabGrip",
       "type": "boolean"
+    },
+    {
+      "name": "/actions/default/out/Haptic",
+      "type": "vibration"
     }
   ],
   "action_sets": [
@@ -125,7 +129,8 @@
       "/actions/default/in/RecenterAction": "Recenter",
       "/actions/default/in/HideFloorAction": "Hide Floor",
       "/actions/default/in/GrabPinch": "grab pinch",
-      "/actions/default/in/GrabGrip": "GrabGrip"
+      "/actions/default/in/GrabGrip": "GrabGrip",
+      "/actions/default/out/Haptic": "Haptic"
     }
   ]
 }
