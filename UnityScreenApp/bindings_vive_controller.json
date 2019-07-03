@@ -45,15 +45,6 @@
             },
             {
                "inputs" : {
-                  "click" : {
-                     "output" : "/actions/default/in/togglehintaction"
-                  }
-               },
-               "mode" : "toggle_button",
-               "path" : "/user/hand/left/input/application_menu"
-            },
-            {
-               "inputs" : {
                   "north" : {
                      "output" : "/actions/default/in/screenfartheraction"
                   },
@@ -69,9 +60,6 @@
             },
             {
                "inputs" : {
-                  "center" : {
-                     "output" : "/actions/default/in/hideflooraction"
-                  },
                   "east" : {
                      "output" : "/actions/default/in/screenbiggeraction"
                   },
@@ -99,6 +87,15 @@
                },
                "mode" : "button",
                "path" : "/user/hand/right/input/grip"
+            },
+            {
+               "inputs" : {
+                  "click" : {
+                     "output" : "/actions/default/in/hideflooraction"
+                  }
+               },
+               "mode" : "button",
+               "path" : "/user/hand/left/input/grip"
             }
          ]
       },
