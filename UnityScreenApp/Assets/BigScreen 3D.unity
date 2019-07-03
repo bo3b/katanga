@@ -514,7 +514,7 @@ MonoBehaviour:
   m_PrefabParentObject: {fileID: 0}
   m_PrefabInternal: {fileID: 0}
   m_GameObject: {fileID: 803564215}
-  m_Enabled: 0
+  m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: c3671a89f244c084db2fa33965df67e6, type: 3}
   m_Name: 
@@ -522,7 +522,7 @@ MonoBehaviour:
   hintAction:
     actionPath: /actions/default/in/ToggleHintAction
     needsReinit: 0
-  hand: {fileID: 0}
+  hand: {fileID: 1506634340}
 --- !u!4 &987663060 stripped
 Transform:
   m_PrefabParentObject: {fileID: 429506, guid: dc06161b6d97feb419f45f03b62e14b9, type: 2}
@@ -724,6 +724,18 @@ Prefab:
     m_RemovedComponents: []
   m_ParentPrefab: {fileID: 100100000, guid: dc06161b6d97feb419f45f03b62e14b9, type: 2}
   m_IsPrefabParent: 0
+--- !u!114 &1506634340 stripped
+MonoBehaviour:
+  m_PrefabParentObject: {fileID: 11401046, guid: dc06161b6d97feb419f45f03b62e14b9,
+    type: 2}
+  m_PrefabInternal: {fileID: 1506634339}
+  m_Script: {fileID: 11500000, guid: 29e3e4511966ba94d8ba0b98c6c62f82, type: 3}
+--- !u!114 &1506634341 stripped
+MonoBehaviour:
+  m_PrefabParentObject: {fileID: 11450312, guid: dc06161b6d97feb419f45f03b62e14b9,
+    type: 2}
+  m_PrefabInternal: {fileID: 1506634339}
+  m_Script: {fileID: 11500000, guid: 29e3e4511966ba94d8ba0b98c6c62f82, type: 3}
 --- !u!1 &1732388120
 GameObject:
   m_ObjectHideFlags: 0
@@ -826,6 +838,25 @@ MonoBehaviour:
 Transform:
   m_PrefabParentObject: {fileID: 447954, guid: dc06161b6d97feb419f45f03b62e14b9, type: 2}
   m_PrefabInternal: {fileID: 1506634339}
+--- !u!1 &1994358939 stripped
+GameObject:
+  m_PrefabParentObject: {fileID: 144230, guid: dc06161b6d97feb419f45f03b62e14b9, type: 2}
+  m_PrefabInternal: {fileID: 1506634339}
+--- !u!114 &1994358940
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  m_GameObject: {fileID: 1994358939}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c3671a89f244c084db2fa33965df67e6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  hintAction:
+    actionPath: /actions/default/in/ToggleHintAction
+    needsReinit: 0
+  hand: {fileID: 1506634341}
 --- !u!1 &2070569916
 GameObject:
   m_ObjectHideFlags: 0

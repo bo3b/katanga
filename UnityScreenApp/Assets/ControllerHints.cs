@@ -1,6 +1,5 @@
 ﻿using UnityEngine;
 using System.Collections;
-using Valve.VR;
 
 namespace Valve.VR.InteractionSystem.Sample
 {
@@ -14,20 +13,14 @@ namespace Valve.VR.InteractionSystem.Sample
         private Coroutine buttonHintCoroutine;
         private Coroutine textHintCoroutine;
 
-        private bool showing = false;
+        private bool showing = true;
 
 
         //-------------------------------------------------
         private void OnEnable()
         {
-            if (hand == null)
-                hand = this.GetComponent<Hand>();
-
-            if (hintAction == null)
-            {
-                Debug.LogError("<b>[SteamVR Interaction]</b> No hint action assigned");
-                return;
-            }
+            // Always start with the hint showing.
+            ShowTextHints(hand);
 
             hintAction.AddOnChangeListener(OnToggleActionChange, hand.handType);
         }
@@ -68,11 +61,53 @@ namespace Valve.VR.InteractionSystem.Sample
         //-------------------------------------------------
         public void ShowTextHints(Hand hand)
         {
-            if (textHintCoroutine != null)
+            //if (textHintCoroutine != null)
+            //{
+            //    StopCoroutine(textHintCoroutine);
+            //}
+            //textHintCoroutine = StartCoroutine(TestTextHints(hand));
+
+            // This script is only attached to the right hand, but we want to display
+            // help for both hands.
+            Hand rightHand = (hand.handType == SteamVR_Input_Sources.RightHand) ? hand : hand.otherHand;
+            Hand leftHand = (hand.handType == SteamVR_Input_Sources.LeftHand) ? hand : hand.otherHand;
+
+            // We only have boolean actions, so sift through the array of these to put
+            // proper names on them.  There is no API to fetch the LocalizedString from the actions.
+
+            foreach (SteamVR_Action_Boolean action in SteamVR_Input.actionsBoolean)
             {
-                StopCoroutine(textHintCoroutine);
+                switch (action.GetShortName())
+                {    
+                    case "ToggleHintAction":
+                        ControllerButtonHints.ShowTextHint(rightHand, action, "Show/Hide Help");
+                        ControllerButtonHints.ShowTextHint(leftHand, action, "Show/Hide Help");
+                        break;
+
+                        // For RightHand action, we'll look for single action to show the text
+                        // for the dpad controls.  ControllerButtonHints does not support dpad specific 
+                        // names, so we need one text for the whole dpad.
+                    case "RecenterAction":
+                        ControllerButtonHints.ShowTextHint(rightHand, action, "Recenter Screen");
+                        break;
+                    case "ScreenFartherAction":
+                        ControllerButtonHints.ShowTextHint(rightHand, action, "Up: Move Screen Farther\nDown: Move Screen Nearer");
+                        break;
+
+                    // For LeftHand actions, we'll look for the single action and build the
+                    // large text help for all 5 dpad actions.
+                    case "HideFloorAction":
+                        ControllerButtonHints.ShowTextHint(leftHand, action, "Show/Hide Floor");
+                        break;
+                    case "ScreenBiggerAction":
+                        string help = "Up: Move Screen Up\nDown: Move Screen Down\nLeft: Make Screen Smaller\nRight: Make Screen Bigger";
+                        ControllerButtonHints.ShowTextHint(leftHand, action, help);
+                        break;
+
+                    default:
+                        break;
+                }
             }
-            textHintCoroutine = StartCoroutine(TestTextHints(hand));
         }
 
 
