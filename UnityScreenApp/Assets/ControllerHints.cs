@@ -9,6 +9,7 @@ namespace Valve.VR.InteractionSystem.Sample
         // hintAction is attached in RightHand Controller under Player
         public SteamVR_Action_Boolean hintAction;
         public Hand hand;
+        public ControllerButtonHints hintController;
 
         private Coroutine buttonHintCoroutine;
         private Coroutine textHintCoroutine;
@@ -17,18 +18,33 @@ namespace Valve.VR.InteractionSystem.Sample
 
 
         //-------------------------------------------------
-        private void OnEnable()
+        private void Start()
         {
-            // Always start with the hint showing.
-            ShowTextHints(hand);
-
             hintAction.AddOnChangeListener(OnToggleActionChange, hand.handType);
+
+            StartCoroutine(WaitForInitialize());
         }
 
-        private void OnDisable()
+        private void OnApplicationQuit()
         {
             if (hintAction != null)
                 hintAction.RemoveOnChangeListener(OnToggleActionChange, hand.handType);
+        }
+
+        // Always start with the hint showing. 
+        //
+        // This is complicated by how late the ControllerButtonHints is initialized.
+        // Until it processes the hint info via the bound actions, it will fail to show.
+        // So, we'll loop here, waiting for that init to happen.  This will also allow
+        // us to properly show the help/hints whenever the controller is turned on,
+        // so it does not need to be active when launched.  
+
+        IEnumerator WaitForInitialize()
+        {
+            while (hintController.initialized == false)
+                yield return null;
+
+            ShowTextHints(hand);
         }
 
         //-------------------------------------------------
@@ -81,7 +97,6 @@ namespace Valve.VR.InteractionSystem.Sample
                 {    
                     case "ToggleHintAction":
                         ControllerButtonHints.ShowTextHint(rightHand, action, "Show/Hide Help");
-                        ControllerButtonHints.ShowTextHint(leftHand, action, "Show/Hide Help");
                         break;
 
                         // For RightHand action, we'll look for single action to show the text
@@ -91,7 +106,7 @@ namespace Valve.VR.InteractionSystem.Sample
                         ControllerButtonHints.ShowTextHint(rightHand, action, "Recenter Screen");
                         break;
                     case "ScreenFartherAction":
-                        ControllerButtonHints.ShowTextHint(rightHand, action, "Up: Move Screen Farther\nDown: Move Screen Nearer");
+                        ControllerButtonHints.ShowTextHint(rightHand, action, "Up: Screen Farther\nDown: Screen Nearer");
                         break;
 
                     // For LeftHand actions, we'll look for the single action and build the
@@ -100,7 +115,7 @@ namespace Valve.VR.InteractionSystem.Sample
                         ControllerButtonHints.ShowTextHint(leftHand, action, "Show/Hide Floor");
                         break;
                     case "ScreenBiggerAction":
-                        string help = "Up: Move Screen Up\nDown: Move Screen Down\nLeft: Make Screen Smaller\nRight: Make Screen Bigger";
+                        string help = "Up: Screen Up\nDown: Screen Down\nLeft: Screen Smaller\nRight: Screen Bigger";
                         ControllerButtonHints.ShowTextHint(leftHand, action, help);
                         break;
 
