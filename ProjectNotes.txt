@@ -674,3 +674,93 @@ Mostly straightforward switch to using DX11, Deviare setup was a pain, but works
 for multiple injected targets to get to Present.  Surface Sharing in DX11 works very similar
 to DX9, so much so that the Unity plugin side didn't need to change. After using DebugLayer
 on both sides, all problems were solved. Stunning.
+
+
+8-14-19
+Long uphill road to get here.  Long! Trying to get it into shippable state.  Pretty close now.
+
+Currently setting up a Jenkins server for builds.  Some data worth noting down are the AMI
+that AWS provides and server storage.  Looking for smallest install.
+2008-R2_SP1 Base: 5.45GB free of 29.9GB
+2016 server Base: 7.31GB free of 29.9GB  partially setup with jenkins, vs2017 4G + 2.8G
+2019 server Base: 16.7GB free of 29.9GB
+2016 server Base: 13GB free of 29.9GB  fresh
+
+Before installing Unity on 2016@7.31GB  Unity takes 1.8G it says.
+After Unity: 4.82GB free.
+After Unity build: 3.7GB free.
+
+2019 server, fresh install: 16.7GB free
+Git install: 16.4GB free
+Unity install: 13.8GB free
+MSBuild install: 7.28GB free
+Jenkins install: 6.89GB free
+MSBuild optimized: 8.26GB free  successful katanga msbuild
+Unity build: 7.83GB free successful Unity end build with Release
+Cleared both VS2017 for 3DFM builds: 12.1GB free
+Building 3DFM: 5.21GB free
+Building both: 5.34GB free
+Build Unity, katanga, not 3DFM: 4.60GB free
+After reboot: 5.89GB free
+Fully functional build: 2.87GB free   *** could possibly save some space
+After reboot: 3.57GB free
+
+==Server setup notes==
+
+This Jenkins build server has been setup to build the HelixVision code.
+
+There are 3 fundamental pieces-
+1) Katanga, C++ dlls
+2) Unity VR app
+3) 3D Fix Manager .NET app
+
+This makes for a lot of tool requirements.
+
+
+We want the server install to be as small as possible, so that we can run on the AWS free tier.
+If we keep below 30GB of usage, we can run a free build server.  After all install and setup,
+we are running at about 5GB free.  Perfectly fine.
+
+We switched to 2019 Windows Server because it has the smallest footprint of the AWS server OSes.
+
+The server is small, 1G RAM, 1 CPU.  You need the AWS credit system for any decent performance at all,
+otherwise it's 10% of a single Xeon 2GHz CPU.  Slow.
+
+
+The VS2017 is fully installed, instead of just the msbuild environment, because there are a lot of
+pieces for the 3DFM build that require nuget packages.  It's likely possible to get this setup without,
+but after a day, it just doesn't matter to have it be solely MSBuild.  Just install VS2017 community.
+
+Likewise, the Unity is fully installed.  2017.4.26f1.  Same version as used for our normal builds.
+This is pretty much required because even for cmd-line builds, it uses the main unity.exe.
+
+We do not install the debugging tools for either Unity or VS.
+
+
+The Katanga C++ build is straightforward.  The only tricky part was needing the ATL package, because
+Deviare requires it.  Using toolset v141, and SDK 10.0.17134.
+
+The Unity build has been trying to use the 3DUnity Jenkins plugin, but that no longer seems to function
+at all, and returns build failures.  We are just going to use a Bat file to run the Unity command, and
+rely upon the Jenkins job timeout to catch failures.  We will also look for the arrival of the Release
+folder, as the demonstration of a successful build.
+
+For 3DFM builds, we need to fetch the Nuget packages, as they are not in source control.  There are 19
+in use, so it doesn't really make any sense to change this.
+This is using older style of package.config files, and could be converted to newer version, but there
+is no apparnent value to that for this project. Rather than do that, we install the nuget.exe here, in 
+the Jenkins root folder.  We can then call it directly from a Bat file for "nuget.exe restore".  This
+works to solve the missing packages for a Jenkins build.
+
+
+3DFM build is not quite right, getting a missing package error for things not specified in the project.
+Probable wrong install, trying reinstall of full VS2017.  Works on main machine, something installed 
+there but not reported by VS Installer.
+
+Fixed by adding the Blend for Visual Studio component.
+
+
+Finally getting all builds to work.  Katanga with a batch file Unity build, and 3DFM with nuget restore.
+
+Top level project of HelixVision fires off those builds, and then copies the pieces to the right places
+and creates a final zip file.
