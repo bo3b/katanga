@@ -1,8 +1,8 @@
 "DepotBuildConfig"
 {
 	// Set your assigned depot ID here
-	// bo3b: Release Depot is 1127312
-	"DepotID" "1127312"
+	// bo3b: Release Depot is 1127315
+	"DepotID" "1127315"
 
 	// Set a root for all content.
 	// All relative paths specified below (LocalPath in FileMapping entries, and FileExclusion paths)

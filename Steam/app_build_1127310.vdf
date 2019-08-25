@@ -2,7 +2,7 @@
 {
 	"appid"	"1127310"
 	
-	"desc" "Jenkins Release" // description for this build
+	"desc" "Jenkins 0.9.1" // description for this build
 	
 	"buildoutput" "output\" // build output folder for .log, .csm & .csd files, relative to location of this file
 	
@@ -15,6 +15,6 @@
 	
 	"depots"
 	{
-		"1127312" "depot_build_1127312.vdf"
+		"1127315" "depot_build_1127315.vdf"
 	}
 }
