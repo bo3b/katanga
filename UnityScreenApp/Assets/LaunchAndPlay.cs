@@ -45,7 +45,8 @@ public class LaunchAndPlay : MonoBehaviour
 
     // We have to use a low level Keyyboard listener because Unity's built in listener doesn't 
     // detect keyboard events when the Unity app isn't in the foreground
-    private LowLevelKeyboardListener _listener;
+// bo3b: remove for now- probably would be flagged as keylogger 
+//    private LowLevelKeyboardListener _listener;
 
     // -----------------------------------------------------------------------------
 
@@ -209,9 +210,9 @@ public class LaunchAndPlay : MonoBehaviour
         object continueevent;
 
         // hook keyboard to detect when the user presses a button
-        _listener = new LowLevelKeyboardListener();
-        _listener.OnKeyPressed += _listener_OnKeyPressed;
-        _listener.HookKeyboard();
+//        _listener = new LowLevelKeyboardListener();
+//        _listener.OnKeyPressed += _listener_OnKeyPressed;
+//        _listener.HookKeyboard();
 
         // Setup to handle Right hand Grip actions as Recenter
         recenterAction.AddOnChangeListener(OnRecenterAction, SteamVR_Input_Sources.RightHand);
@@ -383,7 +384,7 @@ public class LaunchAndPlay : MonoBehaviour
 
     private void OnApplicationQuit()
     {
-        _listener.UnHookKeyboard();
+//        _listener.UnHookKeyboard();
         if (recenterAction != null)
             recenterAction.RemoveOnChangeListener(OnRecenterAction, SteamVR_Input_Sources.RightHand);
         if (hideFloorAction != null)
@@ -691,24 +692,25 @@ public class LaunchAndPlay : MonoBehaviour
         //  1.349 rad  0.896 rad
         // h=w/2*tan(corner) => w=h*2/tan(corner) 
 
-        double h, w;
-        float width;
-        if (Input.GetAxis("Mouse ScrollWheel") < 0)
-        {
-            this.transform.position += Vector3.back;
-            h = this.transform.position.z;
-            w = h * 2 / Math.Tan(0.896);
-            width = (float)w;
-            this.transform.localScale = new Vector3(width, -width * 9 / 16, 1);
-        }
-        if (Input.GetAxis("Mouse ScrollWheel") > 0)
-        {
-            this.transform.position += Vector3.forward;
-            h = this.transform.position.z;
-            w = h * 2 / Math.Tan(0.896);
-            width = (float)w;
-            this.transform.localScale = new Vector3(width, -width * 9 / 16, 1);
-        }
+        //  bo3b: remove for now, until we decide on keyboard actions
+        //double h, w;
+        //float width;
+        //if (Input.GetAxis("Mouse ScrollWheel") < 0)
+        //{
+        //    this.transform.position += Vector3.back;
+        //    h = this.transform.position.z;
+        //    w = h * 2 / Math.Tan(0.896);
+        //    width = (float)w;
+        //    this.transform.localScale = new Vector3(width, -width * 9 / 16, 1);
+        //}
+        //if (Input.GetAxis("Mouse ScrollWheel") > 0)
+        //{
+        //    this.transform.position += Vector3.forward;
+        //    h = this.transform.position.z;
+        //    w = h * 2 / Math.Tan(0.896);
+        //    width = (float)w;
+        //    this.transform.localScale = new Vector3(width, -width * 9 / 16, 1);
+        //}
     }
 
     // -----------------------------------------------------------------------------
