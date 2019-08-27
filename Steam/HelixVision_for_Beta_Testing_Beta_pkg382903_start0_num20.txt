@@ -2,24 +2,24 @@
 DBJMI-BG0FX-2TIQL - Syrimer3D
 GK5XH-J5IMT-HLQRQ - Helifax
 7ZRVZ-XZY8C-EY06M - Losti
-YKEIG-ZWAPY-YTP3T - LukeRoss
+YKEIG-ZWAPY-YTP3T - +LukeRoss
 Z6IC6-69JFL-7792J - JoshCarter
-N8QWL-9HXL7-8QN0X - Lacuna
-QNQ58-FP79G-EY65Y - Mikear69
+N8QWL-9HXL7-8QN0X - Markus
+QNQ58-FP79G-EY65Y - +Mikear69
 7T44H-3ZLET-KYH5F - sgrules
 BP7CY-NCNMM-8D3VE - Torzii
-H68WL-0B2NH-IWPYE - P.C.Zen
+H68WL-0B2NH-IWPYE
 2HE4P-23XJH-DNTAJ - whyme466
 5QPPE-FBY49-26RFJ - Zig11727
-FBL28-2N54M-L7NK5 - jhgator1777
+FBL28-2N54M-L7NK5 - +jhgator1777
 RTQFF-EB8C2-Q970T - anotherfckinlogin?
 YKAM6-8KA24-X8RC0 - centrokom
 PJRZ7-GVNQ8-8RIMI - kakashisensei2000
 WNCYH-E5FTC-ICEFH - conan48
-B06QM-H9Q2A-TJFVD
-QWKJV-RQF9I-E0V24
+B06QM-H9Q2A-TJFVD - +Metal-O-Holic
+QWKJV-RQF9I-E0V24 - +Schwing
 
-potentially add
+Potentially add
 ZePRiNCE
 andysonofbob
 SnickerSnack
@@ -27,4 +27,11 @@ necropants
 djkano
 sebastatu
 BazzaLB
+chtiblue
+_c__
 
+No headset
+ - P.C.Zen
+ - Lacuna
+ - masterotaku
+ 
