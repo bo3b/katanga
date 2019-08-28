@@ -26,7 +26,7 @@ IXJK7-J879Z-49T28 - necropants
 X5JAB-9RC5A-4TVVN - djkano
 P7AW2-ZTIZ6-6ZR45 - sebastatu
 RHF3K-TDNP6-R2W3M - +BazzaLB
-DZYH0-346TI-5VXJY - chtiblue
+DZYH0-346TI-5VXJY
 FPC4H-8M9HH-ZAHXT
 LD8RX-ZM545-4K77D
 
@@ -38,6 +38,7 @@ No headset
  - P.C.Zen
  - Lacuna
  - masterotaku
+ - chtiblue
  
  
 Sir!
