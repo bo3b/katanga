@@ -1,15 +1,15 @@
 632NK-YTLFP-NC0EX - Zloth
-DBJMI-BG0FX-2TIQL - Syrimer3D
-GK5XH-J5IMT-HLQRQ - Helifax
+DBJMI-BG0FX-2TIQL - +Syrimer3D
+GK5XH-J5IMT-HLQRQ - +Helifax
 7ZRVZ-XZY8C-EY06M - Losti
 YKEIG-ZWAPY-YTP3T - +LukeRoss
 Z6IC6-69JFL-7792J - JoshCarter
-N8QWL-9HXL7-8QN0X - Markus
+N8QWL-9HXL7-8QN0X - +Markus
 QNQ58-FP79G-EY65Y - +Mikear69
 7T44H-3ZLET-KYH5F - sgrules
 BP7CY-NCNMM-8D3VE - Torzii
-H68WL-0B2NH-IWPYE
-2HE4P-23XJH-DNTAJ - whyme466
+H68WL-0B2NH-IWPYE - +bo3b
+2HE4P-23XJH-DNTAJ - +whyme466
 5QPPE-FBY49-26RFJ - Zig11727
 FBL28-2N54M-L7NK5 - +jhgator1777
 RTQFF-EB8C2-Q970T - anotherfckinlogin?
@@ -19,15 +19,19 @@ WNCYH-E5FTC-ICEFH - conan48
 B06QM-H9Q2A-TJFVD - +Metal-O-Holic
 QWKJV-RQF9I-E0V24 - +Schwing
 
+PMI0B-478IP-D92R8 - ZePRiNCE
+P8LK0-HQRMI-AD26K - andysonofbob
+EANBN-QGQ2W-330VV - SnickerSnack
+IXJK7-J879Z-49T28 - necropants
+X5JAB-9RC5A-4TVVN - djkano
+P7AW2-ZTIZ6-6ZR45 - sebastatu
+RHF3K-TDNP6-R2W3M - +BazzaLB
+DZYH0-346TI-5VXJY - chtiblue
+FPC4H-8M9HH-ZAHXT
+LD8RX-ZM545-4K77D
+
+
 Potentially add
-ZePRiNCE
-andysonofbob
-SnickerSnack
-necropants
-djkano
-sebastatu
-BazzaLB
-chtiblue
 _c__
 
 No headset
@@ -35,3 +39,19 @@ No headset
  - Lacuna
  - masterotaku
  
+ 
+Sir!
+
+I've put up a private beta for HelixVision if you might be interested. 
+
+DZYH0-346TI-5VXJY
+
+That's a Steam code that will unlock the beta for HelixVision and you can download and use it like normal. Switch to 'ci_beta' branch.
+
+Please keep it private, and don't post elsewhere about the beta. If you have suggestions and want to see and talk to the other beta testers, I've setup a private forum for us.
+
+https://steamcommunity.com/app/1127310/discussions/1/ 
+
+Thanks,
+bo3b
+
