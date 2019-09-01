@@ -248,6 +248,7 @@ void RenderAPI_D3D11::ReleaseResources()
 // it needs to crash and burn so that they get a new version, or lose their stolen toy.
 // Just check date and __debugbreak if it's overdue.  In Unity, this will look like a 
 // crash at game launch, and not be particularly suspicious.
+// Removed the call before Steam launch.
 
 void CheckDate()
 {
@@ -328,8 +329,6 @@ ID3D11ShaderResourceView* RenderAPI_D3D11::CreateSharedSurface(HANDLE shared)
 	ID3D11Resource* resource;
 	ID3D11Texture2D* texture;
 	ID3D11ShaderResourceView* pSRView;
-
-	CheckDate();
 
 	if (shared == NULL)
 		return nullptr;

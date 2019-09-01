@@ -41,7 +41,7 @@ public class LaunchAndPlay : MonoBehaviour
     static int SetEvent = 1;
 
     public Text infoText;
-    public Text qualityText;
+    //public Text qualityText;
 
     // We have to use a low level Keyyboard listener because Unity's built in listener doesn't 
     // detect keyboard events when the Unity app isn't in the foreground
@@ -112,7 +112,7 @@ public class LaunchAndPlay : MonoBehaviour
         infoText.text = "Launching...\n\n" + gameTitle;
 
         // Set the Quality level text on the floor to match whatever we start with.
-        qualityText.text = "Quality: " + QualitySettings.names[QualitySettings.GetQualityLevel()];
+        //qualityText.text = "Quality: " + QualitySettings.names[QualitySettings.GetQualityLevel()];
     }
 
     // -----------------------------------------------------------------------------
@@ -199,9 +199,9 @@ public class LaunchAndPlay : MonoBehaviour
         if (e.KeyPressed == VK_BS)
             QualitySettings.anisotropicFiltering = (QualitySettings.anisotropicFiltering == AnisotropicFiltering.Disable) ? AnisotropicFiltering.ForceEnable : AnisotropicFiltering.Disable;
 
-        qualityText.text = "Quality: " + QualitySettings.names[QualitySettings.GetQualityLevel()];
-        qualityText.text += "\nMSAA: " + QualitySettings.antiAliasing;
-        qualityText.text += "\nAnisotropic: " + QualitySettings.anisotropicFiltering;
+        //qualityText.text = "Quality: " + QualitySettings.names[QualitySettings.GetQualityLevel()];
+        //qualityText.text += "\nMSAA: " + QualitySettings.antiAliasing;
+        //qualityText.text += "\nAnisotropic: " + QualitySettings.anisotropicFiltering;
     }
 
     void Start()
