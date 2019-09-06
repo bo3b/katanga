@@ -3,6 +3,7 @@ using System.Collections;
 using System.Runtime.InteropServices;
 using System.IO;
 using System.Text;
+using System.Threading;
 
 using UnityEngine;
 using UnityEngine.UI;
@@ -24,6 +25,8 @@ public class LaunchAndPlay : MonoBehaviour
     static NktSpyMgr _spyMgr;
     static NktProcess _gameProcess = null;
     static string _nativeDLLName = null;
+
+    private static Thread watchThread;
 
     // Primary Texture received from game as shared ID3D11ShaderResourceView
     // It automatically updates as the injected DLL copies the bits into the
@@ -373,11 +376,36 @@ public class LaunchAndPlay : MonoBehaviour
         print("Restored Working Directory to: " + katanga_directory);
 
 
+        // Setup a second thread that will run and look for the game to have exited.
+        // When it does exit, we want to Quit here so that the window does not stay up.
+
+        watchThread = new Thread(new ThreadStart(exitWatch));
+        watchThread.Start();
+
         // We've gotten everything launched, hooked, and setup.  Now we need to wait for the
         // game to call through to CreateDevice, so that we can create the shared surface.
     }
 
-    
+
+    // This is a small routine just to handle the game exit gracefully.  The IsActive function
+    // can only be called with the default parameter of a 1,000ms wait, which means that it
+    // will stall this thread for a full second before returning.  Since this is a secondary
+    // thread, it won't stall the Unity drawing. 
+    // 
+    // The point of all this is to have Katanga cleanly exit after the game does, so that the
+    // user is not left with the running VR environment with nothing in it.
+
+    private static void exitWatch()
+    {
+        while (_gameProcess.IsActive)
+        {
+            Thread.Sleep(0);
+        }
+
+        Application.Quit();
+    }
+
+
     // On Quit, we need to unhook our keyboard handler or the Editor will crash with
     // a bad handler.
     // ToDo: anything else needs to be disposed or cleaned up?
