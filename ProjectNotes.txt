@@ -764,3 +764,30 @@ Finally getting all builds to work.  Katanga with a batch file Unity build, and 
 
 Top level project of HelixVision fires off those builds, and then copies the pieces to the right places
 and creates a final zip file.
+
+
+9-5-19
+Worked a couple of days on a way to get the Katanga window to auto-close after the game exits.
+
+The obvious way was to add a hook for OnAgentUnloaded, which will happen when game exits.  
+Unfortunately, that is not apparently possible.  Whenever I try this, the function to += the
+routine to be called- it crashes with a NotImplementedException. Something to do with the runtime
+or build system, such that it's not possible in C# to do this.  Deviare samples show this working,
+so it's not clear what is different, although this uses a Mono runtime, not a normal .Net runtime, 
+which is the likely culprit.
+
+Tried 2018.1 version of Unity as well, which supports the 4.0 .Net apis. But apparently not the full
+runtime, because it does not work there either.  Nor with their ILCPP new runtime. All in all, pretty
+lame.  
+
+Tried using the Deviare Thread.IsActive call, but it has a default timeout of 1000ms, and thus stalls
+the primary thread and draws once a second.  No way that I can tell to get the parameter passed, something
+about the Deviare interface through the idl does not export the time parameter.
+
+Can't use the OnAgentUnloaded in the injected DLL, because that is in the game itself.  Could, but would
+require having IPC back to the Unity app for notification. Best of not great options seems to be to setup
+an alternate thread to check for IsActive and quit upon that.
+
+Part and parcel of using this bad runtime layout.  Causes a lot of problems.  Should have used
+UE4 with native C++ access, but at the time they did not support single pass stereo.
+
