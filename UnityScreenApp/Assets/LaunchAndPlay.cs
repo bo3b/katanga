@@ -397,9 +397,12 @@ public class LaunchAndPlay : MonoBehaviour
 
     private static void exitWatch()
     {
+        // First call, let's stall for 10 seconds to avoid launch-time interference
+        Thread.Sleep(10000);    
+
         while (_gameProcess.IsActive)
         {
-            Thread.Sleep(0);
+            Thread.Sleep(2000); // Each sleep cycle will be 3 seconds to allow a non-abrupt exit
         }
 
         Application.Quit();
