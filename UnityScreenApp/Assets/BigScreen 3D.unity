@@ -357,7 +357,7 @@ MeshRenderer:
   m_CastShadows: 0
   m_ReceiveShadows: 0
   m_DynamicOccludee: 0
-  m_MotionVectors: 1
+  m_MotionVectors: 2
   m_LightProbeUsage: 1
   m_ReflectionProbeUsage: 0
   m_Materials:
@@ -889,7 +889,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   screen: {fileID: 488365432}
   infoText: {fileID: 2070569918}
-  qualityText: {fileID: 74748573}
   vrCamera: {fileID: 987663060}
   player: {fileID: 1751585949}
   recenterAction:
@@ -1188,7 +1187,7 @@ MeshRenderer:
   m_CastShadows: 0
   m_ReceiveShadows: 0
   m_DynamicOccludee: 0
-  m_MotionVectors: 1
+  m_MotionVectors: 2
   m_LightProbeUsage: 1
   m_ReflectionProbeUsage: 0
   m_Materials:
