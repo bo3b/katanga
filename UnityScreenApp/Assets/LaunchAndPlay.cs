@@ -124,9 +124,13 @@ public class LaunchAndPlay : MonoBehaviour
     // The usual Recenter does not work for room-scale because the assumption is that
     // you will simply rotate to see.  This following code sequence works in all cases.
     // https://forum.unity.com/threads/openvr-how-to-reset-camera-properly.417509/#post-2792972
+    //
+    // vrCamera object cannot be moved or altered, Unity VR doesn't allow moving the camera
+    // to avoid making players sick.  But we can move the world around the camera, by changing
+    // the player position.
 
-    public Transform vrCamera;
-    public Transform player;
+    public Transform player;       // Where user is looking and head position.
+    public Transform vrCamera;     // Unity camera for drawing scene.  Parent is player.
 
     private void RecenterHMD()
     {
@@ -394,6 +398,9 @@ public class LaunchAndPlay : MonoBehaviour
     // 
     // The point of all this is to have Katanga cleanly exit after the game does, so that the
     // user is not left with the running VR environment with nothing in it.
+    // 
+    // Unity complains if we Quit out of here, although it worked.  Moved the check to the
+    // Update routine for watchThread.IsAlive.
 
     private static void exitWatch()
     {
@@ -404,8 +411,6 @@ public class LaunchAndPlay : MonoBehaviour
         {
             Thread.Sleep(2000); // Each sleep cycle will be 3 seconds to allow a non-abrupt exit
         }
-
-        Application.Quit();
     }
 
 
@@ -713,6 +718,8 @@ public class LaunchAndPlay : MonoBehaviour
             System.GC.Collect();
 
         if (Input.GetKey("escape"))
+            Application.Quit();
+        if (!watchThread.IsAlive)
             Application.Quit();
 
         // The triangle from camera to quad edges is setup as
