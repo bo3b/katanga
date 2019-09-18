@@ -59,6 +59,29 @@ void HookCreateSwapChain(IDXGIFactory* dDXGIFactory);
 void HookCreateSwapChainForHwnd(IDXGIFactory2* dDXGIFactory);
 void HookPresent(IDXGISwapChain* pSwapChain);
 
+#ifdef _UNICODE
+# define KIERO_TEXT(text) L##text
+#else
+# define KIERO_TEXT(text) text
+#endif
+
+struct Status
+{
+	enum Enum
+	{
+		UnknownError = -1,
+		NotSupportedError = -2,
+		ModuleNotFoundError = -3,
+
+		AlreadyInitializedError = -4,
+		NotInitializedError = -5,
+
+		Success = 0,
+	};
+};
+
+Status::Enum FindAndHookPresent();
+
 
 // These need to be declared as extern "C" so that the names are not mangled.
 // They are coming from the straight C compilation unit.  All these are 

@@ -97,6 +97,9 @@ HRESULT WINAPI OnLoad()
 	// for Direct Mode by games.  ToDo: DX9 variant?
 	HookNvapiSetDriverMode();
 
+	// Find the Present call for current game
+	FindAndHookPresent();
+	
 	return S_OK;
 }
 

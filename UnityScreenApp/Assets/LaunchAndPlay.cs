@@ -22,6 +22,10 @@ public class LaunchAndPlay : MonoBehaviour
     // User friendly name of the game. This is shown on the big screen as info on launch.
     private string gameTitle;
 
+    // Exe name for DX11 games only. Used to lookup process ID for injection.  If DX9 this is empty.
+    private string gameDX11exe;
+    private bool isDX11Game = false;
+
     static NktSpyMgr _spyMgr;
     static NktProcess _gameProcess = null;
     static string _nativeDLLName = null;
@@ -84,7 +88,13 @@ public class LaunchAndPlay : MonoBehaviour
             {
                 gameTitle = args[i + 1];
             }
+            else if (args[i] == "--game-DX11-exe")
+            {
+                gameDX11exe = args[i + 1];
+            }
         }
+
+        isDX11Game = String.IsNullOrEmpty(gameDX11exe) ? false : true;
 
         // If they didn't pass a --game-path argument, then bring up the GetOpenFileName
         // dialog to let them choose.
@@ -134,6 +144,8 @@ public class LaunchAndPlay : MonoBehaviour
 
     private void RecenterHMD()
     {
+        print("RecenterHMD");
+
         //ROTATION
         // Get current head heading in scene (y-only, to avoid tilting the floor)
         float offsetAngle = vrCamera.rotation.eulerAngles.y;
@@ -211,10 +223,18 @@ public class LaunchAndPlay : MonoBehaviour
         //qualityText.text += "\nAnisotropic: " + QualitySettings.anisotropicFiltering;
     }
 
+    // -----------------------------------------------------------------------------
+
+    // When launching in DX9, we will continue to use the Deviare direct launch, so
+    // that we can hook Direct3DCreate9 before it is called, and convert it to 
+    // Direct3DCreate9Ex.  For DX11 games, 3DFM will have already launched the game
+    // using its normal techniques, and we will find it via gameProc ID and inject
+    // directly without hooking anything except Present.
+
     void Start()
     {
         int hresult;
-        object continueevent;
+        object continueevent = null;
 
         // hook keyboard to detect when the user presses a button
 //        _listener = new LowLevelKeyboardListener();
@@ -269,6 +289,7 @@ public class LaunchAndPlay : MonoBehaviour
         print("Successful SpyMgr Init");
 
 
+
         // We must set the game directory specifically, otherwise it winds up being the 
         // C# app directory which can make the game crash.  This must be done before CreateProcess.
         // This also changes the working directory, which will break Deviare's ability to find
@@ -278,13 +299,44 @@ public class LaunchAndPlay : MonoBehaviour
 
         Directory.SetCurrentDirectory(Path.GetDirectoryName(gamePath));
         {
-            // Launch the game, but suspended, so we can hook our first call and be certain to catch it.
+            // If DX11, let's wait and watch for game exe to launch.
+            // This works a lot better than launching it here and hooking
+            // first instructions, because we can wait past launchers or 
+            // Steam launch itself, or different sub processes being launched.
 
-            print("Launching: " + gamePath + "...");
-            _gameProcess = _spyMgr.CreateProcess(gamePath, true, out continueevent);
-            if (_gameProcess == null)
-                throw new Exception("CreateProcess game launch failed: " + gamePath);
+            if (isDX11Game)
+            {
+                int procid = 0;
 
+                print("Waiting for process: " + gameDX11exe);
+                Thread.Sleep(3 * 1000);    // ToDo: time delay here, good or bad?
+
+                do
+                {
+                    if (Input.GetKey("escape"))
+                        Application.Quit();
+                    Thread.Sleep(500);
+                    procid =_spyMgr.FindProcessId(gameDX11exe);
+                } while (procid == 0);
+
+                print("->Found " + gameDX11exe + ":" + procid);
+                _gameProcess = _spyMgr.ProcessFromPID(procid);
+            }
+
+
+            // For DX9, Launch the named game, but suspended, so we can hook our first call 
+            // and be certain to catch it. 
+
+            if (!isDX11Game)
+            {
+                print("Launching: " + gamePath + "...");
+                _gameProcess = _spyMgr.CreateProcess(gamePath, true, out continueevent);
+                if (_gameProcess == null)
+                    throw new Exception("CreateProcess game launch failed: " + gamePath);
+            }
+
+            print("LoadAgent");
+            _spyMgr.LoadAgent(_gameProcess);
 
             // Load the NativePlugin for the C++ side.  The NativePlugin must be in this app folder.
             // The Agent supports the use of Deviare in the CustomDLL, but does not respond to hooks.
@@ -292,14 +344,13 @@ public class LaunchAndPlay : MonoBehaviour
             // The native DeviarePlugin has two versions, one for x32, one for x64, so we can handle
             // either x32 or x64 games.
 
-            _spyMgr.LoadAgent(_gameProcess);
-
+            print("Load DeviarePlugin");
             if (_gameProcess.PlatformBits == 64)
                 _nativeDLLName = Application.dataPath + "/Plugins/DeviarePlugin64.dll";
             else
                 _nativeDLLName = Application.dataPath + "/Plugins/DeviarePlugin.dll";
 
-            int loadResult = _spyMgr.LoadCustomDll(_gameProcess, _nativeDLLName, false, true);
+            int loadResult = _spyMgr.LoadCustomDll(_gameProcess, _nativeDLLName, true, true);
             if (loadResult <= 0)
             {
                 int lastHR = GetLastDeviareError();
@@ -314,66 +365,76 @@ public class LaunchAndPlay : MonoBehaviour
             // CreateDXGIFactory, and CreateDXGIFactory1.  These are all direct exports for either
             // D3D11.dll, or DXGI.dll. All DX11 games must call one of these interfaces to 
             // create a SwapChain.  These must be spelled exactly right, including Case.
+            //
+            // Only hooking single call now, D3D11CreateDevice so that Deviare is activated.
+            // This call does not hook other calls, and seems to be necessary for the Agent
+            // to activate in the gameProcess.  This will also activate the DX9 path.
 
             print("Hook the D3D11.DLL!D3D11CreateDevice...");
             NktHook deviceHook = _spyMgr.CreateHook("D3D11.DLL!D3D11CreateDevice", 0);
             if (deviceHook == null)
                 throw new Exception("Failed to hook D3D11.DLL!D3D11CreateDevice");
-
-            print("Hook the D3D11.DLL!D3D11CreateDeviceAndSwapChain...");
-            NktHook deviceAndSwapChainHook = _spyMgr.CreateHook("D3D11.DLL!D3D11CreateDeviceAndSwapChain", 0);
-            if (deviceAndSwapChainHook == null)
-                throw new Exception("Failed to hook D3D11.DLL!D3D11CreateDeviceAndSwapChain");
-
-            print("Hook the DXGI.DLL!CreateDXGIFactory...");
-            NktHook factoryHook = _spyMgr.CreateHook("DXGI.DLL!CreateDXGIFactory", (int)eNktHookFlags.flgOnlyPostCall);
-            if (factoryHook == null)
-                throw new Exception("Failed to hook DXGI.DLL!CreateDXGIFactory");
-
-            print("Hook the DXGI.DLL!CreateDXGIFactory1...");
-            NktHook factory1Hook = _spyMgr.CreateHook("DXGI.DLL!CreateDXGIFactory1", (int)eNktHookFlags.flgOnlyPostCall);
-            if (factory1Hook == null)
-                throw new Exception("Failed to hook DXGI.DLL!CreateDXGIFactory1");
-
-
-            // Hook the primary DX9 creation call of Direct3DCreate9, which is a direct export of 
-            // the d3d9 DLL.  All DX9 games must call this interface, or the Direct3DCreate9Ex.
-            // This is not hooked here though, it is hooked in DeviarePlugin at OnLoad.
-            // We need to do special handling to fetch the System32 version of d3d9.dll,
-            // in order to avoid unhooking HelixMod's d3d9.dll.
-
-            // Hook the nvapi.  This is required to support Direct Mode in the driver, for 
-            // games like Tomb Raider and Deus Ex that have no SBS.
-            // There is only one call in the nvidia dll, nvapi_QueryInterface.  That will
-            // be hooked, and then the _NvAPI_Stereo_SetDriverMode call will be hooked
-            // so that we can see when a game sets Direct Mode and change behavior in Present.
-            // This is also done in DeviarePlugin at OnLoad.
-
-
-            // Make sure the CustomHandler in the NativePlugin at OnFunctionCall gets called when this 
-            // object is created. At that point, the native code will take over.
-
             deviceHook.AddCustomHandler(_nativeDLLName, 0, "");
-            deviceAndSwapChainHook.AddCustomHandler(_nativeDLLName, 0, "");
-            factoryHook.AddCustomHandler(_nativeDLLName, 0, "");
-            factory1Hook.AddCustomHandler(_nativeDLLName, 0, "");
-
-            // Finally attach and activate the hook in the still suspended game process.
-
             deviceHook.Attach(_gameProcess, true);
             deviceHook.Hook(true);
-            deviceAndSwapChainHook.Attach(_gameProcess, true);
-            deviceAndSwapChainHook.Hook(true);
-            factoryHook.Attach(_gameProcess, true);
-            factoryHook.Hook(true);
-            factory1Hook.Attach(_gameProcess, true);
-            factory1Hook.Hook(true);
 
-            // Ready to go.  Let the game startup.  When it calls Direct3DCreate9, we'll be
-            // called in the NativePlugin::OnFunctionCall
+            // But if we happen to be launching direct with a selected exe, or DX9 game,
+            // we can still hook the old way.
 
-            print("Continue game launch...");
-            _spyMgr.ResumeProcess(_gameProcess, continueevent);
+            if (!isDX11Game)
+            {
+                print("Hook the D3D11.DLL!D3D11CreateDeviceAndSwapChain...");
+                NktHook deviceAndSwapChainHook = _spyMgr.CreateHook("D3D11.DLL!D3D11CreateDeviceAndSwapChain", 0);
+                if (deviceAndSwapChainHook == null)
+                    throw new Exception("Failed to hook D3D11.DLL!D3D11CreateDeviceAndSwapChain");
+
+                print("Hook the DXGI.DLL!CreateDXGIFactory...");
+                NktHook factoryHook = _spyMgr.CreateHook("DXGI.DLL!CreateDXGIFactory", (int)eNktHookFlags.flgOnlyPostCall);
+                if (factoryHook == null)
+                    throw new Exception("Failed to hook DXGI.DLL!CreateDXGIFactory");
+
+                print("Hook the DXGI.DLL!CreateDXGIFactory1...");
+                NktHook factory1Hook = _spyMgr.CreateHook("DXGI.DLL!CreateDXGIFactory1", (int)eNktHookFlags.flgOnlyPostCall);
+                if (factory1Hook == null)
+                    throw new Exception("Failed to hook DXGI.DLL!CreateDXGIFactory1");
+
+
+                // Hook the primary DX9 creation call of Direct3DCreate9, which is a direct export of 
+                // the d3d9 DLL.  All DX9 games must call this interface, or the Direct3DCreate9Ex.
+                // This is not hooked here though, it is hooked in DeviarePlugin at OnLoad.
+                // We need to do special handling to fetch the System32 version of d3d9.dll,
+                // in order to avoid unhooking HelixMod's d3d9.dll.
+
+                // Hook the nvapi.  This is required to support Direct Mode in the driver, for 
+                // games like Tomb Raider and Deus Ex that have no SBS.
+                // There is only one call in the nvidia dll, nvapi_QueryInterface.  That will
+                // be hooked, and then the _NvAPI_Stereo_SetDriverMode call will be hooked
+                // so that we can see when a game sets Direct Mode and change behavior in Present.
+                // This is also done in DeviarePlugin at OnLoad.
+
+
+                // Make sure the CustomHandler in the NativePlugin at OnFunctionCall gets called when this 
+                // object is created. At that point, the native code will take over.
+
+                deviceAndSwapChainHook.AddCustomHandler(_nativeDLLName, 0, "");
+                factoryHook.AddCustomHandler(_nativeDLLName, 0, "");
+                factory1Hook.AddCustomHandler(_nativeDLLName, 0, "");
+
+                // Finally attach and activate the hook in the still suspended game process.
+
+                deviceAndSwapChainHook.Attach(_gameProcess, true);
+                deviceAndSwapChainHook.Hook(true);
+                factoryHook.Attach(_gameProcess, true);
+                factoryHook.Hook(true);
+                factory1Hook.Attach(_gameProcess, true);
+                factory1Hook.Hook(true);
+
+                // Ready to go.  Let the game startup.  When it calls Direct3DCreate9, we'll be
+                // called in the NativePlugin::OnFunctionCall
+
+                print("Continue game launch...");
+                _spyMgr.ResumeProcess(_gameProcess, continueevent);
+            }
         }
         Directory.SetCurrentDirectory(katanga_directory);
 

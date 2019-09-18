@@ -152,6 +152,17 @@ ID3D11Device* CreateSharedTexture(IDXGISwapChain* pSwapChain)
 	hr = pSwapChain->GetDevice(__uuidof(ID3D11Device), (void**)&pDevice);
 	if (FAILED(hr)) FatalExit(L"Failed to GetDevice");
 
+	// Using the D3D11Device we fetched above, we also want to initialize nvidia
+	// stereo so that we can fetch the stereo backbuffer during Present.
+
+	NvAPI_Status res = NvAPI_Initialize();
+	if (res != NVAPI_OK) FatalExit(L"Failed to NvAPI_Initialize\n");
+
+	// ToDo: need to handle stereo disabled...
+	res = NvAPI_Stereo_CreateHandleFromIUnknown(pDevice, &gNVAPI);
+	if (res != NVAPI_OK) FatalExit(L"Failed to NvAPI_Stereo_CreateHandleFromIUnknown\n");
+
+
 
 	// Now that we have a proper SwapChain from the game, let's also make a 
 	// DX11 Texture2D, so that we can snapshot the game output. 
@@ -259,6 +270,9 @@ HRESULT __stdcall Hooked_Present(IDXGISwapChain * This,
 	D3D11_TEXTURE2D_DESC pDesc;
 	ID3D11Device* pDevice = nullptr;
 	ID3D11DeviceContext* pContext = nullptr;
+
+	if (gGameTexture == nullptr)
+		CreateSharedTexture(This);
 
 	hr = This->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&backBuffer);
 	if (SUCCEEDED(hr) && gGameTexture != nullptr)
@@ -594,7 +608,6 @@ void HookPresent(IDXGISwapChain* pSwapChain)
 
 		SIZE_T hook_id;
 		DWORD dwOsErr;
-		ID3D11Device* pDevice;
 
 		dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigPresent,
 			lpvtbl_Present_DX11(pSwapChain), Hooked_Present, 0);
@@ -609,18 +622,7 @@ void HookPresent(IDXGISwapChain* pSwapChain)
 		// Create Texture2D and HANDLE we'll use to share the stereo game bits across
 		// the process boundary.
 
-		pDevice = CreateSharedTexture(pSwapChain);
-
-
-		// Using the D3D11Device we fetched above, we also want to initialize nvidia
-		// stereo so that we can fetch the stereo backbuffer during Present.
-
-		NvAPI_Status res = NvAPI_Initialize();
-		if (res != NVAPI_OK) FatalExit(L"Failed to NvAPI_Initialize\n");
-
-		// ToDo: need to handle stereo disabled...
-		res = NvAPI_Stereo_CreateHandleFromIUnknown(pDevice, &gNVAPI);
-		if (res != NVAPI_OK) FatalExit(L"Failed to NvAPI_Stereo_CreateHandleFromIUnknown\n");
+//		pDevice = CreateSharedTexture(pSwapChain);
 
 
 		// Since we are doing setup here, also create a thread that will be used to copy
@@ -738,3 +740,131 @@ void HookNvapiSetDriverMode()
 		if (FAILED(dwOsErr)) FatalExit(L"Failed to hook NVAPI.DLL NvAPI_Stereo_SetDriverMode");
 	}
 }
+
+
+// From: https://github.com/Rebzzel/kiero/blob/master/kiero.cpp
+//
+// Create a window, then a DX11 device and swapchain so we can then fetch the Present
+// call Address.  It will be the same address for both this fake window and the game.
+// 
+// This is only for the DX11 games.  Should have no impact on them to hook the DX11
+// Present call.
+
+Status::Enum FindAndHookPresent()
+{
+	WNDCLASSEX windowClass;
+	windowClass.cbSize = sizeof(WNDCLASSEX);
+	windowClass.style = CS_HREDRAW | CS_VREDRAW;
+	windowClass.lpfnWndProc = DefWindowProc;
+	windowClass.cbClsExtra = 0;
+	windowClass.cbWndExtra = 0;
+	windowClass.hInstance = GetModuleHandle(NULL);
+	windowClass.hIcon = NULL;
+	windowClass.hCursor = NULL;
+	windowClass.hbrBackground = NULL;
+	windowClass.lpszMenuName = NULL;
+	windowClass.lpszClassName = KIERO_TEXT("Kiero");
+	windowClass.hIconSm = NULL;
+
+	::RegisterClassEx(&windowClass);
+
+	HWND window = ::CreateWindow(windowClass.lpszClassName, KIERO_TEXT("Kiero DirectX Window"), WS_OVERLAPPEDWINDOW, 0, 0, 100, 100, NULL, NULL, windowClass.hInstance, NULL);
+
+	HMODULE libD3D11;
+	if ((libD3D11 = ::GetModuleHandle(KIERO_TEXT("d3d11.dll"))) == NULL)
+	{
+		::OutputDebugStringA("Failed to load d3d11.dll");
+		::DestroyWindow(window);
+		::UnregisterClass(windowClass.lpszClassName, windowClass.hInstance);
+		return Status::ModuleNotFoundError;
+	}
+
+	void* fnD3D11CreateDeviceAndSwapChain;
+	if ((fnD3D11CreateDeviceAndSwapChain = ::GetProcAddress(libD3D11, "D3D11CreateDeviceAndSwapChain")) == NULL)
+	{
+		::OutputDebugStringA("Failed to GetProcAddress on D3D11CreateDeviceAndSwapChain");
+		::DestroyWindow(window);
+		::UnregisterClass(windowClass.lpszClassName, windowClass.hInstance);
+		return Status::UnknownError;
+	}
+
+	DXGI_RATIONAL refreshRate = { 0 };
+	refreshRate.Numerator = 60;
+	refreshRate.Denominator = 1;
+
+	DXGI_MODE_DESC bufferDesc = { 0 };
+	bufferDesc.Width = 100;
+	bufferDesc.Height = 100;
+	bufferDesc.RefreshRate = refreshRate;
+	bufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	bufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
+	bufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
+
+	DXGI_SAMPLE_DESC sampleDesc = { 0 };
+	sampleDesc.Count = 1;
+	sampleDesc.Quality = 0;
+
+	DXGI_SWAP_CHAIN_DESC swapChainDesc = { 0 };
+	swapChainDesc.BufferDesc = bufferDesc;
+	swapChainDesc.SampleDesc = sampleDesc;
+	swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+	swapChainDesc.BufferCount = 1;
+	swapChainDesc.OutputWindow = window;
+	swapChainDesc.Windowed = 1;
+	swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
+	swapChainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
+
+	IDXGISwapChain* swapChain;
+	ID3D11Device* device;
+	ID3D11DeviceContext* context;
+
+	// This can fetch the 3Dmigoto dll
+	// Which can lead to errors if the game d3dx.ini specifies returning errors.
+	// Also seems to introduce a bug if we request only the swapchain.
+
+	HRESULT hr = ((long(__stdcall*)(
+		IDXGIAdapter*,
+		D3D_DRIVER_TYPE,
+		HMODULE,
+		UINT,
+		const D3D_FEATURE_LEVEL*,
+		UINT,
+		UINT,
+		const DXGI_SWAP_CHAIN_DESC*,
+		IDXGISwapChain**,
+		ID3D11Device**,
+		D3D_FEATURE_LEVEL*,
+		ID3D11DeviceContext**))(fnD3D11CreateDeviceAndSwapChain))(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, 0, NULL, NULL, D3D11_SDK_VERSION, &swapChainDesc, &swapChain, &device, NULL, &context);
+	if (FAILED(hr))
+	{
+		::OutputDebugStringA("Failed call to D3D11CreateDeviceAndSwapChain");
+		::DestroyWindow(window);
+		::UnregisterClass(windowClass.lpszClassName, windowClass.hInstance);
+		return Status::UnknownError;
+	}
+
+	// At this point, it's created the Device and SwapChain, so now we can fetch the address of Present
+	// from the SwapChain's vtable.
+
+	HookPresent(swapChain);
+
+	// Now release all the created objects, as they were just used to get us to the vtable.
+
+	swapChain->Release();
+	swapChain = NULL;
+
+	device->Release();
+	device = NULL;
+
+	context->Release();
+	context = NULL;
+
+	::DestroyWindow(window);
+	::UnregisterClass(windowClass.lpszClassName, windowClass.hInstance);
+
+	::OutputDebugStringA("Successfully hooked DXGI::Present");
+
+	return Status::Success;
+}
+
+
