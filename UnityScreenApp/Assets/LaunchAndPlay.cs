@@ -594,25 +594,6 @@ public class LaunchAndPlay : MonoBehaviour
         }
     }
 
-    // -----------------------------------------------------------------------------
-    //private IEnumerator UpdateFPS()
-    //{
-    //    TextMesh rate = GameObject.Find("rate").GetComponent<TextMesh>();
-
-    //    while (true)
-    //    {
-    //        yield return new WaitForSecondsRealtime(0.2f);
-
-    //        float gpuTime;
-    //        if (XRStats.TryGetGPUTimeLastFrame(out gpuTime))
-    //        {
-    //            // At 90 fps, we want to know the % of a single VR frame we are using.
-    //            //    gpuTime = gpuTime / ((1f / 90f) * 1000f) * 100f;
-    //            rate.text = System.String.Format("{0:F1} ms", gpuTime);
-    //        }
-    //    }
-    //}
-
 
     // -----------------------------------------------------------------------------
     // Our x64 Native DLL allows us direct access to DX11 in order to take
@@ -782,34 +763,6 @@ public class LaunchAndPlay : MonoBehaviour
             Application.Quit();
         if (!watchThread.IsAlive)
             Application.Quit();
-
-        // The triangle from camera to quad edges is setup as
-        //  camera: 0, 1, 0
-        //  quad:   0, 2.75, 5
-        // So the distance to screen is h=5, and width is w=8.
-        // Triangle calculator says the inner angle and corner angle is thus
-        //  1.349 rad  0.896 rad
-        // h=w/2*tan(corner) => w=h*2/tan(corner) 
-
-        //  bo3b: remove for now, until we decide on keyboard actions
-        //double h, w;
-        //float width;
-        //if (Input.GetAxis("Mouse ScrollWheel") < 0)
-        //{
-        //    this.transform.position += Vector3.back;
-        //    h = this.transform.position.z;
-        //    w = h * 2 / Math.Tan(0.896);
-        //    width = (float)w;
-        //    this.transform.localScale = new Vector3(width, -width * 9 / 16, 1);
-        //}
-        //if (Input.GetAxis("Mouse ScrollWheel") > 0)
-        //{
-        //    this.transform.position += Vector3.forward;
-        //    h = this.transform.position.z;
-        //    w = h * 2 / Math.Tan(0.896);
-        //    width = (float)w;
-        //    this.transform.localScale = new Vector3(width, -width * 9 / 16, 1);
-        //}
     }
 
     // -----------------------------------------------------------------------------
@@ -865,16 +818,4 @@ public class LaunchAndPlay : MonoBehaviour
     }
 
 }
-
-//// Sierpinksky triangles for a default view, shows if other updates fail.
-//for (int y = 0; y < _tex.height; y++)
-//{
-//    for (int x = 0; x < _tex.width; x++)
-//    {
-//        Color color = ((x & y) != 0 ? Color.white : Color.grey);
-//        _tex.SetPixel(x, y, color);
-//    }
-//}
-//// Call Apply() so it's actually uploaded to the GPU
-//_tex.Apply();
 
