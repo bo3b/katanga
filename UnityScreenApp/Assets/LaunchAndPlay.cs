@@ -123,75 +123,6 @@ public class LaunchAndPlay : MonoBehaviour
         //qualityText.text = "Quality: " + QualitySettings.names[QualitySettings.GetQualityLevel()];
     }
 
-    // -----------------------------------------------------------------------------
-
-    // We need to allow Recenter, even for room-scale, because people ask for it. 
-    // The usual Recenter does not work for room-scale because the assumption is that
-    // you will simply rotate to see.  This following code sequence works in all cases.
-    // https://forum.unity.com/threads/openvr-how-to-reset-camera-properly.417509/#post-2792972
-    //
-    // vrCamera object cannot be moved or altered, Unity VR doesn't allow moving the camera
-    // to avoid making players sick.  But we can move the world around the camera, by changing
-    // the player position.
-
-    public Transform player;       // Where user is looking and head position.
-    public Transform vrCamera;     // Unity camera for drawing scene.  Parent is player.
-
-    private void RecenterHMD()
-    {
-        print("RecenterHMD");
-
-        //ROTATION
-        // Get current head heading in scene (y-only, to avoid tilting the floor)
-        float offsetAngle = vrCamera.rotation.eulerAngles.y;
-        // Now rotate CameraRig in opposite direction to compensate
-        player.Rotate(0f, -offsetAngle, 0f);
-
-        // Let's rotate the floor itself back, so that it remains stable and
-        // matches their play space.  We have to use the unintuitive Z direction here, 
-        // because the floor is rotated 90 degrees in X already.
-        floor.transform.Rotate(0f, 0f, offsetAngle);
-
-        //POSITION
-        // Calculate postional offset between CameraRig and Camera
-        //        Vector3 offsetPos = steamCamera.position - cameraRig.position;
-        // Reposition CameraRig to desired position minus offset
-        //        cameraRig.position = (desiredHeadPos.position - offsetPos);
-    }
-
-
-    // We'll also handle the Right Controller Grip action as a RecenterHMD command.
-
-    public SteamVR_Action_Boolean recenterAction;
-
-    private void OnRecenterAction(SteamVR_Action_Boolean fromAction, SteamVR_Input_Sources fromSource, bool active)
-    {
-        if (active)
-            RecenterHMD();
-    }
-
-    // Hide the floor on center click of left trackpad. Toggle on/off.
-    // Creating our own Toggle here, because the touchpad is setup as d-pad and center 
-    // cannot be toggle by itself.
-
-    public SteamVR_Action_Boolean hideFloorAction;
-    public GameObject floor;
-    private bool hidden = false;
-
-    private void OnHideFloorAction(SteamVR_Action_Boolean fromAction, SteamVR_Input_Sources fromSource)
-    {
-        if (hidden)
-        {
-            floor.SetActive(true);
-            hidden = false;
-        }
-        else
-        {
-            floor.SetActive(false);
-            hidden = true;
-        }
-    }
-
 
     // -----------------------------------------------------------------------------
 
@@ -205,27 +136,6 @@ public class LaunchAndPlay : MonoBehaviour
     {
         int hresult;
         object continueevent = null;
-
-        // Setup to handle Right hand Grip actions as Recenter
-        recenterAction.AddOnChangeListener(OnRecenterAction, SteamVR_Input_Sources.RightHand);
-        // Setup to handle Left hand center click as hiding the floor
-        hideFloorAction.AddOnStateDownListener(OnHideFloorAction, SteamVR_Input_Sources.LeftHand);
-
-        // Here at Start, let's also clip the floor to whatever the size of the user's boundary.
-        // If it's not yet fully tracking, that's OK, we'll just leave as is.  This seems better
-        // than adding in the SteamVR_PlayArea script.
-        var chaperone = OpenVR.Chaperone;
-        if (chaperone != null)
-        {
-            float width = 0, height = 0;
-            if (chaperone.GetPlayAreaSize(ref width, ref height))
-                floor.transform.localScale = new Vector3(width, height, 1);
-        }
-
-        // Here at launch, let's recenter around wherever the headset is pointing. Seems to be the 
-        // model that people are expecting, instead of the facing forward based on room setup.
-        RecenterHMD();
-
 
         // Store the current Texture2D on the Quad as the original grey
         screenMaterial = screen.material;
@@ -437,19 +347,6 @@ public class LaunchAndPlay : MonoBehaviour
         {
             Thread.Sleep(2000); // Each sleep cycle will be 3 seconds to allow a non-abrupt exit
         }
-    }
-
-
-    // On Quit, we need to unhook our keyboard handler or the Editor will crash with
-    // a bad handler.
-    // ToDo: anything else needs to be disposed or cleaned up?
-
-    private void OnApplicationQuit()
-    {
-        if (recenterAction != null)
-            recenterAction.RemoveOnChangeListener(OnRecenterAction, SteamVR_Input_Sources.RightHand);
-        if (hideFloorAction != null)
-            hideFloorAction.RemoveOnStateDownListener(OnHideFloorAction, SteamVR_Input_Sources.LeftHand);
     }
 
 
