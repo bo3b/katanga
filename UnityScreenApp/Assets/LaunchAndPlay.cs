@@ -48,7 +48,6 @@ public class LaunchAndPlay : MonoBehaviour
     static int SetEvent = 1;
 
     public Text infoText;
-    //public Text qualityText;
 
     // -----------------------------------------------------------------------------
 
@@ -118,9 +117,6 @@ public class LaunchAndPlay : MonoBehaviour
 
         // With the game properly selected, add name to the big screen as info on launch.
         infoText.text = "Launching...\n\n" + gameTitle;
-
-        // Set the Quality level text on the floor to match whatever we start with.
-        //qualityText.text = "Quality: " + QualitySettings.names[QualitySettings.GetQualityLevel()];
     }
 
 

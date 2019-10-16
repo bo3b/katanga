@@ -64,6 +64,8 @@ public class LowLevelKeyboardListener
     private LowLevelKeyboardProc _proc;
     private IntPtr _hookID = IntPtr.Zero;
 
+    //public Text qualityText;
+
     public LowLevelKeyboardListener()
     {
         _proc = HookCallback;
@@ -73,6 +75,9 @@ public class LowLevelKeyboardListener
         //        _listener.OnKeyPressed += _listener_OnKeyPressed;
         //        _listener.HookKeyboard();
 
+
+        // Set the Quality level text on the floor to match whatever we start with.
+        //qualityText.text = "Quality: " + QualitySettings.names[QualitySettings.GetQualityLevel()];
     }
 
     // Destructor or exit- mandatory, otherwise random crashes.
