@@ -10,7 +10,7 @@ using Valve.VR.InteractionSystem;
 // On the Left trackpad, up/down on the trackpad will change the screen vertical location.
 // On the Left trackpad, left/right on the trackpad will change the screen size.
 
-public class MoveScreen : MonoBehaviour {
+public class ControllerActions : MonoBehaviour {
 
     public SteamVR_Action_Boolean fartherAction;
     public SteamVR_Action_Boolean nearerAction;

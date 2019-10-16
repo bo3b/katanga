@@ -263,10 +263,11 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Assets\ControllerActions.cs" />
     <Compile Include="Assets\ControllerHints.cs" />
     <Compile Include="Assets\LaunchAndPlay.cs" />
+    <Compile Include="Assets\LaunchGame.cs" />
     <Compile Include="Assets\LowLevelKeyboardListener.cs" />
-    <Compile Include="Assets\MoveScreen.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Assets\SteamVR\InteractionSystem\Core\Shaders\SeeThru.shader" />
