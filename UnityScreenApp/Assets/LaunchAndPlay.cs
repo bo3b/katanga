@@ -351,112 +351,6 @@ public class LaunchAndPlay : MonoBehaviour
 
 
     // -----------------------------------------------------------------------------
-    // Wait for the EndOfFrame, and then trigger the sync Event to allow
-    // the game to continue.  Will use the _gameEventSignal from the NativePlugin
-    // to trigger the Event which was actually created in the game process.
-    // _gameEventSignal is a HANDLE from x32 game.
-    //
-    // WaitForFixedUpdate happens right at the start of next frame.
-    // The goal here is to sync up the game with the VR state.  VR state needs
-    // to take precedence, and is running at 90 Hz.  As long as the game can
-    // maintain better than that rate, we can delay the game each frame to keep 
-    // them in sync. If the game cannot keep that rate, it will drop to 1/2
-    // rate at 45 Hz. Not as good, but acceptable.
-    //
-    // At end of frame, stall the game draw calls with TriggerEvent.
-
-    long startTime = Stopwatch.GetTimestamp();
-
-    // At start of frame, immediately after we've presented in VR, 
-    // restart the game app.
-    private IEnumerator SyncAtStartOfFrame()
-    {
-        int callcount = 0;
-        print("SyncAtStartOfFrame, first call: " + startTime.ToString());
-
-        while (true)
-        {
-            // yield, will run again after Update.  
-            // This is super early in the frame, measurement shows maybe 
-            // 0.5ms after start.  
-            yield return null;
-
-            callcount += 1;
-
-            // Here at very early in frame, allow game to carry on.
-            System.Int32 dummy = SetEvent;
-            object deviare = dummy;
-            _spyMgr.CallCustomApi(_gameProcess, _nativeDLLName, "TriggerEvent", ref deviare, false);
-
-
-            long nowTime = Stopwatch.GetTimestamp();
-
-            // print every 30 frames 
-            if ((callcount % 30) == 0)
-            {
-                long elapsedTime = nowTime - startTime;
-                double elapsedMS = elapsedTime * (1000.0 / Stopwatch.Frequency);
-                print("SyncAtStartOfFrame: " + elapsedMS.ToString("F1"));
-            }
-
-            startTime = nowTime;
-
-            // Since this is another thread as a coroutine, we won't block the main
-            // drawing thread from doing its thing.
-            // Wait here by CPU spin, for 9ms, close to end of frame, before we
-            // pause the running game.  
-            // The CPU spin here is necessary, no normal waits or sleeps on Windows
-            // can do anything faster than about 16ms, which is way to slow for VR.
-            // Burning one CPU core for this is not a big deal.
-
-            double waited;
-            do
-            {
-                waited = Stopwatch.GetTimestamp() - startTime;
-                waited *= (1000.0 / Stopwatch.Frequency);
-                //if ((callcount % 30) == 0)
-                //{
-                //    print("waiting: " + waited.ToString("F1"));
-                //}
-            } while (waited < 3.0);
-
-
-            // Now at close to the end of each VR frame, tell game to pause.
-            dummy = ResetEvent;
-            deviare = dummy;
-            _spyMgr.CallCustomApi(_gameProcess, _nativeDLLName, "TriggerEvent", ref deviare, false);
-        }
-    }
-
-    private IEnumerator SyncAtEndofFrame()
-    {
-        int callcount = 0;
-        long firstTime = Stopwatch.GetTimestamp();
-        print("SyncAtEndofFrame, first call: " + firstTime.ToString());
-
-        while (true)
-        {
-            yield return new WaitForEndOfFrame();
-
-            // print every 30 frames 
-            if ((callcount % 30) == 0)
-            {
-                long nowTime = Stopwatch.GetTimestamp();
-                long elapsedTime = nowTime - startTime;
-                double elapsedMS = elapsedTime * (1000.0 / Stopwatch.Frequency);
-                print("SyncAtEndofFrame: " + elapsedMS.ToString("F1"));
-            }
-
-            //TriggerEvent(_gameEventSignal);        
-
-            System.Int32 dummy = 0;  // ResetEvent
-            object deviare = dummy;
-            _spyMgr.CallCustomApi(_gameProcess, _nativeDLLName, "TriggerEvent", ref deviare, false);
-        }
-    }
-
-
-    // -----------------------------------------------------------------------------
     // Our x64 Native DLL allows us direct access to DX11 in order to take
     // the shared handle and turn it into a ID3D11ShaderResourceView for Unity.
 
@@ -677,6 +571,112 @@ public class LaunchAndPlay : MonoBehaviour
 
         return result;
     }
+
+    // -----------------------------------------------------------------------------
+    // Wait for the EndOfFrame, and then trigger the sync Event to allow
+    // the game to continue.  Will use the _gameEventSignal from the NativePlugin
+    // to trigger the Event which was actually created in the game process.
+    // _gameEventSignal is a HANDLE from x32 game.
+    //
+    // WaitForFixedUpdate happens right at the start of next frame.
+    // The goal here is to sync up the game with the VR state.  VR state needs
+    // to take precedence, and is running at 90 Hz.  As long as the game can
+    // maintain better than that rate, we can delay the game each frame to keep 
+    // them in sync. If the game cannot keep that rate, it will drop to 1/2
+    // rate at 45 Hz. Not as good, but acceptable.
+    //
+    // At end of frame, stall the game draw calls with TriggerEvent.
+
+    //long startTime = Stopwatch.GetTimestamp();
+
+    //// At start of frame, immediately after we've presented in VR, 
+    //// restart the game app.
+    //private IEnumerator SyncAtStartOfFrame()
+    //{
+    //    int callcount = 0;
+    //    print("SyncAtStartOfFrame, first call: " + startTime.ToString());
+
+    //    while (true)
+    //    {
+    //        // yield, will run again after Update.  
+    //        // This is super early in the frame, measurement shows maybe 
+    //        // 0.5ms after start.  
+    //        yield return null;
+
+    //        callcount += 1;
+
+    //        // Here at very early in frame, allow game to carry on.
+    //        System.Int32 dummy = SetEvent;
+    //        object deviare = dummy;
+    //        _spyMgr.CallCustomApi(_gameProcess, _nativeDLLName, "TriggerEvent", ref deviare, false);
+
+
+    //        long nowTime = Stopwatch.GetTimestamp();
+
+    //        // print every 30 frames 
+    //        if ((callcount % 30) == 0)
+    //        {
+    //            long elapsedTime = nowTime - startTime;
+    //            double elapsedMS = elapsedTime * (1000.0 / Stopwatch.Frequency);
+    //            print("SyncAtStartOfFrame: " + elapsedMS.ToString("F1"));
+    //        }
+
+    //        startTime = nowTime;
+
+    //        // Since this is another thread as a coroutine, we won't block the main
+    //        // drawing thread from doing its thing.
+    //        // Wait here by CPU spin, for 9ms, close to end of frame, before we
+    //        // pause the running game.  
+    //        // The CPU spin here is necessary, no normal waits or sleeps on Windows
+    //        // can do anything faster than about 16ms, which is way to slow for VR.
+    //        // Burning one CPU core for this is not a big deal.
+
+    //        double waited;
+    //        do
+    //        {
+    //            waited = Stopwatch.GetTimestamp() - startTime;
+    //            waited *= (1000.0 / Stopwatch.Frequency);
+    //            //if ((callcount % 30) == 0)
+    //            //{
+    //            //    print("waiting: " + waited.ToString("F1"));
+    //            //}
+    //        } while (waited < 3.0);
+
+
+    //        // Now at close to the end of each VR frame, tell game to pause.
+    //        dummy = ResetEvent;
+    //        deviare = dummy;
+    //        _spyMgr.CallCustomApi(_gameProcess, _nativeDLLName, "TriggerEvent", ref deviare, false);
+    //    }
+    //}
+
+    //private IEnumerator SyncAtEndofFrame()
+    //{
+    //    int callcount = 0;
+    //    long firstTime = Stopwatch.GetTimestamp();
+    //    print("SyncAtEndofFrame, first call: " + firstTime.ToString());
+
+    //    while (true)
+    //    {
+    //        yield return new WaitForEndOfFrame();
+
+    //        // print every 30 frames 
+    //        if ((callcount % 30) == 0)
+    //        {
+    //            long nowTime = Stopwatch.GetTimestamp();
+    //            long elapsedTime = nowTime - startTime;
+    //            double elapsedMS = elapsedTime * (1000.0 / Stopwatch.Frequency);
+    //            print("SyncAtEndofFrame: " + elapsedMS.ToString("F1"));
+    //        }
+
+    //        //TriggerEvent(_gameEventSignal);        
+
+    //        System.Int32 dummy = 0;  // ResetEvent
+    //        object deviare = dummy;
+    //        _spyMgr.CallCustomApi(_gameProcess, _nativeDLLName, "TriggerEvent", ref deviare, false);
+    //    }
+    //}
+
 
 }
 
