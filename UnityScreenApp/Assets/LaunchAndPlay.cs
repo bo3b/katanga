@@ -516,6 +516,16 @@ public class LaunchAndPlay : MonoBehaviour
             Application.Quit();
     }
 
+
+    // -----------------------------------------------------------------------------
+
+    // Just in case we somehow managed to leave it set badly.
+   
+    private void OnApplicationQuit()
+    {
+        Directory.SetCurrentDirectory(katanga_directory);
+    }
+
     // -----------------------------------------------------------------------------
 
     // Error handling.  Anytime we get an error that should *never* happen, we'll
