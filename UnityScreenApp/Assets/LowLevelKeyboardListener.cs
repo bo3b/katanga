@@ -1,4 +1,23 @@
-﻿using System;
+﻿/* 
+Copyright (c) 2019 dylansweb.com
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
+
+using System;
 using System.Collections;
 using System.Runtime.InteropServices;
 using System.IO;
@@ -12,6 +31,12 @@ using System.Diagnostics;
 using System.Collections.Generic;
 
 using System.Linq;
+
+// We have to use a low level Keyboard listener because Unity's built in listener doesn't 
+// detect keyboard events when the Unity app isn't in the foreground
+
+// private LowLevelKeyboardListener _listener;
+
 
 public class LowLevelKeyboardListener
 {
@@ -42,7 +67,16 @@ public class LowLevelKeyboardListener
     public LowLevelKeyboardListener()
     {
         _proc = HookCallback;
+
+        // hook keyboard to detect when the user presses a button
+        //        _listener = new LowLevelKeyboardListener();
+        //        _listener.OnKeyPressed += _listener_OnKeyPressed;
+        //        _listener.HookKeyboard();
+
     }
+
+    // Destructor or exit- mandatory, otherwise random crashes.
+    //        _listener.UnHookKeyboard();
 
     public void HookKeyboard()
     {
@@ -74,6 +108,32 @@ public class LowLevelKeyboardListener
 
         return CallNextHookEx(_hookID, nCode, wParam, lParam);
     }
+
+    readonly int VK_F12 = 123;
+    readonly int VK_LSB = 219;  // [ key
+    readonly int VK_RSB = 221;  // ] key
+    readonly int VK_BS = 220;   // \ key
+
+    void _listener_OnKeyPressed(object sender, KeyPressedArgs e)
+    {
+        // if user pressed F12 then recenter the view of the VR headset
+        if (e.KeyPressed == VK_F12)
+//            RecenterHMD();
+
+        // If user presses ], let's bump the Quality to the next level and rebuild
+        // the environment.  [ will lower quality setting.  Mostly AA settings.
+        if (e.KeyPressed == VK_LSB)
+            QualitySettings.DecreaseLevel(true);
+        if (e.KeyPressed == VK_RSB)
+            QualitySettings.IncreaseLevel(true);
+        if (e.KeyPressed == VK_BS)
+            QualitySettings.anisotropicFiltering = (QualitySettings.anisotropicFiltering == AnisotropicFiltering.Disable) ? AnisotropicFiltering.ForceEnable : AnisotropicFiltering.Disable;
+
+        //qualityText.text = "Quality: " + QualitySettings.names[QualitySettings.GetQualityLevel()];
+        //qualityText.text += "\nMSAA: " + QualitySettings.antiAliasing;
+        //qualityText.text += "\nAnisotropic: " + QualitySettings.anisotropicFiltering;
+    }
+
 }
 
 public class KeyPressedArgs : EventArgs

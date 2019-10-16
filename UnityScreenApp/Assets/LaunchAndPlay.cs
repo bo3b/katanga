@@ -50,11 +50,6 @@ public class LaunchAndPlay : MonoBehaviour
     public Text infoText;
     //public Text qualityText;
 
-    // We have to use a low level Keyyboard listener because Unity's built in listener doesn't 
-    // detect keyboard events when the Unity app isn't in the foreground
-// bo3b: remove for now- probably would be flagged as keylogger 
-//    private LowLevelKeyboardListener _listener;
-
     // -----------------------------------------------------------------------------
 
     // We jump out to the native C++ to open the file selection box.  There might be a
@@ -198,31 +193,6 @@ public class LaunchAndPlay : MonoBehaviour
     }
 
 
-    readonly int VK_F12 = 123;
-    readonly int VK_LSB = 219;  // [ key
-    readonly int VK_RSB = 221;  // ] key
-    readonly int VK_BS = 220;   // \ key
-
-    void _listener_OnKeyPressed(object sender, KeyPressedArgs e)
-    {
-        // if user pressed F12 then recenter the view of the VR headset
-        if (e.KeyPressed == VK_F12)
-            RecenterHMD();
-
-        // If user presses ], let's bump the Quality to the next level and rebuild
-        // the environment.  [ will lower quality setting.  Mostly AA settings.
-        if (e.KeyPressed == VK_LSB)
-            QualitySettings.DecreaseLevel(true);
-        if (e.KeyPressed == VK_RSB)
-            QualitySettings.IncreaseLevel(true);
-        if (e.KeyPressed == VK_BS)
-            QualitySettings.anisotropicFiltering = (QualitySettings.anisotropicFiltering == AnisotropicFiltering.Disable) ? AnisotropicFiltering.ForceEnable : AnisotropicFiltering.Disable;
-
-        //qualityText.text = "Quality: " + QualitySettings.names[QualitySettings.GetQualityLevel()];
-        //qualityText.text += "\nMSAA: " + QualitySettings.antiAliasing;
-        //qualityText.text += "\nAnisotropic: " + QualitySettings.anisotropicFiltering;
-    }
-
     // -----------------------------------------------------------------------------
 
     // When launching in DX9, we will continue to use the Deviare direct launch, so
@@ -235,11 +205,6 @@ public class LaunchAndPlay : MonoBehaviour
     {
         int hresult;
         object continueevent = null;
-
-        // hook keyboard to detect when the user presses a button
-//        _listener = new LowLevelKeyboardListener();
-//        _listener.OnKeyPressed += _listener_OnKeyPressed;
-//        _listener.HookKeyboard();
 
         // Setup to handle Right hand Grip actions as Recenter
         recenterAction.AddOnChangeListener(OnRecenterAction, SteamVR_Input_Sources.RightHand);
@@ -481,7 +446,6 @@ public class LaunchAndPlay : MonoBehaviour
 
     private void OnApplicationQuit()
     {
-//        _listener.UnHookKeyboard();
         if (recenterAction != null)
             recenterAction.RemoveOnChangeListener(OnRecenterAction, SteamVR_Input_Sources.RightHand);
         if (hideFloorAction != null)
