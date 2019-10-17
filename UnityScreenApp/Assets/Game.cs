@@ -207,6 +207,13 @@ public class Game : MonoBehaviour
 
         Directory.SetCurrentDirectory(Path.GetDirectoryName(gamePath));
         {
+            bool suspend = (isDX11Game) ? false : true;
+
+            print("Launching: " + gamePath + "...");
+            _gameProcess = _spyMgr.CreateProcess(gamePath, suspend, out continueevent);
+            if (_gameProcess == null)
+                throw new Exception("CreateProcess game launch failed: " + gamePath);
+            
             // If DX11, let's wait and watch for game exe to launch.
             // This works a lot better than launching it here and hooking
             // first instructions, because we can wait past launchers or 
@@ -230,17 +237,6 @@ public class Game : MonoBehaviour
                 _gameProcess = _spyMgr.ProcessFromPID(procid);
             }
 
-
-            // For DX9, Launch the named game, but suspended, so we can hook our first call 
-            // and be certain to catch it. 
-
-            if (!isDX11Game)
-            {
-                print("Launching: " + gamePath + "...");
-                _gameProcess = _spyMgr.CreateProcess(gamePath, true, out continueevent);
-                if (_gameProcess == null)
-                    throw new Exception("CreateProcess game launch failed: " + gamePath);
-            }
 
             print("LoadAgent");
             _spyMgr.LoadAgent(_gameProcess);
