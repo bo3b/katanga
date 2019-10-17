@@ -224,6 +224,7 @@ public class Game : MonoBehaviour
                 int procid = 0;
 
                 print("Waiting for process: " + waitForExe);
+                Thread.Sleep(3000);     // ToDo: needed? Letting game get underway.
 
                 do
                 {
