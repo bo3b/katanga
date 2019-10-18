@@ -28,15 +28,13 @@ public class Game : MonoBehaviour
     // User friendly name of the game. This is shown on the big screen as info on launch.
     private string displayName;
 
-    // Exe name for DX11 games only. Used to lookup process ID for injection.  If DX9 this is empty.
-    public string waitForExe;
+    // Exe name for DX11 games only. Used to lookup process ID for injection.  If DX9 this arrives empty.
+    private string waitForExe;
     private bool isDX11Game = false;
 
     static NktSpyMgr _spyMgr;
     static NktProcess _gameProcess = null;
     static string _nativeDLLName = null;
-
-    private static Thread watchThread;
 
 
     // We jump out to the native C++ to open the file selection box.  There might be a
@@ -139,13 +137,16 @@ public class Game : MonoBehaviour
     // We can't just simply use the _gameProcess.IsActive however.  Because of
     // some stupid Unity/Mono thing, that routine defaults always to the full
     // one second timeout, and we cannot stall the main Unity thread like that.
-    // This therefore just watches the state of the shared Thread, and when
-    // that exits, we'll know the game has also exited.  This pushes the
-    // one second time delay into the watchThread.
+    // This thus just keeps looking up the named exe instead, which should
+    // be fast and cause no problems.
 
     public bool Exited()
     {
-        return !watchThread.IsAlive;
+        bool hasQuit = (_spyMgr.FindProcessId(waitForExe) == 0);
+        if (hasQuit)
+            print("Game has exited.");
+
+        return hasQuit;
     }
 
     // -----------------------------------------------------------------------------
@@ -236,6 +237,10 @@ public class Game : MonoBehaviour
 
                 print("->Found " + waitForExe + ":" + procid);
                 _gameProcess = _spyMgr.ProcessFromPID(procid);
+            }
+            else  // DX9 game, or DX11 requiring first instruction hook
+            {
+                waitForExe = gamePath.Substring(gamePath.LastIndexOf('\\') + 1);
             }
 
 
@@ -344,38 +349,8 @@ public class Game : MonoBehaviour
 
         print("Restored Working Directory to: " + katanga_directory);
 
-
-        // Setup a second thread that will run and look for the game to have exited.
-        // When it does exit, we want to Quit here so that the window does not stay up.
-
-        watchThread = new Thread(new ThreadStart(exitWatch));
-        watchThread.Start();
-
         // We've gotten everything launched, hooked, and setup.  Now we need to wait for the
         // game to call through to CreateDevice, so that we can create the shared surface.
-    }
-
-    // -----------------------------------------------------------------------------
-
-    // This is a small routine just to handle the game exit gracefully.  The IsActive function
-    // can only be called with the default parameter of a 1,000ms wait, which means that it
-    // will stall this thread for a full second before returning.  Since this is a secondary
-    // thread, it won't stall the Unity drawing. 
-    // 
-    // The point of all this is to have Katanga cleanly exit after the game does, so that the
-    // user is not left with the running VR environment with nothing in it.
-
-    private static void exitWatch()
-    {
-        // First call, let's stall for 10 seconds to avoid launch-time interference
-        Thread.Sleep(10000);
-
-        while (_gameProcess.IsActive)
-        {
-            Thread.Sleep(2000); // Each sleep cycle will be 3 seconds to allow a non-abrupt exit
-        }
-
-        print("Game has exited.");
     }
 
     // -----------------------------------------------------------------------------
