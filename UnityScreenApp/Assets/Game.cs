@@ -7,15 +7,25 @@ using System.IO;
 using Nektra.Deviare2;
 
 using UnityEngine;
+using System.Diagnostics;
 
 
 // Game object to handle launching and connection duties to the game itself.
 // Primarily handles all Deviare hooking and communication.
 //
-// Also handles the variants of launching.
-// DX9: Needs a first instruction hook, so we can replace DX9 with DX9Ex
-// DX11: Normal use will wait for specified exe to show up, delayed connection.
-// DX11 Direct-mode: Direct mode games currently need first instruction to catch DirectMode call.
+// Also handles the four variants of launching.
+//  DX9: Needs a first instruction hook, so we can replace DX9 with DX9Ex
+//  DX11 Direct-mode: Direct mode games currently need first instruction to catch DirectMode call.
+//  DX11: Non-Steam exe.  Will launch exe directly.
+//  DX11: Steam version preferred use will launch using Steam.exe -applaunch
+
+enum LaunchType
+{
+    DX9,        // Requires SpyMgr launch
+    DirectMode, // Implies DX11, but requires SpyMgr launch
+    Steam,      // Steam.exe is available, use -applaunch to avoid relaunchers.
+    Exe         // Implies DX11 direct Exe launch, but only for non-Steam games.
+}
 
 public class Game : MonoBehaviour
 {
@@ -26,11 +36,18 @@ public class Game : MonoBehaviour
     string gamePath;
 
     // User friendly name of the game. This is shown on the big screen as info on launch.
-    private string displayName;
+    string displayName;
 
-    // Exe name for DX11 games only. Used to lookup process ID for injection.  If DX9 this arrives empty.
-    private string waitForExe;
-    private bool isDX11Game = false;
+    // Launch type, specified by 3DFM and passed in here as --launch-type.
+    LaunchType launchType;
+
+    // Becomes concatenated version of all arguments so we can properly pass them to the game.
+    string launchArguments = "";
+
+    // If it's a Steam launch, these will be non-null.
+    string steamPath;
+    string steamAppID;
+
 
     static NktSpyMgr _spyMgr;
     static NktProcess _gameProcess = null;
@@ -66,20 +83,31 @@ public class Game : MonoBehaviour
 
     // -----------------------------------------------------------------------------
 
+    public static T ParseLaunchType<T>(string value)
+    {
+        return (T)Enum.Parse(typeof(T), value, true);
+    }
+
     // Normal launch from 3DFM will be to specify launch arguments.
     // Any '-' arguments will be for the game itself. '--' style is for our arguments.
 
     // Full .exe path to launch.  --game-path: 
     // Cleaned title to display.  --game-title:
-    // If dx11 proc-wait style.   --game-waitfor-exe: 
+    // Launch type as Enum        --launch-type:
+    // Full path to Steam.exe     --steam-path:
+    // Game SteamAppID            --steam-appid:
 
     public void ParseGameArgs(string[] args)
     {
-        // Check if the CmdLine arguments include a game path to be launched.
-        // We are using --game-path to make it clearly different than Unity arguments.
         for (int i = 0; i < args.Length; i++)
         {
-            print(args[i]);
+            print(args[i] + "\n");
+
+            // Accumulate all other arguments into the launchArguments for the game,
+            // for things like -window-mode exclusive
+            if (!args[i].StartsWith("--"))
+                launchArguments += args[i] + " ";
+
             if (args[i] == "--game-path")
             {
                 gamePath = args[i + 1];
@@ -88,15 +116,29 @@ public class Game : MonoBehaviour
             {
                 displayName = args[i + 1];
             }
-            else if (args[i] == "--game-waitfor-exe")
+            else if (args[i] == "--launch-type")
             {
-                waitForExe = args[i + 1];
+                launchType = ParseLaunchType<LaunchType>(args[i + 1]);
+            }
+            else if (args[i] == "--steam-path")
+            {
+                steamPath = args[i + 1];
+            }
+            else if (args[i] == "--steam-appid")
+            {
+                steamAppID = args[i + 1];
             }
         }
 
+        //gamePath = @"W:\SteamLibrary\steamapps\common\Headlander\Headlander.exe";
+        //displayName = "Headlander";
+        //launchType = LaunchType.Steam;
+        //steamPath = @"C:\Program Files (x86)\Steam";
+        //steamAppID = "340000";
+
 
         // If they didn't pass a --game-path argument, then bring up the GetOpenFileName
-        // dialog to let them choose.
+        // dialog to let them choose. More for testing, not a usual path.
         if (String.IsNullOrEmpty(gamePath))
         {
             // Ask user to select the game to run in virtual 3D.  
@@ -108,19 +150,15 @@ public class Game : MonoBehaviour
             SelectGameDialog(sb, sb.Capacity);
 
             if (sb.Length != 0)
+            {
                 gamePath = sb.ToString();
+                displayName = gamePath.Substring(gamePath.LastIndexOf('\\') + 1);
+                launchType = LaunchType.Exe;
+            }
         }
 
         if (String.IsNullOrEmpty(gamePath))
             throw new Exception("No game specified to launch.");
-     
-        // If game title wasn't passed via cmd argument then take the name of the game exe as the title instead
-        if (String.IsNullOrEmpty(displayName))
-        {
-            displayName = gamePath.Substring(gamePath.LastIndexOf('\\') + 1);
-        }
-
-        isDX11Game = String.IsNullOrEmpty(waitForExe) ? false : true;
     }
 
     // -----------------------------------------------------------------------------
@@ -142,11 +180,13 @@ public class Game : MonoBehaviour
 
     public bool Exited()
     {
-        bool hasQuit = (_spyMgr.FindProcessId(waitForExe) == 0);
-        if (hasQuit)
+        if (_spyMgr.FindProcessId(_gameProcess.Name) == 0)
+        {
             print("Game has exited.");
+            return true;
+        }
 
-        return hasQuit;
+        return false;
     }
 
     // -----------------------------------------------------------------------------
@@ -208,41 +248,29 @@ public class Game : MonoBehaviour
 
         Directory.SetCurrentDirectory(Path.GetDirectoryName(gamePath));
         {
-            bool suspend = (isDX11Game) ? false : true;
+            print("Launch type: " + launchType);
 
-            print("Launching: " + gamePath + "...");
-            _gameProcess = _spyMgr.CreateProcess(gamePath, suspend, out continueevent);
-            if (_gameProcess == null)
-                throw new Exception("CreateProcess game launch failed: " + gamePath);
-            
-            // If DX11, let's wait and watch for game exe to launch.
-            // This works a lot better than launching it here and hooking
-            // first instructions, because we can wait past launchers or 
-            // Steam launch itself, or different sub processes being launched.
-
-            if (isDX11Game)
+            switch (launchType)
             {
-                int procid = 0;
-
-                print("Waiting for process: " + waitForExe);
-                Thread.Sleep(3000);     // ToDo: needed? Letting game get underway.
-
-                do
-                {
-                    if (Input.GetKey("escape"))
-                        Application.Quit();
-                    Thread.Sleep(500);
-                    procid = _spyMgr.FindProcessId(waitForExe);
-                } while (procid == 0);
-
-                print("->Found " + waitForExe + ":" + procid);
-                _gameProcess = _spyMgr.ProcessFromPID(procid);
-            }
-            else  // DX9 game, or DX11 requiring first instruction hook
-            {
-                waitForExe = gamePath.Substring(gamePath.LastIndexOf('\\') + 1);
+                case LaunchType.DX9:
+                    _gameProcess = StartGameBySpyMgr(gamePath, out continueevent);
+                    break;
+                case LaunchType.DirectMode:
+                    _gameProcess = StartGameBySpyMgr(gamePath, out continueevent);
+                    break;
+                case LaunchType.Steam:
+                    StartGameBySteamAppID(steamPath, steamAppID, launchArguments);
+                    _gameProcess = WaitForDX11Exe(gamePath);
+                    break;
+                case LaunchType.Exe:
+                    StartGameByExeFile(gamePath, launchArguments);
+                    _gameProcess = WaitForDX11Exe(gamePath);
+                    break;
             }
 
+
+            // Game has been launched.  Either deferred, or first instruction hook.
+            // _gameProcess will exist, or we forced an exception.
 
             print("LoadAgent");
             _spyMgr.LoadAgent(_gameProcess);
@@ -290,7 +318,7 @@ public class Game : MonoBehaviour
             // But if we happen to be launching direct with a selected exe, or DX9 game,
             // we can still hook the old way.
 
-            if (!isDX11Game)
+            if (launchType == LaunchType.DX9 || launchType == LaunchType.DirectMode)
             {
                 print("Hook the D3D11.DLL!D3D11CreateDeviceAndSwapChain...");
                 NktHook deviceAndSwapChainHook = _spyMgr.CreateHook("D3D11.DLL!D3D11CreateDeviceAndSwapChain", 0);
@@ -351,6 +379,127 @@ public class Game : MonoBehaviour
 
         // We've gotten everything launched, hooked, and setup.  Now we need to wait for the
         // game to call through to CreateDevice, so that we can create the shared surface.
+    }
+
+    // -----------------------------------------------------------------------------
+
+    // For DX11 games, let's wait and watch for game exe to launch.
+    // This works a lot better than launching it here and hooking
+    // first instructions, because we can wait past launchers or 
+    // Steam launch itself, or different sub processes being launched.
+
+    private NktProcess WaitForDX11Exe(string gamePath)
+    {
+        print("Waiting for process: " + gamePath);
+
+        int procid = 0;
+        string gameExe = gamePath.Substring(gamePath.LastIndexOf('\\') + 1);
+
+
+        Thread.Sleep(3000);     // ToDo: needed? Letting game get underway.
+
+        do
+        {
+            if (Input.GetKey("escape"))
+                Application.Quit();
+            Thread.Sleep(500);
+            procid = _spyMgr.FindProcessId(gameExe);
+        } while (procid == 0);
+
+        print("->Found " + gameExe + ":" + procid);
+
+        return _spyMgr.ProcessFromPID(procid);
+    }
+
+    // -----------------------------------------------------------------------------
+
+    // For DX9 games or DX11 that require first instruction hook, we need to launch
+    // their exe directly.  This is inferior in a lot of respects. It sometimes hangs
+    // at launch, and cannot handle pre-game launchers or things like Origin launches.
+    // Should be path of last resort, but required for DX9 and DirectMode games.
+
+    private NktProcess StartGameBySpyMgr(string game, out object continueevent)
+    {
+        print("Launching: " + game + "...");
+
+        NktProcess gameProc = _spyMgr.CreateProcess(game, true, out continueevent);
+        if (gameProc == null)
+            throw new Exception("CreateProcess game launch failed: " + game);
+
+        return gameProc;
+    }
+
+    
+    // -----------------------------------------------------------------------------
+
+    // For Non-Steam, DX11 games, we still want to do a deferred launch so that we can
+    // more reliably hook the games.  But, we can't use Steam, so let's just launch the
+    // exe directly.  
+
+    public Process StartGameByExeFile(string exePath, string arguments)
+    {
+        Process proc;
+
+        Console.WriteLine("Start game with game exe path: " + exePath);
+        Console.WriteLine("launchArguments: " + arguments);
+
+        proc = new Process();
+        proc.StartInfo.FileName = exePath;
+        proc.StartInfo.Arguments = arguments;
+        proc.StartInfo.WorkingDirectory = Path.GetDirectoryName(exePath);
+
+        // ToDo: necessary here?
+        //if (fixProfile.RunGameAsAdmin == 1)
+        //{
+        //    proc.StartInfo.Verb = "runas";
+        //}
+
+        proc.Start();
+
+        return proc;
+    }
+    
+    // -----------------------------------------------------------------------------
+
+    // Katanga is now responsible for launching the game, so we need to do it the same
+    // was as 3DFM.  In particular, the steam launch should be done using the gameId
+    // and steam.exe so that we do not see the double launch behavior of some games.
+    // Steam suggests relaunching games if they were directly launched by exe, and 
+    // this causes us to never connect to some games, because we hook the first launch,
+    // but not the second.  
+
+    private Process StartGameBySteamAppID(string steamDir, string appID, string arguments)
+    {
+        Process proc;
+
+        print("Start game with Steam App Id: " + appID);
+
+        if (!String.IsNullOrEmpty(steamDir))
+        {
+            proc = new Process();
+
+            print("Starting game by calling Steam.exe: " + steamDir);
+            proc.StartInfo.FileName = Path.Combine(steamDir, "Steam.exe");
+            proc.StartInfo.Arguments = "-applaunch " + appID + " " + arguments;
+            proc.StartInfo.WorkingDirectory = steamDir;
+
+            print("launchArguments: " + arguments);
+
+            // ToDo: necessary here?
+            //if (fixProfile.RunGameAsAdmin == 1)
+            //{
+            //    proc.StartInfo.Verb = "runas";
+            //}
+
+            proc.Start();
+        }
+        else
+        {
+            print("Starting game by calling steam://rungameid");
+            proc = Process.Start("steam://rungameid/" + appID + "//" + arguments);
+        }
+
+        return proc;
     }
 
     // -----------------------------------------------------------------------------
