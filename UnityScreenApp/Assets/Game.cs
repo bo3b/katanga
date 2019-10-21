@@ -99,37 +99,47 @@ public class Game : MonoBehaviour
 
     public void ParseGameArgs(string[] args)
     {
-        for (int i = 0; i < args.Length; i++)
+        for (int i = 1; i < args.Length; i++)
         {
-            print(args[i] + "\n");
-
-            // Accumulate all other arguments into the launchArguments for the game,
-            // for things like -window-mode exclusive
-            if (!args[i].StartsWith("--"))
-                launchArguments += args[i] + " ";
-
             if (args[i] == "--game-path")
             {
-                gamePath = args[i + 1];
+                i++;
+                gamePath = args[i];
             }
             else if (args[i] == "--game-title")
             {
-                displayName = args[i + 1];
+                i++;
+                displayName = args[i];
             }
             else if (args[i] == "--launch-type")
             {
-                launchType = ParseLaunchType<LaunchType>(args[i + 1]);
+                i++;
+                launchType = ParseLaunchType<LaunchType>(args[i]);
             }
             else if (args[i] == "--steam-path")
             {
-                steamPath = args[i + 1];
+                i++;
+                steamPath = args[i];
             }
             else if (args[i] == "--steam-appid")
             {
-                steamAppID = args[i + 1];
+                i++;
+                steamAppID = args[i];
+            }
+            else
+            {
+                // Accumulate all other arguments into launchArguments for the game,
+                // for things like -window-mode exclusive.  We start at 1 in the loop,
+                // to skip past the katanga.exe input parameter.
+                launchArguments += args[i] + " ";
             }
         }
 
+        //gamePath = @"W:\SteamLibrary\steamapps\common\BioShock Infinite\Binaries\Win32\bioshockinfinite.exe";
+        //displayName = "Infinite";
+        //launchType = LaunchType.Steam;
+        //steamPath = @"C:\Program Files (x86)\Steam";
+        //steamAppID = "8870";
         //gamePath = @"W:\SteamLibrary\steamapps\common\Tomb Raider\tombraider.exe";
         //displayName = "Tomb Raider";
         //launchType = LaunchType.DirectMode;
@@ -454,8 +464,8 @@ public class Game : MonoBehaviour
     {
         Process proc;
 
-        Console.WriteLine("Start game with game exe path: " + exePath);
-        Console.WriteLine("launchArguments: " + arguments);
+        print("Start game with game exe path: " + exePath);
+        print("launchArguments: " + arguments);
 
         proc = new Process();
         proc.StartInfo.FileName = exePath;
@@ -487,6 +497,7 @@ public class Game : MonoBehaviour
         Process proc;
 
         print("Start game with Steam App Id: " + appID);
+        print("launchArguments: " + arguments);
 
         if (!String.IsNullOrEmpty(steamDir))
         {
@@ -496,8 +507,6 @@ public class Game : MonoBehaviour
             proc.StartInfo.FileName = Path.Combine(steamDir, "Steam.exe");
             proc.StartInfo.Arguments = "-applaunch " + appID + " " + arguments;
             proc.StartInfo.WorkingDirectory = steamDir;
-
-            print("launchArguments: " + arguments);
 
             // ToDo: necessary here?
             //if (fixProfile.RunGameAsAdmin == 1)

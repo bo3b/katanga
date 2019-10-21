@@ -39,6 +39,8 @@ public class LaunchAndPlay : MonoBehaviour
 
     void Start()
     {
+        print("Command line arguments: " + System.Environment.CommandLine);
+
         game = GetComponent<Game>();
         game.ParseGameArgs(System.Environment.GetCommandLineArgs());
 
