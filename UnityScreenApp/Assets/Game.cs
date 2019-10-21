@@ -130,11 +130,16 @@ public class Game : MonoBehaviour
             }
         }
 
-        gamePath = @"W:\SteamLibrary\steamapps\common\Headlander\Headlander.exe";
-        displayName = "Headlander";
-        launchType = LaunchType.Steam;
-        steamPath = @"C:\Program Files (x86)\Steam";
-        steamAppID = "340000";
+        //gamePath = @"W:\SteamLibrary\steamapps\common\Tomb Raider\tombraider.exe";
+        //displayName = "Tomb Raider";
+        //launchType = LaunchType.DirectMode;
+        //steamPath = @"C:\Program Files (x86)\Steam";
+        //steamAppID = "203160";
+        //gamePath = @"W:\SteamLibrary\steamapps\common\Headlander\Headlander.exe";
+        //displayName = "Headlander";
+        //launchType = LaunchType.Steam;
+        //steamPath = @"C:\Program Files (x86)\Steam";
+        //steamAppID = "340000";
         //gamePath = @"W:\SteamLibrary\steamapps\common\Kingdoms of Amalur - Reckoning Demo\reckoningdemo.exe";
         //displayName = "Reck";
         //launchType = LaunchType.DX9;
