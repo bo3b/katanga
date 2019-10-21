@@ -130,11 +130,16 @@ public class Game : MonoBehaviour
             }
         }
 
-        //gamePath = @"W:\SteamLibrary\steamapps\common\Headlander\Headlander.exe";
-        //displayName = "Headlander";
-        //launchType = LaunchType.Steam;
+        gamePath = @"W:\SteamLibrary\steamapps\common\Headlander\Headlander.exe";
+        displayName = "Headlander";
+        launchType = LaunchType.Steam;
+        steamPath = @"C:\Program Files (x86)\Steam";
+        steamAppID = "340000";
+        //gamePath = @"W:\SteamLibrary\steamapps\common\Kingdoms of Amalur - Reckoning Demo\reckoningdemo.exe";
+        //displayName = "Reck";
+        //launchType = LaunchType.DX9;
         //steamPath = @"C:\Program Files (x86)\Steam";
-        //steamAppID = "340000";
+        //steamAppID = "102501";
 
 
         // If they didn't pass a --game-path argument, then bring up the GetOpenFileName
@@ -204,11 +209,13 @@ public class Game : MonoBehaviour
 
     // -----------------------------------------------------------------------------
 
-    // When launching in DX9, we will continue to use the Deviare direct launch, so
-    // that we can hook Direct3DCreate9 before it is called, and convert it to 
-    // Direct3DCreate9Ex.  For DX11 games, 3DFM will have already launched the game
-    // using its normal techniques, and we will find it via gameProc ID and inject
-    // directly without hooking anything except Present.
+    // When launching in DX9 or DirectMode, we will continue to use the Deviare direct 
+    // launch, so that we can hook Direct3DCreate9 before it is called, and convert it to 
+    // Direct3DCreate9Ex.  
+    // For DX11 games, we will launch the game either by Steam -applaunch, or by exe.
+    // And we will find it via gameProc ID and inject directly without hooking anything 
+    // except Present. 
+    // In either case, we do the hooking in the OnLoad call in the deviare plugin.
 
     public void Launch()
     {
@@ -298,87 +305,89 @@ public class Game : MonoBehaviour
             print(String.Format("Successfully loaded {0}", _nativeDLLName));
 
 
-            // Hook the primary DX11 creation calls of CreateDevice, CreateDeviceAndSwapChain,
-            // CreateDXGIFactory, and CreateDXGIFactory1.  These are all direct exports for either
-            // D3D11.dll, or DXGI.dll. All DX11 games must call one of these interfaces to 
-            // create a SwapChain.  These must be spelled exactly right, including Case.
-            //
-            // Only hooking single call now, D3D11CreateDevice so that Deviare is activated.
-            // This call does not hook other calls, and seems to be necessary for the Agent
-            // to activate in the gameProcess.  This will also activate the DX9 path.
+            // Hook the appropriate calls, based on game launch type.
 
-            print("Hook the D3D11.DLL!D3D11CreateDevice...");
-            NktHook deviceHook = _spyMgr.CreateHook("D3D11.DLL!D3D11CreateDevice", 0);
-            if (deviceHook == null)
-                throw new Exception("Failed to hook D3D11.DLL!D3D11CreateDevice");
-            deviceHook.AddCustomHandler(_nativeDLLName, 0, "");
-            deviceHook.Attach(_gameProcess, true);
-            deviceHook.Hook(true);
-
-            // But if we happen to be launching direct with a selected exe, or DX9 game,
-            // we can still hook the old way.
-
-            if (launchType == LaunchType.DX9 || launchType == LaunchType.DirectMode)
+            switch (launchType)
             {
-                print("Hook the D3D11.DLL!D3D11CreateDeviceAndSwapChain...");
-                NktHook deviceAndSwapChainHook = _spyMgr.CreateHook("D3D11.DLL!D3D11CreateDeviceAndSwapChain", 0);
-                if (deviceAndSwapChainHook == null)
-                    throw new Exception("Failed to hook D3D11.DLL!D3D11CreateDeviceAndSwapChain");
-
-                print("Hook the DXGI.DLL!CreateDXGIFactory...");
-                NktHook factoryHook = _spyMgr.CreateHook("DXGI.DLL!CreateDXGIFactory", (int)eNktHookFlags.flgOnlyPostCall);
-                if (factoryHook == null)
-                    throw new Exception("Failed to hook DXGI.DLL!CreateDXGIFactory");
-
-                print("Hook the DXGI.DLL!CreateDXGIFactory1...");
-                NktHook factory1Hook = _spyMgr.CreateHook("DXGI.DLL!CreateDXGIFactory1", (int)eNktHookFlags.flgOnlyPostCall);
-                if (factory1Hook == null)
-                    throw new Exception("Failed to hook DXGI.DLL!CreateDXGIFactory1");
-
-
-                // Hook the primary DX9 creation call of Direct3DCreate9, which is a direct export of 
-                // the d3d9 DLL.  All DX9 games must call this interface, or the Direct3DCreate9Ex.
-                // This is not hooked here though, it is hooked in DeviarePlugin at OnLoad.
-                // We need to do special handling to fetch the System32 version of d3d9.dll,
-                // in order to avoid unhooking HelixMod's d3d9.dll.
-
-                // Hook the nvapi.  This is required to support Direct Mode in the driver, for 
-                // games like Tomb Raider and Deus Ex that have no SBS.
-                // There is only one call in the nvidia dll, nvapi_QueryInterface.  That will
-                // be hooked, and then the _NvAPI_Stereo_SetDriverMode call will be hooked
-                // so that we can see when a game sets Direct Mode and change behavior in Present.
-                // This is also done in DeviarePlugin at OnLoad.
-
-
-                // Make sure the CustomHandler in the NativePlugin at OnFunctionCall gets called when this 
-                // object is created. At that point, the native code will take over.
-
-                deviceAndSwapChainHook.AddCustomHandler(_nativeDLLName, 0, "");
-                factoryHook.AddCustomHandler(_nativeDLLName, 0, "");
-                factory1Hook.AddCustomHandler(_nativeDLLName, 0, "");
-
-                // Finally attach and activate the hook in the still suspended game process.
-
-                deviceAndSwapChainHook.Attach(_gameProcess, true);
-                deviceAndSwapChainHook.Hook(true);
-                factoryHook.Attach(_gameProcess, true);
-                factoryHook.Hook(true);
-                factory1Hook.Attach(_gameProcess, true);
-                factory1Hook.Hook(true);
-
-                // Ready to go.  Let the game startup.  When it calls Direct3DCreate9, we'll be
-                // called in the NativePlugin::OnFunctionCall
-
-                print("Continue game launch...");
-                _spyMgr.ResumeProcess(_gameProcess, continueevent);
+                case LaunchType.DX9:
+                    HookDX9(_nativeDLLName, _gameProcess);
+                    _spyMgr.ResumeProcess(_gameProcess, continueevent);
+                    break;
+                case LaunchType.DirectMode:
+                    HookDX11(_nativeDLLName, _gameProcess);
+                    _spyMgr.ResumeProcess(_gameProcess, continueevent);
+                    break;
+                case LaunchType.Steam:
+                    HookDX11(_nativeDLLName, _gameProcess);
+                    break;
+                case LaunchType.Exe:
+                    HookDX11(_nativeDLLName, _gameProcess);
+                    break;
             }
         }
         Directory.SetCurrentDirectory(katanga_directory);
 
         print("Restored Working Directory to: " + katanga_directory);
 
-        // We've gotten everything launched, hooked, and setup.  Now we need to wait for the
+        // We've gotten everything launched, hooked, and setup.  Now we wait for the
         // game to call through to CreateDevice, so that we can create the shared surface.
+    }
+
+    // -----------------------------------------------------------------------------
+
+    // Only hooking single call now, D3D11CreateDevice so that Deviare is activated.
+    // This call does not hook other calls, and it seems to be necessary to activate a
+    // hook so that the Agent is activated in the gameProcess.
+    // 
+    // Also hooks the nvapi.  This is required to support Direct Mode in the driver, for 
+    // games like Tomb Raider and Deus Ex that have no SBS.
+    // There is only one call in the nvidia dll, nvapi_QueryInterface.  That will
+    // be hooked, and then the _NvAPI_Stereo_SetDriverMode call will be hooked
+    // so that we can see when a game sets Direct Mode and change behavior in Present.
+    // This is also done in DeviarePlugin at OnLoad.
+
+    private void HookDX11(string katangaDll, NktProcess gameProc)
+    {
+        print("Hook the D3D11.DLL!D3D11CreateDevice...");
+
+        NktHook deviceHook = _spyMgr.CreateHook("D3D11.DLL!D3D11CreateDevice", 0);
+        if (deviceHook == null)
+            throw new Exception("Failed to hook D3D11.DLL!D3D11CreateDevice");
+        deviceHook.AddCustomHandler(katangaDll, 0, "");
+        deviceHook.Attach(gameProc, true);
+        deviceHook.Hook(true);
+    }
+
+    // -----------------------------------------------------------------------------
+
+    // Hook the primary DX9 creation call of Direct3DCreate9, which is a direct export of 
+    // the d3d9 DLL.  All DX9 games must call this interface, or the Direct3DCreate9Ex.
+    // It is actually hooked in DeviarePlugin at OnLoad, rather than use these hooks, because
+    // we need to do special handling to fetch the System32 version of d3d9.dll,
+    // in order to avoid unhooking HelixMod's d3d9.dll.  However, these will still log 
+    // calls, and also we need to hook something in order to activate the native DLL.
+
+    private void HookDX9(string katangaDLL, NktProcess gameProc)
+    {
+        // We set this to flgOnlyPreCall, because we want to always create the IDirect3D9Ex object.
+
+        print("Hook the D3D9.DLL!Direct3DCreate9...");
+        NktHook create9Hook = _spyMgr.CreateHook("D3D9.DLL!Direct3DCreate9", (int)eNktHookFlags.flgOnlyPreCall);
+        if (create9Hook == null)
+            throw new Exception("Failed to hook D3D9.DLL!Direct3DCreate9");
+
+        print("Hook the D3D9.DLL!Direct3DCreate9Ex...");
+        NktHook create9HookEx = _spyMgr.CreateHook("D3D9.DLL!Direct3DCreate9Ex", (int)eNktHookFlags.flgOnlyPreCall);
+        if (create9HookEx == null)
+            throw new Exception("Failed to hook D3D9.DLL!Direct3DCreate9Ex");
+
+        create9Hook.AddCustomHandler(katangaDLL, 0, "");
+        create9HookEx.AddCustomHandler(katangaDLL, 0, "");
+
+        create9Hook.Attach(gameProc, true);
+        create9Hook.Hook(true);
+        create9HookEx.Attach(gameProc, true);
+        create9HookEx.Hook(true);
     }
 
     // -----------------------------------------------------------------------------
