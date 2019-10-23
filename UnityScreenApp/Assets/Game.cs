@@ -155,6 +155,11 @@ public class Game : MonoBehaviour
         //launchType = LaunchType.DX9;
         //steamPath = @"C:\Program Files (x86)\Steam";
         //steamAppID = "102501";
+        gamePath = @"W:\Games\Frostpunk\frostpunk.exe";
+        displayName = "Frostpunk";
+        launchType = LaunchType.Exe;
+        steamPath = @"C:\Program Files (x86)\Steam";
+        steamAppID = "102501";
 
 
         // If they didn't pass a --game-path argument, then bring up the GetOpenFileName
@@ -321,24 +326,25 @@ public class Game : MonoBehaviour
 
 
             // Hook the appropriate calls, based on game launch type.
+            HookDX9(_nativeDLLName, _gameProcess);
 
-            switch (launchType)
-            {
-                case LaunchType.DX9:
-                    HookDX9(_nativeDLLName, _gameProcess);
-                    _spyMgr.ResumeProcess(_gameProcess, continueevent);
-                    break;
-                case LaunchType.DirectMode:
-                    HookDX11(_nativeDLLName, _gameProcess);
-                    _spyMgr.ResumeProcess(_gameProcess, continueevent);
-                    break;
-                case LaunchType.Steam:
-                    HookDX11(_nativeDLLName, _gameProcess);
-                    break;
-                case LaunchType.Exe:
-                    HookDX11(_nativeDLLName, _gameProcess);
-                    break;
-            }
+            //switch (launchType)
+            //{
+            //    case LaunchType.DX9:
+            //        HookDX9(_nativeDLLName, _gameProcess);
+            //        _spyMgr.ResumeProcess(_gameProcess, continueevent);
+            //        break;
+            //    case LaunchType.DirectMode:
+            //        HookDX11(_nativeDLLName, _gameProcess);
+            //        _spyMgr.ResumeProcess(_gameProcess, continueevent);
+            //        break;
+            //    case LaunchType.Steam:
+            //        HookDX11(_nativeDLLName, _gameProcess);
+            //        break;
+            //    case LaunchType.Exe:
+            //        HookDX11(_nativeDLLName, _gameProcess);
+            //        break;
+            //}
         }
         Directory.SetCurrentDirectory(katanga_directory);
 

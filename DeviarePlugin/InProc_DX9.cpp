@@ -705,32 +705,32 @@ HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 		DWORD dwOsErr;
 		
 		dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigPresent,
-			lpvtbl_Present_DX9(pDevice9), Hooked_Present, 0);
+			lpvtbl_Present_DX9(pDevice9), Hooked_Present, NKTHOOKLIB_DisallowReentrancy);
 		if (FAILED(dwOsErr))
 			::OutputDebugStringA("Failed to hook IDirect3DDevice9::Present\n");
 
 		dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigReset,
-			lpvtbl_Reset(pDevice9), Hooked_Reset, 0);
+			lpvtbl_Reset(pDevice9), Hooked_Reset, NKTHOOKLIB_DisallowReentrancy);
 		if (FAILED(dwOsErr))
 			::OutputDebugStringA("Failed to hook IDirect3DDevice9::Reset\n");
 
 		dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigCreateTexture,
-			lpvtbl_CreateTexture(pDevice9), Hooked_CreateTexture, 0);
+			lpvtbl_CreateTexture(pDevice9), Hooked_CreateTexture, NKTHOOKLIB_DisallowReentrancy);
 		if (FAILED(dwOsErr))
 			::OutputDebugStringA("Failed to hook IDirect3DDevice9::CreateTexture\n");
 
 		dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigCreateCubeTexture,
-			lpvtbl_CreateCubeTexture(pDevice9), Hooked_CreateCubeTexture, 0);
+			lpvtbl_CreateCubeTexture(pDevice9), Hooked_CreateCubeTexture, NKTHOOKLIB_DisallowReentrancy);
 		if (FAILED(dwOsErr))
 			::OutputDebugStringA("Failed to hook IDirect3DDevice9::CreateCubeTexture\n");
 
 		dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigCreateVertexBuffer,
-			lpvtbl_CreateVertexBuffer(pDevice9), Hooked_CreateVertexBuffer, 0);
+			lpvtbl_CreateVertexBuffer(pDevice9), Hooked_CreateVertexBuffer, NKTHOOKLIB_DisallowReentrancy);
 		if (FAILED(dwOsErr))
 			::OutputDebugStringA("Failed to hook IDirect3DDevice9::CreateVertexBuffer\n");
 
 		dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigCreateIndexBuffer,
-			lpvtbl_CreateIndexBuffer(pDevice9), Hooked_CreateIndexBuffer, 0);
+			lpvtbl_CreateIndexBuffer(pDevice9), Hooked_CreateIndexBuffer, NKTHOOKLIB_DisallowReentrancy);
 		if (FAILED(dwOsErr))
 			::OutputDebugStringA("Failed to hook IDirect3DDevice9::CreateIndexBuffer\n");
 
@@ -832,7 +832,7 @@ void HookCreateDevice(IDirect3D9Ex* pDX9Ex)
 
 		SIZE_T hook_id;
 		DWORD dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigCreateDevice,
-			lpvtbl_CreateDevice(pDX9Ex), Hooked_CreateDevice, 0);
+			lpvtbl_CreateDevice(pDX9Ex), Hooked_CreateDevice, NKTHOOKLIB_DisallowReentrancy);
 
 		if (FAILED(dwOsErr)) FatalExit(L"Failed to hook IDirect3D9::CreateDevice");
 	}
@@ -911,7 +911,7 @@ void HookDirect3DCreate9()
 
 		SIZE_T hook_id;
 		DWORD dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigDirect3DCreate9,
-			systemDirect3DCreate9, Hooked_Direct3DCreate9, 0);
+			systemDirect3DCreate9, Hooked_Direct3DCreate9, NKTHOOKLIB_DisallowReentrancy);
 
 		if (FAILED(dwOsErr)) FatalExit(L"Failed to hook D3D9.DLL::Direct3DCreate9");
 	}

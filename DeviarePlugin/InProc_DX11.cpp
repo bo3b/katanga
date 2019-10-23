@@ -273,7 +273,7 @@ HRESULT __stdcall Hooked_Present(IDXGISwapChain * This,
 
 	if (gGameTexture == nullptr)
 		CreateSharedTexture(This);
-
+	
 	hr = This->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&backBuffer);
 	if (SUCCEEDED(hr) && gGameTexture != nullptr)
 	{
@@ -610,12 +610,12 @@ void HookPresent(IDXGISwapChain* pSwapChain)
 		DWORD dwOsErr;
 
 		dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigPresent,
-			lpvtbl_Present_DX11(pSwapChain), Hooked_Present, 0);
+			lpvtbl_Present_DX11(pSwapChain), Hooked_Present, NKTHOOKLIB_DisallowReentrancy);
 		if (FAILED(dwOsErr))
 			::OutputDebugStringA("Failed to hook IDXGISwapChain::Present\n");
 
 		dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigResizeBuffers,
-			lpvtbl_ResizeBuffers(pSwapChain), Hooked_ResizeBuffers, 0);
+			lpvtbl_ResizeBuffers(pSwapChain), Hooked_ResizeBuffers, NKTHOOKLIB_DisallowReentrancy);
 		if (FAILED(dwOsErr))
 			::OutputDebugStringA("Failed to hook IDXGISwapChain::ResizeBuffers\n");
 
@@ -770,23 +770,94 @@ Status::Enum FindAndHookPresent()
 
 	HWND window = ::CreateWindow(windowClass.lpszClassName, KIERO_TEXT("Kiero DirectX Window"), WS_OVERLAPPEDWINDOW, 0, 0, 100, 100, NULL, NULL, windowClass.hInstance, NULL);
 
+	// 3Dmigoto goes to great lengths to prevent other software from getting to the System32 
+	// directory.  We need that directory here though, so that we can hook the System32\d3d11.dll
+	// version of Present.  We need that address because we want to be able to hook Present
+	// right *after* 3Dmigoto, so that the software cursor code will have run.  If we hook
+	// normally, then 3Dmigoto comes in first, and we only get the 3Dmigoto address for Present.
+	// But, there is a feature in 3Dmigoto that allows for getting the system directory, which
+	// is the suppress.  This makes the next LoadLibrary work normally with no bypass.
+
+	LoadLibraryEx(L"SUPPRESS_3DMIGOTO_REDIRECT", NULL, 0);
+
+	wchar_t sysLib[MAX_PATH];
+	UINT ret = GetSystemDirectoryW(sysLib, ARRAYSIZE(sysLib));
+	if (ret == 0) FatalExit(L"Failed to FindAndHookPresent->GetSystemDirectoryW");
+	wcscat_s(sysLib, MAX_PATH, L"\\d3d11.dll");
+	
+	// With suppress active, and us specifying the full System32 path, we can get the address of the normal d3d11.
+
 	HMODULE libD3D11;
-	if ((libD3D11 = ::GetModuleHandle(KIERO_TEXT("d3d11.dll"))) == NULL)
+	if ((libD3D11 = ::LoadLibraryExW(sysLib, NULL, 0)) == NULL)
 	{
-		::OutputDebugStringA("Failed to load d3d11.dll");
+		::OutputDebugStringA("Failed to load System32 d3d11.dll");
 		::DestroyWindow(window);
 		::UnregisterClass(windowClass.lpszClassName, windowClass.hInstance);
 		return Status::ModuleNotFoundError;
 	}
 
-	void* fnD3D11CreateDeviceAndSwapChain;
-	if ((fnD3D11CreateDeviceAndSwapChain = ::GetProcAddress(libD3D11, "D3D11CreateDeviceAndSwapChain")) == NULL)
+#ifdef _DEBUG
+	HMODULE migotoD3D11 = ::GetModuleHandle(KIERO_TEXT("d3d11.dll"));
+
+	wchar_t info[512];
+
+	::OutputDebugString(L"NativePlugin::FindAndHookPresent called. \n");
+
+	swprintf_s(info, _countof(info), L"Looking for %s.  libD3D11: %p, migotoD3D11: %p \n",
+		sysLib, libD3D11, migotoD3D11);
+	::OutputDebugString(info);
+#endif
+
+	void* fnD3D11CreateDevice;
+	if ((fnD3D11CreateDevice = ::GetProcAddress(libD3D11, "D3D11CreateDevice")) == NULL)
 	{
-		::OutputDebugStringA("Failed to GetProcAddress on D3D11CreateDeviceAndSwapChain");
+		::OutputDebugStringA("Failed to GetProcAddress on D3D11CreateDevice");
 		::DestroyWindow(window);
 		::UnregisterClass(windowClass.lpszClassName, windowClass.hInstance);
 		return Status::UnknownError;
 	}
+
+	ID3D11Device* sysDevice;
+
+	HRESULT hr = ((long(__stdcall*)(
+		IDXGIAdapter*,
+		D3D_DRIVER_TYPE,
+		HMODULE,
+		UINT,
+		const D3D_FEATURE_LEVEL*,
+		UINT,
+		UINT,
+		ID3D11Device**,
+		D3D_FEATURE_LEVEL*,
+		ID3D11DeviceContext**
+		))(fnD3D11CreateDevice))(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, 0, NULL, NULL, D3D11_SDK_VERSION, &sysDevice, NULL, NULL);
+	if (FAILED(hr))
+	{
+		::OutputDebugStringA("Failed call to D3D11CreateDevice");
+		::DestroyWindow(window);
+		::UnregisterClass(windowClass.lpszClassName, windowClass.hInstance);
+		return Status::UnknownError;
+	}
+
+	// First, convert our ID3D11Device1 into an IDXGIDevice1
+	IDXGIDevice1* dxgiDevice;
+	if (FAILED(sysDevice->QueryInterface(__uuidof(IDXGIDevice1), (void**)&dxgiDevice)))
+	{
+		::OutputDebugStringA("Failed call to QueryInterface(dxgidevice)");
+		::DestroyWindow(window);
+		::UnregisterClass(windowClass.lpszClassName, windowClass.hInstance);
+		return Status::UnknownError;
+	}
+
+	// Second, use the IDXGIDevice1 interface to get access to the adapter
+	IDXGIAdapter* dxgiAdapter;
+	dxgiDevice->GetAdapter(&dxgiAdapter);
+
+	// Third, use the IDXGIAdapter interface to get access to the factory
+	IDXGIFactory2* dxgiFactory;
+	dxgiAdapter->GetParent(__uuidof(IDXGIFactory2), (void**)&dxgiFactory);
+
+	// At this point, dxgiFactory object.  But we need to create Swap chain using it.
 
 	DXGI_RATIONAL refreshRate = { 0 };
 	refreshRate.Numerator = 60;
@@ -818,30 +889,39 @@ Status::Enum FindAndHookPresent()
 	ID3D11Device* device;
 	ID3D11DeviceContext* context;
 
-	// This can fetch the 3Dmigoto dll
-	// Which can lead to errors if the game d3dx.ini specifies returning errors.
-	// Also seems to introduce a bug if we request only the swapchain.
-
-	HRESULT hr = ((long(__stdcall*)(
-		IDXGIAdapter*,
-		D3D_DRIVER_TYPE,
-		HMODULE,
-		UINT,
-		const D3D_FEATURE_LEVEL*,
-		UINT,
-		UINT,
-		const DXGI_SWAP_CHAIN_DESC*,
-		IDXGISwapChain**,
-		ID3D11Device**,
-		D3D_FEATURE_LEVEL*,
-		ID3D11DeviceContext**))(fnD3D11CreateDeviceAndSwapChain))(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, 0, NULL, NULL, D3D11_SDK_VERSION, &swapChainDesc, &swapChain, &device, NULL, &context);
+	hr = dxgiFactory->CreateSwapChain(sysDevice, &swapChainDesc, &swapChain);
 	if (FAILED(hr))
 	{
-		::OutputDebugStringA("Failed call to D3D11CreateDeviceAndSwapChain");
+		::OutputDebugStringA("Failed call to CreateSwapChain");
 		::DestroyWindow(window);
 		::UnregisterClass(windowClass.lpszClassName, windowClass.hInstance);
 		return Status::UnknownError;
 	}
+
+	// This can fetch the 3Dmigoto dll
+	// Which can lead to errors if the game d3dx.ini specifies returning errors.
+	// Also seems to introduce a bug if we request only the swapchain.
+
+	//HRESULT hr = ((long(__stdcall*)(
+	//	IDXGIAdapter*,
+	//	D3D_DRIVER_TYPE,
+	//	HMODULE,
+	//	UINT,
+	//	const D3D_FEATURE_LEVEL*,
+	//	UINT,
+	//	UINT,
+	//	const DXGI_SWAP_CHAIN_DESC*,
+	//	IDXGISwapChain**,
+	//	ID3D11Device**,
+	//	D3D_FEATURE_LEVEL*,
+	//	ID3D11DeviceContext**))(fnD3D11CreateDevice))(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, 0, NULL, NULL, D3D11_SDK_VERSION, &swapChainDesc, &swapChain, NULL, NULL, NULL);
+	//if (FAILED(hr))
+	//{
+	//	::OutputDebugStringA("Failed call to D3D11CreateDevice");
+	//	::DestroyWindow(window);
+	//	::UnregisterClass(windowClass.lpszClassName, windowClass.hInstance);
+	//	return Status::UnknownError;
+	//}
 
 	// At this point, it's created the Device and SwapChain, so now we can fetch the address of Present
 	// from the SwapChain's vtable.
@@ -853,11 +933,11 @@ Status::Enum FindAndHookPresent()
 	swapChain->Release();
 	swapChain = NULL;
 
-	device->Release();
-	device = NULL;
+	//device->Release();
+	//device = NULL;
 
-	context->Release();
-	context = NULL;
+	//context->Release();
+	//context = NULL;
 
 	::DestroyWindow(window);
 	::UnregisterClass(windowClass.lpszClassName, windowClass.hInstance);
