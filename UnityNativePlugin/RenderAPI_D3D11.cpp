@@ -13,7 +13,6 @@
 #include <stdio.h>
 #include <time.h>
 
-
 // ----------------------------------------------------------------------
 // Fatal error handling.  This is for scenarios that should never happen,
 // but should be checked just for reliability and unforeseen scenarios.
@@ -52,6 +51,7 @@ public:
 	virtual UINT GetGameWidth();
 	virtual UINT GetGameHeight();
 	virtual DXGI_FORMAT GetGameFormat();
+	virtual void FindAndHookPresent();
 
 private:
 	void CreateResources();
@@ -377,6 +377,253 @@ ID3D11ShaderResourceView* RenderAPI_D3D11::CreateSharedSurface(HANDLE shared)
 
 	return pSRView;
 }
+
+
+extern "C" LPVOID lpvtbl_Present_DX11(IDXGISwapChain* pSwapChain);
+extern "C" LPVOID lpvtbl_ResizeBuffers(IDXGISwapChain* pSwapChain);
+
+// Here we want to hook IDXGISwapChain::Present
+//
+// SwapChain can be created from D3D11 with CreateDeviceAndSwapChain, hence this 
+// might be called implicitly from there.
+//
+// It is common code for both that path, and the direct path from CreateSwapChain
+// or CreateSwapChainForHwnd.
+
+void HookPresent(IDXGISwapChain* pSwapChain)
+{
+
+#ifdef _DEBUG
+	wchar_t info[512];
+
+	::OutputDebugString(L"NativePlugin::HookPresent called. \n");
+
+	LPVOID addrPresent = lpvtbl_Present_DX11(pSwapChain);
+
+	swprintf_s(info, _countof(info), L"Looking for system d3d11.dll.  Present Address: %p \n",
+		addrPresent);
+	::OutputDebugString(info);
+#endif
+
+
+	// This can be called multiple times by a game, so let's be sure to
+	// only hook once.
+//	if (pOrigPresent == nullptr && pSwapChain != nullptr)
+//	{
+//#ifdef _DEBUG 
+//		nktInProc.SetEnableDebugOutput(TRUE);
+//#endif
+//
+//		SIZE_T hook_id;
+//		DWORD dwOsErr;
+//
+//		dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigPresent,
+//			lpvtbl_Present_DX11(pSwapChain), Hooked_Present, 0);
+//		if (FAILED(dwOsErr))
+//			::OutputDebugStringA("Failed to hook IDXGISwapChain::Present\n");
+//
+//		dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigResizeBuffers,
+//			lpvtbl_ResizeBuffers(pSwapChain), Hooked_ResizeBuffers, 0);
+//		if (FAILED(dwOsErr))
+//			::OutputDebugStringA("Failed to hook IDXGISwapChain::ResizeBuffers\n");
+
+		// Create Texture2D and HANDLE we'll use to share the stereo game bits across
+		// the process boundary.
+
+//		pDevice = CreateSharedTexture(pSwapChain);
+
+
+		// Since we are doing setup here, also create a thread that will be used to copy
+		// from the stereo game surface into the shared surface.  This way the game will
+		// not stall while waiting for that copy.
+		//
+		// And the thread synchronization Event object. Signaled when we get fresh bits.
+		// Starts in off state, thread active, so it should pause at launch.
+		//ToDo: Not presently active
+		//gFreshBits = CreateEvent(
+		//	NULL,               // default security attributes
+		//	TRUE,               // manual, not auto-reset event
+		//	FALSE,              // initial state is nonsignaled
+		//	nullptr);			// object name
+		//if (gFreshBits == nullptr) FatalExit(L"Fail to CreateEvent for gFreshBits");
+
+		//gSharedThread = CreateThread(
+		//	NULL,                   // default security attributes
+		//	0,                      // use default stack size  
+		//	CopyGameToShared,       // thread function name
+		//	pDevice9,		        // device, as argument to thread function 
+		//	0,				        // runs immediately, to a pause state. 
+		//	nullptr);			    // returns the thread identifier 
+		//if (gSharedThread == nullptr) FatalExit(L"Fail to CreateThread for GameToShared");
+
+		// We are certain to be being called from the game's primary thread here,
+		// as this is CreateSwapChain.  Save the reference.
+		// ToDo: Can't use Suspend/Resume, because the task switching time is too
+		// high, like >16ms, which is must larger than we can use.
+		//HANDLE thread = GetCurrentThread();
+		//DuplicateHandle(GetCurrentProcess(), thread, GetCurrentProcess(), &gameThread, 0, TRUE, DUPLICATE_SAME_ACCESS);
+	//}
+}
+
+#ifdef _UNICODE
+# define KIERO_TEXT(text) L##text
+#else
+# define KIERO_TEXT(text) text
+#endif
+
+struct Status
+{
+	enum Enum
+	{
+		UnknownError = -1,
+		NotSupportedError = -2,
+		ModuleNotFoundError = -3,
+
+		AlreadyInitializedError = -4,
+		NotInitializedError = -5,
+
+		Success = 0,
+	};
+};
+
+
+
+// From: https://github.com/Rebzzel/kiero/blob/master/kiero.cpp
+//
+// Create a window, then a DX11 device and swapchain so we can then fetch the Present
+// call Address.  It will be the same address for both this fake window and the game.
+// 
+// This is only for the DX11 games.  Should have no impact on them to hook the DX11
+// Present call.
+
+void RenderAPI_D3D11::FindAndHookPresent()
+{
+	WNDCLASSEX windowClass;
+	windowClass.cbSize = sizeof(WNDCLASSEX);
+	windowClass.style = CS_HREDRAW | CS_VREDRAW;
+	windowClass.lpfnWndProc = DefWindowProc;
+	windowClass.cbClsExtra = 0;
+	windowClass.cbWndExtra = 0;
+	windowClass.hInstance = GetModuleHandle(NULL);
+	windowClass.hIcon = NULL;
+	windowClass.hCursor = NULL;
+	windowClass.hbrBackground = NULL;
+	windowClass.lpszMenuName = NULL;
+	windowClass.lpszClassName = KIERO_TEXT("Kiero");
+	windowClass.hIconSm = NULL;
+
+	::RegisterClassEx(&windowClass);
+
+	HWND window = ::CreateWindow(windowClass.lpszClassName, KIERO_TEXT("Kiero DirectX Window"), WS_OVERLAPPEDWINDOW, 0, 0, 100, 100, NULL, NULL, windowClass.hInstance, NULL);
+
+	HMODULE libD3D11;
+	if ((libD3D11 = ::GetModuleHandle(KIERO_TEXT("d3d11.dll"))) == NULL)
+	{
+		::OutputDebugStringA("Failed to load d3d11.dll");
+		::DestroyWindow(window);
+		::UnregisterClass(windowClass.lpszClassName, windowClass.hInstance);
+//		return Status::ModuleNotFoundError;
+	}
+
+#ifdef _DEBUG
+	wchar_t info[512];
+
+	::OutputDebugString(L"NativePlugin::FindAndHookPresent called. \n");
+
+	swprintf_s(info, _countof(info), L"Looking for system d3d11.dll.  libD3D11: %p \n",
+		libD3D11);
+	::OutputDebugString(info);
+#endif
+
+
+	void* fnD3D11CreateDeviceAndSwapChain;
+	if ((fnD3D11CreateDeviceAndSwapChain = ::GetProcAddress(libD3D11, "D3D11CreateDeviceAndSwapChain")) == NULL)
+	{
+		::OutputDebugStringA("Failed to GetProcAddress on D3D11CreateDeviceAndSwapChain");
+		::DestroyWindow(window);
+		::UnregisterClass(windowClass.lpszClassName, windowClass.hInstance);
+//		return Status::UnknownError;
+	}
+
+	DXGI_RATIONAL refreshRate = { 0 };
+	refreshRate.Numerator = 60;
+	refreshRate.Denominator = 1;
+
+	DXGI_MODE_DESC bufferDesc = { 0 };
+	bufferDesc.Width = 100;
+	bufferDesc.Height = 100;
+	bufferDesc.RefreshRate = refreshRate;
+	bufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	bufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
+	bufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
+
+	DXGI_SAMPLE_DESC sampleDesc = { 0 };
+	sampleDesc.Count = 1;
+	sampleDesc.Quality = 0;
+
+	DXGI_SWAP_CHAIN_DESC swapChainDesc = { 0 };
+	swapChainDesc.BufferDesc = bufferDesc;
+	swapChainDesc.SampleDesc = sampleDesc;
+	swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+	swapChainDesc.BufferCount = 1;
+	swapChainDesc.OutputWindow = window;
+	swapChainDesc.Windowed = 1;
+	swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
+	swapChainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
+
+	IDXGISwapChain* swapChain;
+	ID3D11Device* device;
+	ID3D11DeviceContext* context;
+
+	// This can fetch the 3Dmigoto dll
+	// Which can lead to errors if the game d3dx.ini specifies returning errors.
+	// Also seems to introduce a bug if we request only the swapchain.
+
+	HRESULT hr = ((long(__stdcall*)(
+		IDXGIAdapter*,
+		D3D_DRIVER_TYPE,
+		HMODULE,
+		UINT,
+		const D3D_FEATURE_LEVEL*,
+		UINT,
+		UINT,
+		const DXGI_SWAP_CHAIN_DESC*,
+		IDXGISwapChain**,
+		ID3D11Device**,
+		D3D_FEATURE_LEVEL*,
+		ID3D11DeviceContext**))(fnD3D11CreateDeviceAndSwapChain))(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, 0, NULL, NULL, D3D11_SDK_VERSION, &swapChainDesc, &swapChain, &device, NULL, &context);
+	if (FAILED(hr))
+	{
+		::OutputDebugStringA("Failed call to D3D11CreateDeviceAndSwapChain");
+		::DestroyWindow(window);
+		::UnregisterClass(windowClass.lpszClassName, windowClass.hInstance);
+//		return Status::UnknownError;
+	}
+
+	// At this point, it's created the Device and SwapChain, so now we can fetch the address of Present
+	// from the SwapChain's vtable.
+
+	HookPresent(swapChain);
+
+	// Now release all the created objects, as they were just used to get us to the vtable.
+
+	swapChain->Release();
+	swapChain = NULL;
+
+	device->Release();
+	device = NULL;
+
+	context->Release();
+	context = NULL;
+
+	::DestroyWindow(window);
+	::UnregisterClass(windowClass.lpszClassName, windowClass.hInstance);
+
+	::OutputDebugStringA("Successfully hooked DXGI::Present");
+
+//	return Status::Success;
+}
+
 
 #endif // #if SUPPORT_D3D11
 

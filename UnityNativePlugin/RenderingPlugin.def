@@ -16,3 +16,4 @@ EXPORTS
    GetGameHeight
    GetGameFormat
    TriggerEvent
+   FindAndHookPresent

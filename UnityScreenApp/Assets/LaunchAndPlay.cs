@@ -37,6 +37,9 @@ public class LaunchAndPlay : MonoBehaviour
 
     // -----------------------------------------------------------------------------
 
+    [DllImport("UnityNativePlugin64")]
+    private static extern void FindAndHookPresent();
+
     void Start()
     {
         print("Command line arguments: " + System.Environment.CommandLine);
@@ -50,6 +53,8 @@ public class LaunchAndPlay : MonoBehaviour
 
         // With the game properly selected, add name to the big screen as info on launch.
         infoText.text = "Launching...\n\n" + game.DisplayName();
+
+        FindAndHookPresent();
 
         game.Launch();
     }

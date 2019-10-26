@@ -132,6 +132,10 @@ extern "C" UNITY_INTERFACE_EXPORT DXGI_FORMAT UNITY_INTERFACE_API GetGameFormat(
 {
 	return s_CurrentAPI->GetGameFormat();
 }
+extern "C" UNITY_INTERFACE_EXPORT void UNITY_INTERFACE_API FindAndHookPresent()
+{
+	return s_CurrentAPI->FindAndHookPresent();
+}
 
 
 static void ModifyTexturePixels()

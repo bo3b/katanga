@@ -235,6 +235,7 @@
     <ClInclude Include="Unity\IUnityInterface.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\DeviarePlugin\Addresses.c" />
     <ClCompile Include="RenderAPI.cpp" />
     <ClCompile Include="RenderAPI_D3D11.cpp" />
     <ClCompile Include="RenderingPlugin.cpp" />
