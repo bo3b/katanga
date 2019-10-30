@@ -30,10 +30,11 @@ public class ControllerActions : MonoBehaviour {
 
     private void Start()
     {
-        // Here at launch, let's recenter around wherever the headset is pointing. Seems to be the 
+        // Here at launch, let's recenter around wherever the user last saved the state.
+        // If we have no state we'll just recenter to where the headset is pointing. Seems to be the 
         // model that people are expecting, instead of the facing forward based on room setup.
 
-        RecenterHMD();
+        RecenterHMD(false);
 
         // Let's also clip the floor to whatever the size of the user's boundary.
         // If it's not yet fully tracking, that's OK, we'll just leave as is.  This seems better
@@ -210,24 +211,41 @@ public class ControllerActions : MonoBehaviour {
     // vrCamera object cannot be moved or altered, Unity VR doesn't allow moving the camera
     // to avoid making players sick.  But we can move the world around the camera, by changing
     // the player position.
+    //
+    // We want to save the user state, so they don't have to move the screen at every launch.
+    // There are three states.  1) No saved state, 2) Saved state, power up, 3) Recenter command.
+    // State is only saved on user command for recenter, grip on right controller.  Once saved,
+    // we'll use that state for all future power up/launches.  Will be reset whenever the user
+    // does another recenter command with right controller.
 
     public Transform player;       // Where user is looking and head position.
     public Transform vrCamera;     // Unity camera for drawing scene.  Parent is player.
 
-    private void RecenterHMD()
+    private void RecenterHMD(bool saveAngle)
     {
         print("RecenterHMD");
 
         //ROTATION
         // Get current head heading in scene (y-only, to avoid tilting the floor)
-        float offsetAngle = vrCamera.rotation.eulerAngles.y;
-        // Now rotate CameraRig in opposite direction to compensate
-        player.Rotate(0f, -offsetAngle, 0f);
+        float offsetAngle = vrCamera.localRotation.eulerAngles.y;
+
+        if (saveAngle)
+            PlayerPrefs.SetFloat("rotation", offsetAngle);
+        else
+            offsetAngle = PlayerPrefs.GetFloat("rotation", offsetAngle);
+
+        // Now rotate CameraRig/Player in opposite direction to compensate
+        // We want to set to that specific angle though, not simply rotate from where it is.
+        Vector3 playerAngles = player.localEulerAngles;
+        playerAngles.y = -offsetAngle;
+        player.localEulerAngles = playerAngles;
 
         // Let's rotate the floor itself back, so that it remains stable and
-        // matches their play space.  We have to use the unintuitive Z direction here, 
-        // because the floor is rotated 90 degrees in X already.
-        floor.transform.Rotate(0f, 0f, offsetAngle);
+        // matches their play space.  
+        Vector3 floorAngles = floor.transform.localEulerAngles;
+        floorAngles.y = -offsetAngle;
+        floor.transform.localEulerAngles = floorAngles;
+
 
         //POSITION
         // Calculate postional offset between CameraRig and Camera
@@ -238,13 +256,14 @@ public class ControllerActions : MonoBehaviour {
 
 
     // We'll also handle the Right Controller Grip action as a RecenterHMD command.
+    // And whenever the user is going out of there way to specify this, save that angle.
 
     public SteamVR_Action_Boolean recenterAction;
 
     private void OnRecenterAction(SteamVR_Action_Boolean fromAction, SteamVR_Input_Sources fromSource, bool active)
     {
         if (active)
-            RecenterHMD();
+            RecenterHMD(true);
     }
 
     // -----------------------------------------------------------------------------
