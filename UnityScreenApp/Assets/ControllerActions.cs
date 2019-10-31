@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using Valve.VR;
@@ -35,6 +36,22 @@ public class ControllerActions : MonoBehaviour {
         // model that people are expecting, instead of the facing forward based on room setup.
 
         RecenterHMD(false);
+
+        // Restore any saved state the user has setup.  If nothing has been setup for a given
+        // state, it will use the specified defaults.
+
+        Int32 showFloor = PlayerPrefs.GetInt("floor", 1);
+        shown = Convert.ToBoolean(showFloor);
+        floor.SetActive(shown);
+
+        float screenX = PlayerPrefs.GetFloat("screen-x", 0);
+        float screenY = PlayerPrefs.GetFloat("screen-y", 2);
+        float screenZ = PlayerPrefs.GetFloat("screen-z", 5);
+        mainScreen.transform.position = new Vector3(screenX, screenY, screenZ);
+
+        float sizeX = PlayerPrefs.GetFloat("size-x", 8.0f);
+        float sizeY = PlayerPrefs.GetFloat("size-y", -4.5f);
+        mainScreen.transform.localScale = new Vector3(sizeX, sizeY, 1);
 
         // Let's also clip the floor to whatever the size of the user's boundary.
         // If it's not yet fully tracking, that's OK, we'll just leave as is.  This seems better
@@ -124,6 +141,8 @@ public class ControllerActions : MonoBehaviour {
         {
             mainScreen.transform.Translate(new Vector3(0, 0, delta));
 
+            PlayerPrefs.SetFloat("screen-z", mainScreen.transform.position.z);
+
             yield return new WaitForSeconds(wait);
         }
     }
@@ -152,6 +171,9 @@ public class ControllerActions : MonoBehaviour {
             StopCoroutine(sizing);
     }
 
+    // ToDo: This is sizing bug.  Forced 16:9 aspect ratio is not correct for all cases.
+    //  Needs to be based on the resolution in the game itself.
+
     IEnumerator SizingScreen(float delta)
     {
         while (true)
@@ -162,6 +184,9 @@ public class ControllerActions : MonoBehaviour {
             float dX = delta;
             float dY = -(delta * 9f / 16f);
             mainScreen.transform.localScale += new Vector3(dX, dY);
+
+            PlayerPrefs.SetFloat("size-x", mainScreen.transform.localScale.x);
+            PlayerPrefs.SetFloat("size-y", mainScreen.transform.localScale.y);
 
             yield return new WaitForSeconds(wait);
         }
@@ -196,6 +221,8 @@ public class ControllerActions : MonoBehaviour {
         while (true)
         {
             mainScreen.transform.Translate(new Vector3(0, delta));
+
+            PlayerPrefs.SetFloat("screen-y", mainScreen.transform.position.y);
 
             yield return new WaitForSeconds(wait);
         }
@@ -271,23 +298,26 @@ public class ControllerActions : MonoBehaviour {
     // Hide the floor on center click of left trackpad. Toggle on/off.
     // Creating our own Toggle here, because the touchpad is setup as d-pad and center 
     // cannot be toggle by itself.
+    // Upon any state change, save it as the new user preference.
 
     public SteamVR_Action_Boolean hideFloorAction;
     public GameObject floor;
-    private bool hidden = false;
+    private bool shown;
 
     private void OnHideFloorAction(SteamVR_Action_Boolean fromAction, SteamVR_Input_Sources fromSource)
     {
-        if (hidden)
+        if (shown)
         {
-            floor.SetActive(true);
-            hidden = false;
+            floor.SetActive(false);
+            shown = false;
         }
         else
         {
-            floor.SetActive(false);
-            hidden = true;
+            floor.SetActive(true);
+            shown = true;
         }
+
+        PlayerPrefs.SetInt("floor", Convert.ToInt32(shown));
     }
 
 }

@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using System.Collections;
+using System;
 
 namespace Valve.VR.InteractionSystem.Sample
 {
@@ -14,13 +15,16 @@ namespace Valve.VR.InteractionSystem.Sample
         private Coroutine buttonHintCoroutine;
         private Coroutine textHintCoroutine;
 
-        private bool showing = true;
+        private bool showing;
 
 
         //-------------------------------------------------
         private void Start()
         {
             hintAction.AddOnChangeListener(OnToggleActionChange, hand.handType);
+
+            Int32 showHints = PlayerPrefs.GetInt("hints", 1);
+            showing = Convert.ToBoolean(showHints);
 
             StartCoroutine(WaitForInitialize());
         }
@@ -31,7 +35,8 @@ namespace Valve.VR.InteractionSystem.Sample
                 hintAction.RemoveOnChangeListener(OnToggleActionChange, hand.handType);
         }
 
-        // Always start with the hint showing. 
+        // Always start with the hint showing, by default, but if the user has specifically
+        // turned them off, then restore that as their preference.
         //
         // This is complicated by how late the ControllerButtonHints is initialized.
         // Until it processes the hint info via the bound actions, it will fail to show.
@@ -44,7 +49,8 @@ namespace Valve.VR.InteractionSystem.Sample
             while (hintController.initialized == false)
                 yield return null;
 
-            ShowTextHints(hand);
+            if (showing)
+                ShowTextHints(hand);
         }
 
         //-------------------------------------------------
@@ -60,6 +66,8 @@ namespace Valve.VR.InteractionSystem.Sample
                 ShowTextHints(hand);
                 showing = true;
             }
+
+            PlayerPrefs.SetInt("hints", Convert.ToInt32(showing));
         }
 
 
