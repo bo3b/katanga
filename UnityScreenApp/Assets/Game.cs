@@ -281,9 +281,16 @@ public class Game : MonoBehaviour
                     _gameProcess = StartGameBySpyMgr(gamePath, out continueevent);
                     break;
                 case LaunchType.Steam:
-                    StartGameBySteamAppID(steamPath, steamAppID, launchArguments);
-                    _gameProcess = WaitForDX11Exe(gamePath);
-                    break;
+                    // Treat Steam launch as straight exe launch, because they ruin it by
+                    // forcing Katanga to exit so they can do their dumb game theater.
+                    // Probably will break some double-launch games that need SteamAPI,
+                    // but fixes always launching SteamGameTheater.
+                    // I'm not sure this is the right path, but people are already getting
+                    // confused by the DGT.
+
+                    //StartGameBySteamAppID(steamPath, steamAppID, launchArguments);
+                    //_gameProcess = WaitForDX11Exe(gamePath);
+                    //break;
                 case LaunchType.Exe:
                     StartGameByExeFile(gamePath, launchArguments);
                     _gameProcess = WaitForDX11Exe(gamePath);
