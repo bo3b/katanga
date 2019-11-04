@@ -8,6 +8,7 @@ using Nektra.Deviare2;
 
 using UnityEngine;
 using System.Diagnostics;
+using System.Collections;
 
 
 // Game object to handle launching and connection duties to the game itself.
@@ -45,8 +46,9 @@ public class Game : MonoBehaviour
     string launchArguments = "";
 
     // If it's a Steam launch, these will be non-null.
-    string steamPath;
-    string steamAppID;
+    // ToDo: Non-functional Steam launch because DesktopGameTheater intercepts.
+    //string steamPath;
+    //string steamAppID;
 
 
     static NktSpyMgr _spyMgr;
@@ -116,16 +118,16 @@ public class Game : MonoBehaviour
                 i++;
                 launchType = ParseLaunchType<LaunchType>(args[i]);
             }
-            else if (args[i] == "--steam-path")
-            {
-                i++;
-                steamPath = args[i];
-            }
-            else if (args[i] == "--steam-appid")
-            {
-                i++;
-                steamAppID = args[i];
-            }
+            //else if (args[i] == "--steam-path")
+            //{
+            //    i++;
+            //    steamPath = args[i];
+            //}
+            //else if (args[i] == "--steam-appid")
+            //{
+            //    i++;
+            //    steamAppID = args[i];
+            //}
             else
             {
                 // Accumulate all other arguments into launchArguments for the game,
@@ -140,21 +142,32 @@ public class Game : MonoBehaviour
         //launchType = LaunchType.Steam;
         //steamPath = @"C:\Program Files (x86)\Steam";
         //steamAppID = "8870";
-        //gamePath = @"W:\SteamLibrary\steamapps\common\Tomb Raider\tombraider.exe";
-        //displayName = "Tomb Raider";
-        //launchType = LaunchType.DirectMode;
-        //steamPath = @"C:\Program Files (x86)\Steam";
-        //steamAppID = "203160";
-        //gamePath = @"W:\SteamLibrary\steamapps\common\Headlander\Headlander.exe";
-        //displayName = "Headlander";
-        //launchType = LaunchType.Steam;
-        //steamPath = @"C:\Program Files (x86)\Steam";
-        //steamAppID = "340000";
         //gamePath = @"W:\SteamLibrary\steamapps\common\Kingdoms of Amalur - Reckoning Demo\reckoningdemo.exe";
         //displayName = "Reck";
         //launchType = LaunchType.DX9;
         //steamPath = @"C:\Program Files (x86)\Steam";
         //steamAppID = "102501";
+
+        //gamePath = @"W:\SteamLibrary\steamapps\common\Portal 2\portal2.exe";
+        //displayName = "portal 2";
+        //launchType = LaunchType.DX9;
+
+        //gamePath = @"W:\SteamLibrary\steamapps\common\DiRT 4\dirt4.exe";
+        //displayName = "Dirt4";
+        //launchType = LaunchType.Exe;
+
+        //gamePath = @"W:\SteamLibrary\steamapps\common\Headlander\Headlander.exe";
+        //displayName = "Headlander";
+        //launchType = LaunchType.Steam;
+        //steamPath = @"C:\Program Files (x86)\Steam";
+        //steamAppID = "340000";
+
+        //gamePath = @"W:\SteamLibrary\steamapps\common\Tomb Raider\tombraider.exe";
+        //displayName = "Tomb Raider";
+        //launchType = LaunchType.DirectMode;
+        //steamPath = @"C:\Program Files (x86)\Steam";
+        //steamAppID = "203160";
+
 
 
         // If they didn't pass a --game-path argument, then bring up the GetOpenFileName
@@ -200,6 +213,9 @@ public class Game : MonoBehaviour
 
     public bool Exited()
     {
+        if (_gameProcess == null)
+            return false;
+
         if (_spyMgr.FindProcessId(_gameProcess.Name) == 0)
         {
             print("Game has exited.");
@@ -213,6 +229,9 @@ public class Game : MonoBehaviour
 
     public System.Int32 GetSharedHandle()
     {
+        if (_gameProcess == null)
+            return 0;
+
         // ToDo: To work, we need to pass in a parameter? Could use named pipe instead.
         // This will call to DeviarePlugin native DLL in the game, to fetch current gGameSurfaceShare HANDLE.
         System.Int32 native = 0; // (int)_tex.GetNativeTexturePtr();
@@ -232,22 +251,13 @@ public class Game : MonoBehaviour
     // except Present. 
     // In either case, we do the hooking in the OnLoad call in the deviare plugin.
 
-    public void Launch()
+    public IEnumerator Launch()
     {
         int hresult;
         object continueevent = null;
+        NktProcess gameProc = null;
 
-        print("Running: " + gamePath + "\n");
-
-        string wd = System.IO.Directory.GetCurrentDirectory();
-        print("WorkingDirectory: " + wd);
         print("CurrentDirectory: " + katanga_directory);
-
-        //print("App Directory:" + Environment.CurrentDirectory);
-        //foreach (var path in Directory.GetFileSystemEntries(Environment.CurrentDirectory))
-        //    print(System.IO.Path.GetFileName(path)); // file name
-        //foreach (var path in Directory.GetFileSystemEntries(Environment.CurrentDirectory + "\\Assets\\Plugins\\"))
-        //    print(System.IO.Path.GetFileName(path)); // file name
 
         _spyMgr = new NktSpyMgr();
         hresult = _spyMgr.Initialize();
@@ -258,7 +268,6 @@ public class Game : MonoBehaviour
     // _spyMgr.SettingOverride("SpyMgrAgentLevelMask", 0x040);
 #endif
         print("Successful SpyMgr Init");
-
 
 
         // We must set the game directory specifically, otherwise it winds up being the 
@@ -275,10 +284,10 @@ public class Game : MonoBehaviour
             switch (launchType)
             {
                 case LaunchType.DX9:
-                    _gameProcess = StartGameBySpyMgr(gamePath, out continueevent);
+                    StartGameBySpyMgr(gamePath, out continueevent);
                     break;
                 case LaunchType.DirectMode:
-                    _gameProcess = StartGameBySpyMgr(gamePath, out continueevent);
+                    StartGameBySpyMgr(gamePath, out continueevent);
                     break;
                 case LaunchType.Steam:
                     // Treat Steam launch as straight exe launch, because they ruin it by
@@ -289,20 +298,44 @@ public class Game : MonoBehaviour
                     // confused by the DGT.
 
                     //StartGameBySteamAppID(steamPath, steamAppID, launchArguments);
-                    //_gameProcess = WaitForDX11Exe(gamePath);
+                    //gameProc = WaitForDX11Exe(gamePath);
                     //break;
                 case LaunchType.Exe:
                     StartGameByExeFile(gamePath, launchArguments);
-                    _gameProcess = WaitForDX11Exe(gamePath);
                     break;
             }
 
+            // For any launch, let's wait and watch for game exe to launch.
+            // This works a lot better than launching it here and hooking
+            // first instructions, because we can wait past launchers or 
+            // Steam launch itself, or different sub processes being launched.
+            // In scenarios where we are using the SpyMgr launch, this check
+            // will still succeed.  Putting this here allows us to return the
+            // IEnumerator so that this can be asynchronous from the VR UI,
+            // and thus not hang their VR environment while launching.
+
+            string gameExe = gamePath.Substring(gamePath.LastIndexOf('\\') + 1);
+
+            print("Waiting for process: " + gamePath);
+
+            int procid = 0;
+            do
+            {
+                yield return new WaitForSecondsRealtime(0.100f);
+
+                procid = _spyMgr.FindProcessId(gameExe);
+            } while (procid == 0);
+
+            print("->Found " + gameExe + ":" + procid);
+
+            gameProc = _spyMgr.ProcessFromPID(procid);
+
 
             // Game has been launched.  Either deferred, or first instruction hook.
-            // _gameProcess will exist, or we forced an exception.
+            // gameProc will exist, or we forced an exception.  Time for injection.
 
             print("LoadAgent");
-            _spyMgr.LoadAgent(_gameProcess);
+            _spyMgr.LoadAgent(gameProc);
 
             // Load the NativePlugin for the C++ side.  The NativePlugin must be in this app folder.
             // The Agent supports the use of Deviare in the CustomDLL, but does not respond to hooks.
@@ -311,12 +344,12 @@ public class Game : MonoBehaviour
             // either x32 or x64 games.
 
             print("Load DeviarePlugin");
-            if (_gameProcess.PlatformBits == 64)
+            if (gameProc.PlatformBits == 64)
                 _nativeDLLName = Application.dataPath + "/Plugins/DeviarePlugin64.dll";
             else
                 _nativeDLLName = Application.dataPath + "/Plugins/DeviarePlugin.dll";
 
-            int loadResult = _spyMgr.LoadCustomDll(_gameProcess, _nativeDLLName, true, true);
+            int loadResult = _spyMgr.LoadCustomDll(gameProc, _nativeDLLName, true, true);
             if (loadResult <= 0)
             {
                 int lastHR = GetLastDeviareError();
@@ -332,18 +365,18 @@ public class Game : MonoBehaviour
             switch (launchType)
             {
                 case LaunchType.DX9:
-                    HookDX9(_nativeDLLName, _gameProcess);
-                    _spyMgr.ResumeProcess(_gameProcess, continueevent);
+                    HookDX9(_nativeDLLName, gameProc);
+                    _spyMgr.ResumeProcess(gameProc, continueevent);
                     break;
                 case LaunchType.DirectMode:
-                    HookDX11(_nativeDLLName, _gameProcess);
-                    _spyMgr.ResumeProcess(_gameProcess, continueevent);
+                    HookDX11(_nativeDLLName, gameProc);
+                    _spyMgr.ResumeProcess(gameProc, continueevent);
                     break;
                 case LaunchType.Steam:
-                    HookDX11(_nativeDLLName, _gameProcess);
+                    HookDX11(_nativeDLLName, gameProc);
                     break;
                 case LaunchType.Exe:
-                    HookDX11(_nativeDLLName, _gameProcess);
+                    HookDX11(_nativeDLLName, gameProc);
                     break;
             }
         }
@@ -353,6 +386,11 @@ public class Game : MonoBehaviour
 
         // We've gotten everything launched, hooked, and setup.  Now we wait for the
         // game to call through to CreateDevice, so that we can create the shared surface.
+        // Now we can also set the _gameProcess, so that other async routines can see 
+        // it as valid.  We can't do this earlier, because it could race condition into
+        // a process that was not setup.
+
+        _gameProcess = gameProc;
     }
 
     // -----------------------------------------------------------------------------
@@ -410,36 +448,6 @@ public class Game : MonoBehaviour
         create9Hook.Hook(true);
         create9HookEx.Attach(gameProc, true);
         create9HookEx.Hook(true);
-    }
-
-    // -----------------------------------------------------------------------------
-
-    // For DX11 games, let's wait and watch for game exe to launch.
-    // This works a lot better than launching it here and hooking
-    // first instructions, because we can wait past launchers or 
-    // Steam launch itself, or different sub processes being launched.
-
-    private NktProcess WaitForDX11Exe(string gamePath)
-    {
-        print("Waiting for process: " + gamePath);
-
-        int procid = 0;
-        string gameExe = gamePath.Substring(gamePath.LastIndexOf('\\') + 1);
-
-
-        Thread.Sleep(3000);     // ToDo: needed? Letting game get underway.
-
-        do
-        {
-            if (Input.GetKey("escape"))
-                Application.Quit();
-            Thread.Sleep(500);
-            procid = _spyMgr.FindProcessId(gameExe);
-        } while (procid == 0);
-
-        print("->Found " + gameExe + ":" + procid);
-
-        return _spyMgr.ProcessFromPID(procid);
     }
 
     // -----------------------------------------------------------------------------

@@ -4,6 +4,7 @@ using System.IO;
 
 using UnityEngine;
 using UnityEngine.UI;
+using System.Collections;
 
 public class LaunchAndPlay : MonoBehaviour
 {
@@ -51,7 +52,8 @@ public class LaunchAndPlay : MonoBehaviour
         // With the game properly selected, add name to the big screen as info on launch.
         infoText.text = "Launching...\n\n" + game.DisplayName();
 
-        game.Launch();
+        // Allow the launching process to continue asychronously.
+        StartCoroutine(game.Launch());
     }
 
     // -----------------------------------------------------------------------------
