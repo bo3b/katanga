@@ -22,7 +22,10 @@ public class ControllerActions : MonoBehaviour {
 
     // This script is attached to the main Screen object, as the most logical place
     // to put all the screen sizing and location code.
-    private GameObject mainScreen;
+    public Transform mainScreen;
+    public Transform player;       // Where user is looking and head position.
+    public Transform vrCamera;     // Unity camera for drawing scene.  Parent is player.
+
 
     private readonly float wait = 0.020f;  // 20 ms
     private readonly float distance = 0.010f; // 10 cm
@@ -47,11 +50,11 @@ public class ControllerActions : MonoBehaviour {
         float screenX = PlayerPrefs.GetFloat("screen-x", 0);
         float screenY = PlayerPrefs.GetFloat("screen-y", 2);
         float screenZ = PlayerPrefs.GetFloat("screen-z", 5);
-        mainScreen.transform.position = new Vector3(screenX, screenY, screenZ);
+        mainScreen.position = new Vector3(screenX, screenY, screenZ);
 
         float sizeX = PlayerPrefs.GetFloat("size-x", 8.0f);
         float sizeY = PlayerPrefs.GetFloat("size-y", -4.5f);
-        mainScreen.transform.localScale = new Vector3(sizeX, sizeY, 1);
+        mainScreen.localScale = new Vector3(sizeX, sizeY, 1);
 
         // Let's also clip the floor to whatever the size of the user's boundary.
         // If it's not yet fully tracking, that's OK, we'll just leave as is.  This seems better
@@ -75,8 +78,6 @@ public class ControllerActions : MonoBehaviour {
 
     private void OnEnable()
     {
-        mainScreen = GameObject.Find("Screen");
-
         fartherAction.AddOnChangeListener(OnFartherAction, SteamVR_Input_Sources.RightHand);
         nearerAction.AddOnChangeListener(OnNearerAction, SteamVR_Input_Sources.RightHand);
 
@@ -139,9 +140,9 @@ public class ControllerActions : MonoBehaviour {
     {
         while (true)
         {
-            mainScreen.transform.Translate(new Vector3(0, 0, delta));
+            mainScreen.Translate(new Vector3(0, 0, delta));
 
-            PlayerPrefs.SetFloat("screen-z", mainScreen.transform.position.z);
+            PlayerPrefs.SetFloat("screen-z", mainScreen.position.z);
 
             yield return new WaitForSeconds(wait);
         }
@@ -183,10 +184,10 @@ public class ControllerActions : MonoBehaviour {
             // layout, and Y is inverted.
             float dX = delta;
             float dY = -(delta * 9f / 16f);
-            mainScreen.transform.localScale += new Vector3(dX, dY);
+            mainScreen.localScale += new Vector3(dX, dY);
 
-            PlayerPrefs.SetFloat("size-x", mainScreen.transform.localScale.x);
-            PlayerPrefs.SetFloat("size-y", mainScreen.transform.localScale.y);
+            PlayerPrefs.SetFloat("size-x", mainScreen.localScale.x);
+            PlayerPrefs.SetFloat("size-y", mainScreen.localScale.y);
 
             yield return new WaitForSeconds(wait);
         }
@@ -220,9 +221,9 @@ public class ControllerActions : MonoBehaviour {
     {
         while (true)
         {
-            mainScreen.transform.Translate(new Vector3(0, delta));
+            mainScreen.Translate(new Vector3(0, delta));
 
-            PlayerPrefs.SetFloat("screen-y", mainScreen.transform.position.y);
+            PlayerPrefs.SetFloat("screen-y", mainScreen.position.y);
 
             yield return new WaitForSeconds(wait);
         }
@@ -244,9 +245,6 @@ public class ControllerActions : MonoBehaviour {
     // State is only saved on user command for recenter, grip on right controller.  Once saved,
     // we'll use that state for all future power up/launches.  Will be reset whenever the user
     // does another recenter command with right controller.
-
-    public Transform player;       // Where user is looking and head position.
-    public Transform vrCamera;     // Unity camera for drawing scene.  Parent is player.
 
     private void RecenterHMD(bool saveAngle)
     {

@@ -410,6 +410,7 @@ MonoBehaviour:
   lowerAction:
     actionPath: /actions/default/in/ScreenLowerAction
     needsReinit: 0
+  mainScreen: {fileID: 488365435}
   player: {fileID: 1751585949}
   vrCamera: {fileID: 987663060}
   recenterAction:
@@ -896,7 +897,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fed100669b400f84a9a4e840472f0eab, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  game: {fileID: 0}
   screen: {fileID: 488365432}
   infoText: {fileID: 2070569918}
 --- !u!4 &1751585949 stripped
@@ -914,7 +914,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7367beaecac37364bb357e74e1ab474a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  waitForExe: 
 --- !u!1 &1881908958
 GameObject:
   m_ObjectHideFlags: 0
