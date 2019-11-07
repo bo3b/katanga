@@ -22,9 +22,10 @@ public class ControllerActions : MonoBehaviour {
 
     // This script is attached to the main Screen object, as the most logical place
     // to put all the screen sizing and location code.
-    public Transform mainScreen;
-    public Transform player;       // Where user is looking and head position.
-    public Transform vrCamera;     // Unity camera for drawing scene.  Parent is player.
+    public Transform screen;
+    public Transform globalScreen;  // container for screen, centered around zero.
+    public Transform player;        // Where user is looking and head position.
+    public Transform vrCamera;      // Unity camera for drawing scene.  Parent is player.
 
 
     private readonly float wait = 0.020f;  // 20 ms
@@ -37,24 +38,27 @@ public class ControllerActions : MonoBehaviour {
         // Here at launch, let's recenter around wherever the user last saved the state.
         // If we have no state we'll just recenter to where the headset is pointing. Seems to be the 
         // model that people are expecting, instead of the facing forward based on room setup.
+        // This will rotate and translate the GlobalScreen, a container for the actual screen.
 
         RecenterHMD(false);
 
         // Restore any saved state the user has setup.  If nothing has been setup for a given
-        // state, it will use the specified defaults.
+        // state, it will use the specified defaults.  
+        // For the actual screen size and location, these are the local values for the screen 
+        // itself, not the screen container.
+
+        float screenX = PlayerPrefs.GetFloat("screen-x", 0);  // not presently changed.
+        float screenY = PlayerPrefs.GetFloat("screen-y", 2);
+        float screenZ = PlayerPrefs.GetFloat("screen-z", 5);
+        screen.localPosition = new Vector3(screenX, screenY, screenZ);
+
+        float sizeX = PlayerPrefs.GetFloat("size-x", 8.0f);
+        float sizeY = PlayerPrefs.GetFloat("size-y", -4.5f);
+        screen.localScale = new Vector3(sizeX, sizeY, 1);
 
         Int32 showFloor = PlayerPrefs.GetInt("floor", 1);
         shown = Convert.ToBoolean(showFloor);
         floor.SetActive(shown);
-
-        float screenX = PlayerPrefs.GetFloat("screen-x", 0);
-        float screenY = PlayerPrefs.GetFloat("screen-y", 2);
-        float screenZ = PlayerPrefs.GetFloat("screen-z", 5);
-        mainScreen.position = new Vector3(screenX, screenY, screenZ);
-
-        float sizeX = PlayerPrefs.GetFloat("size-x", 8.0f);
-        float sizeY = PlayerPrefs.GetFloat("size-y", -4.5f);
-        mainScreen.localScale = new Vector3(sizeX, sizeY, 1);
 
         // Let's also clip the floor to whatever the size of the user's boundary.
         // If it's not yet fully tracking, that's OK, we'll just leave as is.  This seems better
@@ -140,9 +144,9 @@ public class ControllerActions : MonoBehaviour {
     {
         while (true)
         {
-            mainScreen.Translate(new Vector3(0, 0, delta));
+            screen.Translate(new Vector3(0, 0, delta));
 
-            PlayerPrefs.SetFloat("screen-z", mainScreen.position.z);
+            PlayerPrefs.SetFloat("screen-z", screen.localPosition.z);
 
             yield return new WaitForSeconds(wait);
         }
@@ -184,10 +188,10 @@ public class ControllerActions : MonoBehaviour {
             // layout, and Y is inverted.
             float dX = delta;
             float dY = -(delta * 9f / 16f);
-            mainScreen.localScale += new Vector3(dX, dY);
+            screen.localScale += new Vector3(dX, dY);
 
-            PlayerPrefs.SetFloat("size-x", mainScreen.localScale.x);
-            PlayerPrefs.SetFloat("size-y", mainScreen.localScale.y);
+            PlayerPrefs.SetFloat("size-x", screen.localScale.x);
+            PlayerPrefs.SetFloat("size-y", screen.localScale.y);
 
             yield return new WaitForSeconds(wait);
         }
@@ -221,9 +225,9 @@ public class ControllerActions : MonoBehaviour {
     {
         while (true)
         {
-            mainScreen.Translate(new Vector3(0, delta));
+            screen.Translate(new Vector3(0, delta));
 
-            PlayerPrefs.SetFloat("screen-y", mainScreen.position.y);
+            PlayerPrefs.SetFloat("screen-y", screen.localPosition.y);
 
             yield return new WaitForSeconds(wait);
         }
@@ -237,8 +241,9 @@ public class ControllerActions : MonoBehaviour {
     // https://forum.unity.com/threads/openvr-how-to-reset-camera-properly.417509/#post-2792972
     //
     // vrCamera object cannot be moved or altered, Unity VR doesn't allow moving the camera
-    // to avoid making players sick.  But we can move the world around the camera, by changing
-    // the player position.
+    // to avoid making players sick.  We now move the GlobalScreen for Recenter operations,
+    // as it is centered around zero, and thus only requires matching the vrCamera, which
+    // will rotate and translate the contained screen.
     //
     // We want to save the user state, so they don't have to move the screen at every launch.
     // There are three states.  1) No saved state, 2) Saved state, power up, 3) Recenter command.
@@ -246,37 +251,51 @@ public class ControllerActions : MonoBehaviour {
     // we'll use that state for all future power up/launches.  Will be reset whenever the user
     // does another recenter command with right controller.
 
-    private void RecenterHMD(bool saveAngle)
+    private void RecenterHMD(bool saveState)
     {
         print("RecenterHMD");
 
-        //ROTATION
-        // Get current head heading in scene (y-only, to avoid tilting the floor)
+        // Get current head rotation in scene (y-only, to avoid tilting the floor)
+
         float offsetAngle = vrCamera.localRotation.eulerAngles.y;
 
-        if (saveAngle)
-            PlayerPrefs.SetFloat("rotation", offsetAngle);
+        if (saveState)
+            PlayerPrefs.SetFloat("global-rotation", offsetAngle);
         else
-            offsetAngle = PlayerPrefs.GetFloat("rotation", offsetAngle);
+            offsetAngle = PlayerPrefs.GetFloat("global-rotation", offsetAngle);
 
-        // Now rotate CameraRig/Player in opposite direction to compensate
-        // We want to set to that specific angle though, not simply rotate from where it is.
-        Vector3 playerAngles = player.localEulerAngles;
-        playerAngles.y = -offsetAngle;
-        player.localEulerAngles = playerAngles;
+        // Now set the globalScreen euler angle to that same rotation, so that the screen
+        // environment will rotate from the starting zero location to current gaze.
+        // Because this is called for any Recenter operation, we don't want to simply
+        // rotate from where we are, we want to set wherever the vrCamera is looking.
 
-        // Let's rotate the floor itself back, so that it remains stable and
-        // matches their play space.  
-        Vector3 floorAngles = floor.transform.localEulerAngles;
-        floorAngles.y = -offsetAngle;
-        floor.transform.localEulerAngles = floorAngles;
+        Vector3 screenAngles = globalScreen.eulerAngles;
+        screenAngles.y = offsetAngle;
+        globalScreen.eulerAngles = screenAngles;
 
 
-        //POSITION
-        // Calculate postional offset between CameraRig and Camera
-        //        Vector3 offsetPos = steamCamera.position - cameraRig.position;
-        // Reposition CameraRig to desired position minus offset
-        //        cameraRig.position = (desiredHeadPos.position - offsetPos);
+        // Do the same job for translation, and move the globalScreen to the same
+        // offset that the vrCamer has.  Since this moves the global container instead
+        // of the screen, the relative offsets and screen size will appear unchanged,
+        // just centered to the viewing position.
+
+        Vector3 offsetPos = vrCamera.position;
+
+        if (saveState)
+        {
+            PlayerPrefs.SetFloat("global-x", offsetPos.x);
+            PlayerPrefs.SetFloat("global-z", offsetPos.z);
+        }
+        else
+        {
+            offsetPos.x = PlayerPrefs.GetFloat("global-x", offsetPos.x);
+            offsetPos.z = PlayerPrefs.GetFloat("global-z", offsetPos.z);
+        }
+
+        Vector3 globalPos = globalScreen.position;
+        globalPos.x = offsetPos.x;
+        globalPos.z = offsetPos.z;
+        globalScreen.position = globalPos;
     }
 
 
