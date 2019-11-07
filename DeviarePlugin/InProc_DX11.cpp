@@ -156,12 +156,10 @@ ID3D11Device* CreateSharedTexture(IDXGISwapChain* pSwapChain)
 	// stereo so that we can fetch the stereo backbuffer during Present.
 
 	NvAPI_Status res = NvAPI_Initialize();
-	if (res != NVAPI_OK) FatalExit(L"Failed to NvAPI_Initialize\n");
+	if (res != NVAPI_OK) FatalExit(L"NVidia driver not available.\n\nFailed to NvAPI_Initialize\n");
 
-	// ToDo: need to handle stereo disabled...
 	res = NvAPI_Stereo_CreateHandleFromIUnknown(pDevice, &gNVAPI);
-	if (res != NVAPI_OK) FatalExit(L"Failed to NvAPI_Stereo_CreateHandleFromIUnknown\n");
-
+	if (res != NVAPI_OK) FatalExit(L"3D Vision is not enabled.\n\nFailed to NvAPI_Stereo_CreateHandleFromIUnknown\n");
 
 
 	// Now that we have a proper SwapChain from the game, let's also make a 
