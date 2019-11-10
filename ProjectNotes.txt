@@ -791,3 +791,24 @@ an alternate thread to check for IsActive and quit upon that.
 Part and parcel of using this bad runtime layout.  Causes a lot of problems.  Should have used
 UE4 with native C++ access, but at the time they did not support single pass stereo.
 
+
+11-10-19
+Some notes on the Steam DesktopGameTheater-  it's lame.  Cannot figure out a way to get it to back off and
+not kill the Katanga process.  If it's enabled in Settings and per game, then they decide unilaterally that
+their theater is the one for all 2D game launches.  Even if Katanga launched the process, and has an active
+VR connection, they still send a quit message, and if Katanga does not respond, they kill the process.
+Even if Katanga is admin, even if we respond to OnApplicationQuit with a CancelQuit call.  Any launch using
+the -applaunch ID approach will be force quit.
+
+Tried a bunch of different things, including adding -nokillprocess to the katanga launch, no effect.  Not sure
+what that does anyway, but it was suggestive.  Does not matter if the game is launched by 3DFixManager or Katanga
+they don't respect that.  Does not matter if 3DFM has an active VR connection.  
+
+Asking Steam support for help was useless, they didn't even understand the question, and finally just sent
+it off to the VR team.
+
+If we launch by exe, and use the steam_appid.txt files, then mostly we don't get killed.  Still gets killed for
+double-launch games, but it's a partial solution.
+
+Setting the flags to off for a game does work, but is asking the user to do something, which is against our 
+approach.
