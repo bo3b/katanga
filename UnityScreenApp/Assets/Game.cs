@@ -316,7 +316,18 @@ public class Game : MonoBehaviour
 
             string gameExe = gamePath.Substring(gamePath.LastIndexOf('\\') + 1);
 
+            // We finally answered the question for whether we want a startup delay or
+            // not, and the answer is yes.  Battlefield3 in particular has a retarded
+            // browser based launcher, which runs after we launch bf3.exe.  If we 
+            // catch that first one, we exit when it exits, and miss the entire game.
+            // Now that we have a coroutine, we can stall without it impacting the VR view.
+            // Waiting for 8 seconds is not bad, no game will launch faster than that
+            // anyway.  Waiting for 3 seconds would still fail, 5 seconds was OK,
+            // but this is on a super fast machine.
+
             print("Waiting for process: " + gamePath);
+
+            yield return new WaitForSecondsRealtime(8.0f);
 
             int procid = 0;
             do
