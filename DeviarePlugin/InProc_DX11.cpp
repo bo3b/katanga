@@ -269,7 +269,7 @@ HRESULT __stdcall Hooked_Present(IDXGISwapChain * This,
 	ID3D11Device* pDevice = nullptr;
 	ID3D11DeviceContext* pContext = nullptr;
 
-	if (gGameTexture == nullptr)
+	if (gGameSharedHandle == nullptr)
 		CreateSharedTexture(This);
 
 	hr = This->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&backBuffer);
@@ -406,11 +406,6 @@ HRESULT __stdcall Hooked_ResizeBuffers(IDXGISwapChain* This,
 
 	hr = pOrigResizeBuffers(This, BufferCount, Width, Height, NewFormat, SwapChainFlags);
 	if (FAILED(hr)) FatalExit(L"Failed to IDXGISwapChain->ResizeBuffers");
-
-	// Refresh our shared texture and shared HANDLE to match, otherwise we draw only
-	// a partial image on the big screen.
-
-	CreateSharedTexture(This);
 
 	return hr;
 }

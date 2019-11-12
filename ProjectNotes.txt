@@ -812,3 +812,20 @@ double-launch games, but it's a partial solution.
 
 Setting the flags to off for a game does work, but is asking the user to do something, which is against our 
 approach.
+
+
+11-12-19
+OK, further tedious debugging requires some written down documentation.  
+
+It seemed interesting to use the DX11 Shared Mutex to handle synchronization to the two sides, even if we can
+only use it for DX11, it would theoretically prevent the hangs we see at ResizeBuffers.  Doesn't work. Cannot work.
+
+On the Unity side, we are letting Unity do the drawing, and because of that we can't get to the texture to
+acquire/release the mutex when updating.  If the mutex is added at Dx11 time, then Unity simply stops drawing.
+No idea why, because the mutex should not be required and if not initialized it's free to access, but Unity
+stops even the only thing changed is adding the D3D11_RESOURCE_MISC_SHARED_KEYEDMUTEX.
+
+It would be possible to move the texture down to the native c++ layer, and then draw it there, but it hardly
+seems worth the effort for this.  
+
+Going to a different sync approach to try to avoid the hangs at ResizeBuffer.
