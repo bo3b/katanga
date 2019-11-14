@@ -60,10 +60,26 @@ Shader "Unlit/sbsShader"
 				return o;
 			}
 			
+			// Clear up shimmering using multisampling as described:
+			// https://developer.oculus.com/blog/common-rendering-mistakes-how-to-find-them-and-how-to-fix-them/
+
+			fixed4 tex2Dmultisample(sampler2D tex, float2 uv)
+			{
+				float2 dx = ddx(uv) * 0.25;
+				float2 dy = ddy(uv) * 0.25;
+
+				float4 sample0 = tex2D(tex, uv + dx + dy);
+				float4 sample1 = tex2D(tex, uv + dx - dy);
+				float4 sample2 = tex2D(tex, uv - dx + dy);
+				float4 sample3 = tex2D(tex, uv - dx - dy);
+
+				return (sample0 + sample1 + sample2 + sample3) * 0.25;
+			}
+
 			fixed4 frag (v2f i) : SV_Target
 			{
 				// sample the texture
-				fixed4 col = tex2D(_MainTex, i.uv);
+				fixed4 col = tex2Dmultisample(_MainTex, i.uv);
 				return col;
 			}
 			ENDCG
