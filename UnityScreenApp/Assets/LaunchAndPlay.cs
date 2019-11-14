@@ -70,7 +70,7 @@ public class LaunchAndPlay : MonoBehaviour
     [DllImport("UnityNativePlugin64")]
     private static extern int GetGameFormat();
 
-    readonly bool noMipMaps = false;
+    readonly bool hasMipMaps = true;
     readonly bool linearColorSpace = true;
 
     // PollForSharedSurface will just wait until the CreateDevice has been called in 
@@ -163,10 +163,11 @@ public class LaunchAndPlay : MonoBehaviour
             // This is the Unity Texture2D, double width texture, with right eye on the left half.
             // It will always be up to date with latest game image, because we pass in 'shared'.
 
-            _bothEyes = Texture2D.CreateExternalTexture(width, height, TextureFormat.RGBA32, noMipMaps, colorSpace, shared);
+            _bothEyes = Texture2D.CreateExternalTexture(width, height, TextureFormat.RGBA32, hasMipMaps, colorSpace, shared);
 
             print("..eyes width: " + _bothEyes.width + " height: " + _bothEyes.height + " format: " + _bothEyes.format);
 
+            print("..mip levels: " + _bothEyes.mipmapCount);
 
             // This is the primary Material for the Quad used for the virtual TV.
             // Assigning the 2x width _bothEyes texture to it means it always has valid
@@ -215,6 +216,11 @@ public class LaunchAndPlay : MonoBehaviour
         // Can be destroyed in mid-use.  Hangs/crashes at resolution changes?
 
         PollForSharedSurface();
+
+        // Update mipmaps.
+
+        //if (_bothEyes != null)
+        //    _bothEyes.Apply();
 
         // Doing GC on an ongoing basis is recommended for VR, to avoid weird stalls
         // at random times.

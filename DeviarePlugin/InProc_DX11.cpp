@@ -190,9 +190,12 @@ ID3D11Device* CreateSharedTexture(IDXGISwapChain* pSwapChain)
 	// This texture needs to use the Shared flag, so that we can share it to 
 	// another Device.  Because these are all DX11 objects, the share will work.
 
-	desc.Width *= 2;								// Double width texture for stereo.
-	desc.BindFlags |= D3D11_BIND_SHADER_RESOURCE;	// Must add bind flag, so SRV can be created in Unity.
-	desc.MiscFlags = D3D11_RESOURCE_MISC_SHARED;	// To be shared. maybe D3D11_RESOURCE_MISC_SHARED_KEYEDMUTEX is better
+	desc.Width *= 2;										// Double width texture for stereo.
+	desc.BindFlags |= D3D11_BIND_SHADER_RESOURCE;			// Must add bind flag, so SRV can be created in Unity.
+	desc.MiscFlags |= D3D11_RESOURCE_MISC_SHARED;			// To be shared. maybe D3D11_RESOURCE_MISC_SHARED_KEYEDMUTEX is better
+	desc.MiscFlags |= D3D11_RESOURCE_MISC_GENERATE_MIPS;	// Generate MipMaps for this texture, to help shimmering in VR.
+	
+	desc.MipLevels = 0;										// Whatever it was, force it to generate all mip levels.
 
 	hr = pDevice->CreateTexture2D(&desc, NULL, &gGameTexture);
 	if (FAILED(hr)) FatalExit(L"Fail to create shared stereo Texture");

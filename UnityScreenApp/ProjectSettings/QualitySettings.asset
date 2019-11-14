@@ -88,7 +88,7 @@ QualitySettings:
     particleRaycastBudget: 1024
     asyncUploadTimeSlice: 2
     asyncUploadBufferSize: 4
-    resolutionScalingFixedDPIFactor: 1
+    resolutionScalingFixedDPIFactor: 2
     excludedTargetPlatforms: []
   - serializedVersion: 2
     name: Ultra

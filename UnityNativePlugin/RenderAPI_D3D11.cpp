@@ -372,6 +372,8 @@ ID3D11ShaderResourceView* RenderAPI_D3D11::CreateSharedSurface(HANDLE shared)
 	// No need to change description, we want it to be the same as what the game
 	// specifies, so passing NULL to make it identical.
 
+	//ToDo: need a -1 for Mip levels?
+
 	hr = m_Device->CreateShaderResourceView(texture, NULL, &pSRView);
 	if (FAILED(hr))	FatalExit(L"Failed to CreateShaderResourceView.");
 

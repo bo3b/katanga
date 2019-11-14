@@ -47,8 +47,8 @@ public class Game : MonoBehaviour
 
     // If it's a Steam launch, these will be non-null.
     // ToDo: Non-functional Steam launch because DesktopGameTheater intercepts.
-    //string steamPath;
-    //string steamAppID;
+    string steamPath;
+    string steamAppID;
 
 
     static NktSpyMgr _spyMgr;
@@ -101,6 +101,7 @@ public class Game : MonoBehaviour
 
     public void ParseGameArgs(string[] args)
     {
+        launchArguments += " -window-mode exclusive";
         for (int i = 1; i < args.Length; i++)
         {
             if (args[i] == "--game-path")
@@ -118,16 +119,16 @@ public class Game : MonoBehaviour
                 i++;
                 launchType = ParseLaunchType<LaunchType>(args[i]);
             }
-            //else if (args[i] == "--steam-path")
-            //{
-            //    i++;
-            //    steamPath = args[i];
-            //}
-            //else if (args[i] == "--steam-appid")
-            //{
-            //    i++;
-            //    steamAppID = args[i];
-            //}
+            else if (args[i] == "--steam-path")
+            {
+                i++;
+                steamPath = args[i];
+            }
+            else if (args[i] == "--steam-appid")
+            {
+                i++;
+                steamAppID = args[i];
+            }
             else
             {
                 // Accumulate all other arguments into launchArguments for the game,
@@ -136,6 +137,7 @@ public class Game : MonoBehaviour
                 launchArguments += args[i] + " ";
             }
         }
+        
 
         //gamePath = @"W:\SteamLibrary\steamapps\common\BioShock Infinite\Binaries\Win32\bioshockinfinite.exe";
         //displayName = "Infinite";
@@ -155,6 +157,10 @@ public class Game : MonoBehaviour
         //gamePath = @"W:\SteamLibrary\steamapps\common\DiRT 4\dirt4.exe";
         //displayName = "Dirt4";
         //launchType = LaunchType.Exe;
+
+        gamePath = @"W:\SteamLibrary\steamapps\common\BlackTheFall\blackthefall.exe";
+        displayName = "Black";
+        launchType = LaunchType.Steam;
 
         //gamePath = @"W:\SteamLibrary\steamapps\common\Headlander\Headlander.exe";
         //displayName = "Headlander";
