@@ -118,16 +118,16 @@ public class Game : MonoBehaviour
                 i++;
                 launchType = ParseLaunchType<LaunchType>(args[i]);
             }
-            //else if (args[i] == "--steam-path")
-            //{
-            //    i++;
-            //    steamPath = args[i];
-            //}
-            //else if (args[i] == "--steam-appid")
-            //{
-            //    i++;
-            //    steamAppID = args[i];
-            //}
+            else if (args[i] == "--steam-path")
+            {
+                i++;
+                //    steamPath = args[i];
+            }
+            else if (args[i] == "--steam-appid")
+            {
+                i++;
+                //    steamAppID = args[i];
+            }
             else
             {
                 // Accumulate all other arguments into launchArguments for the game,
