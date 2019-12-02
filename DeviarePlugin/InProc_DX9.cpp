@@ -153,89 +153,6 @@ IDirect3DSurface9* gSharedTarget = nullptr;
 
 
 //-----------------------------------------------------------
-// StretchRect the stereo snapshot back onto the backbuffer so we can see what we got.
-// Keep aspect ratio intact, because we want to see if it's a stretched image.
-
-void DrawStereoOnGame(IDirect3DDevice9* device, IDirect3DSurface9* surface, IDirect3DSurface9* back)
-{
-	D3DSURFACE_DESC bufferDesc;
-	back->GetDesc(&bufferDesc);
-	RECT backBufferRect = { 0, 0, (LONG) bufferDesc.Width, (LONG) bufferDesc.Height };
-	RECT stereoImageRect = { 0, 0, (LONG) bufferDesc.Width * 2, (LONG) bufferDesc.Height };
-
-	int insetW = 300;
-	int insetH = (int)(300.0 * stereoImageRect.bottom / stereoImageRect.right);
-	RECT topScreen = { 5, 5, insetW, insetH };
-	device->StretchRect(surface, &stereoImageRect, back, &topScreen, D3DTEXF_NONE);
-}
-
-
-//-----------------------------------------------------------
-// Interface to implement the hook for IDirect3DDevice9->Present
-
-// This declaration serves a dual purpose of defining the interface routine as required by
-// DX9, and also is the storage for the original call, returned by nktInProc.Hook
-
-HRESULT (__stdcall *pOrigPresent)(IDirect3DDevice9* This,
-	/* [in] */ const RECT    *pSourceRect,
-	/* [in] */ const RECT    *pDestRect,
-	/* [in] */       HWND    hDestWindowOverride,
-	/* [in] */ const RGNDATA *pDirtyRegion
-	) = nullptr;
-
-
-// This is it. The one we are after.  This is the hook for the DX9 Present call
-// which the game will call for every frame.  At each call, we will make a copy
-// of whatever the game drew, and that will be passed along via the shared surface
-// to the VR layer.
-//
-// The StretchRect to the gGameSurface will be duplicated in the gSharedTarget. So
-// even though we are sharing the original Texture and not the target gGameSurface
-// here, we still expect it to be stereo and match the gGameSurface.
-
-HRESULT __stdcall Hooked_Present(IDirect3DDevice9* This,
-	/* [in] */ const RECT    *pSourceRect,
-	/* [in] */ const RECT    *pDestRect,
-	/* [in] */       HWND    hDestWindowOverride,
-	/* [in] */ const RGNDATA *pDirtyRegion)
-{
-	HRESULT hr;
-	IDirect3DSurface9* backBuffer;
-	
-	hr = This->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &backBuffer);
-	if (SUCCEEDED(hr) && gGameSurface > 0)
-	{
-		hr = NvAPI_Stereo_ReverseStereoBlitControl(gNVAPI, true);
-		{
-			hr = This->StretchRect(backBuffer, nullptr, gGameSurface, nullptr, D3DTEXF_NONE);
-			if (FAILED(hr))
-				::OutputDebugString(L"Bad StretchRect to Texture.\n");
-			hr = This->StretchRect(gGameSurface, nullptr, gSharedTarget, nullptr, D3DTEXF_NONE);
-
-//			SetEvent(gFreshBits);		// Signal other thread to start StretchRect
-		}
-		hr = NvAPI_Stereo_ReverseStereoBlitControl(gNVAPI, false);
-
-#ifdef _DEBUG
-		DrawStereoOnGame(This, gSharedTarget, backBuffer);
-#endif
-	}
-	backBuffer->Release();
-
-	HRESULT hrp = pOrigPresent(This, pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
-
-	//// Sync starting next frame with VR app.
-	//DWORD object;
-	//do
-	//{
-	//	object = WaitForSingleObject(gFreshBits, 0);
-	//} while (object != WAIT_OBJECT_0);
-
-	return hrp;
-}
-
-
-//-----------------------------------------------------------
 // Common code for both initial setup, and changing of the game resolution
 // via the Reset call.  When the shared gGameSharedHandle changes
 // from null or an prior version, the Unity side will pick it up
@@ -290,8 +207,93 @@ void CreateSharedRenderTarget(IDirect3DDevice9* pDevice9)
 	// Everything has been setup, or cleanly re-setup, and we can now enable the
 	// VR side to kick in and use the new surfaces.
 	gGameSharedHandle = tempSharedHandle;
-	
 }
+
+//-----------------------------------------------------------
+// StretchRect the stereo snapshot back onto the backbuffer so we can see what we got.
+// Keep aspect ratio intact, because we want to see if it's a stretched image.
+
+void DrawStereoOnGame(IDirect3DDevice9* device, IDirect3DSurface9* surface, IDirect3DSurface9* back)
+{
+	D3DSURFACE_DESC bufferDesc;
+	back->GetDesc(&bufferDesc);
+	RECT backBufferRect = { 0, 0, (LONG) bufferDesc.Width, (LONG) bufferDesc.Height };
+	RECT stereoImageRect = { 0, 0, (LONG) bufferDesc.Width * 2, (LONG) bufferDesc.Height };
+
+	int insetW = 300;
+	int insetH = (int)(300.0 * stereoImageRect.bottom / stereoImageRect.right);
+	RECT topScreen = { 5, 5, insetW, insetH };
+	device->StretchRect(surface, &stereoImageRect, back, &topScreen, D3DTEXF_NONE);
+}
+
+
+//-----------------------------------------------------------
+// Interface to implement the hook for IDirect3DDevice9->Present
+
+// This declaration serves a dual purpose of defining the interface routine as required by
+// DX9, and also is the storage for the original call, returned by nktInProc.Hook
+
+HRESULT (__stdcall *pOrigPresent)(IDirect3DDevice9* This,
+	/* [in] */ const RECT    *pSourceRect,
+	/* [in] */ const RECT    *pDestRect,
+	/* [in] */       HWND    hDestWindowOverride,
+	/* [in] */ const RGNDATA *pDirtyRegion
+	) = nullptr;
+
+
+// This is it. The one we are after.  This is the hook for the DX9 Present call
+// which the game will call for every frame.  At each call, we will make a copy
+// of whatever the game drew, and that will be passed along via the shared surface
+// to the VR layer.
+//
+// The StretchRect to the gGameSurface will be duplicated in the gSharedTarget. So
+// even though we are sharing the original Texture and not the target gGameSurface
+// here, we still expect it to be stereo and match the gGameSurface.
+
+HRESULT __stdcall Hooked_Present(IDirect3DDevice9* This,
+	/* [in] */ const RECT    *pSourceRect,
+	/* [in] */ const RECT    *pDestRect,
+	/* [in] */       HWND    hDestWindowOverride,
+	/* [in] */ const RGNDATA *pDirtyRegion)
+{
+	HRESULT hr;
+	IDirect3DSurface9* backBuffer;
+	
+	if (gGameSharedHandle == nullptr)
+		CreateSharedRenderTarget(This);
+
+	hr = This->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &backBuffer);
+	if (SUCCEEDED(hr) && gGameSurface > 0)
+	{
+		hr = NvAPI_Stereo_ReverseStereoBlitControl(gNVAPI, true);
+		{
+			hr = This->StretchRect(backBuffer, nullptr, gGameSurface, nullptr, D3DTEXF_NONE);
+			if (FAILED(hr))
+				::OutputDebugString(L"Bad StretchRect to Texture.\n");
+			hr = This->StretchRect(gGameSurface, nullptr, gSharedTarget, nullptr, D3DTEXF_NONE);
+
+//			SetEvent(gFreshBits);		// Signal other thread to start StretchRect
+		}
+		hr = NvAPI_Stereo_ReverseStereoBlitControl(gNVAPI, false);
+
+#ifdef _DEBUG
+		DrawStereoOnGame(This, gSharedTarget, backBuffer);
+#endif
+	}
+	backBuffer->Release();
+
+	HRESULT hrp = pOrigPresent(This, pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
+
+	//// Sync starting next frame with VR app.
+	//DWORD object;
+	//do
+	//{
+	//	object = WaitForSingleObject(gFreshBits, 0);
+	//} while (object != WAIT_OBJECT_0);
+
+	return hrp;
+}
+
 
 //-----------------------------------------------------------
 //
@@ -323,10 +325,15 @@ HRESULT __stdcall Hooked_Reset(IDirect3DDevice9* This,
 	// will have stalled drawing in the VR side.  
 
 	if (gGameSurface)
+	{
 		gGameSurface->Release();
+		gGameSurface = NULL;
+	}
 	if (gSharedTarget)
+	{
 		gSharedTarget->Release();
-
+		gSharedTarget = NULL;
+	}
 
 	// Fire off the Reset.  After this is called every single texture on the
 	// device will have been released, including our shared one.  Any drawing
@@ -338,16 +345,11 @@ HRESULT __stdcall Hooked_Reset(IDirect3DDevice9* This,
 	if (pPresentationParameters)
 	{
 		wchar_t info[512];
-		swprintf_s(info, _countof(info), L"  Width: %d, Height: %d, Format: %d\n"
-			, pPresentationParameters->BackBufferWidth, pPresentationParameters->BackBufferHeight, pPresentationParameters->BackBufferFormat);
+		swprintf_s(info, _countof(info), L"IDirect3DDevice9->Reset, HR: %d,  Width: %d, Height: %d, Format: %d\n"
+			, hr, pPresentationParameters->BackBufferWidth, pPresentationParameters->BackBufferHeight, pPresentationParameters->BackBufferFormat);
 		::OutputDebugString(info);
 }
 #endif
-
-	// Setup the shared RenderTarget again, to match this updated backbuffer.
-	// This rebuilds the entire drawing chain all the way through to VR side.
-
-	CreateSharedRenderTarget(This);
 
 	return hr;
 }
@@ -746,12 +748,6 @@ HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 		// cause problems.
 		//res = NvAPI_Stereo_SetSurfaceCreationMode(__in gNVAPI, __in NVAPI_STEREO_SURFACECREATEMODE_FORCESTEREO);
 		//if (FAILED(res)) FatalExit(L"Failed to NvAPI_Stereo_SetSurfaceCreationMode\n");
-
-
-		// Create the duplicate stereo surface, which will then be copied into the
-		// gSharedTarget to share across to VR side.
-
-		CreateSharedRenderTarget(pDevice9);
 
 
 		// Since we are doing setup here, also create a thread that will be used to copy
