@@ -210,6 +210,55 @@ void CreateSharedRenderTarget(IDirect3DDevice9* pDevice9)
 }
 
 //-----------------------------------------------------------
+
+// Used for both CreateDevice and Reset functions, where we are setting up the
+// graphic environment, and thus cannot allow the VR side to draw using anything
+// from here.
+
+void CaptureSetupMutex()
+{
+	DWORD waitResult;
+
+	::OutputDebugString(L"DX9 setup-  Capture Mutex\n");
+
+	if (gSetupMutex == NULL)
+		FatalExit(L"DX9 setup: mutex does not exist.");
+
+	waitResult = WaitForSingleObject(gSetupMutex, 1000);
+	if (waitResult != WAIT_OBJECT_0)
+	{
+		wchar_t info[512];
+		DWORD hr = GetLastError();
+		swprintf_s(info, _countof(info), L"DX9 CaptureSetupMutex: WaitForSingleObject failed. waitResult: 0x%x, err: 0x%x\n", waitResult, hr);
+		FatalExit(info);
+	}
+}
+
+// Release use of shared mutex, so the VR side can grab the mutex, and thus know that
+// it can fetch the shared surface and use it to draw.  Normal operation is that the
+// VR side grabs and releases the mutex for every frame, and is only blocked when
+// we are setting up the graphics environment here, either as first run where this
+// side creates the mutex as active and locked, or when Reset is called and we grab
+// the mutex to lock out the VR side.
+
+void ReleaseSetupMutex()
+{
+	::OutputDebugString(L"DX9 setup- Release Mutex\n");
+
+	if (gSetupMutex == NULL)
+		FatalExit(L"DX9 setup: mutex does not exist.");
+
+	bool ok = ReleaseMutex(gSetupMutex);
+	if (!ok)
+	{
+		wchar_t info[512];
+		DWORD hr = GetLastError();
+		swprintf_s(info, _countof(info), L"DX9 ReleaseSetupMutex: ReleaseMutex failed, err: %x\n", hr);
+		::OutputDebugString(info);
+	}
+}
+
+//-----------------------------------------------------------
 // StretchRect the stereo snapshot back onto the backbuffer so we can see what we got.
 // Keep aspect ratio intact, because we want to see if it's a stretched image.
 
@@ -259,9 +308,6 @@ HRESULT __stdcall Hooked_Present(IDirect3DDevice9* This,
 	HRESULT hr;
 	IDirect3DSurface9* backBuffer;
 	
-	if (gGameSharedHandle == nullptr)
-		CreateSharedRenderTarget(This);
-
 	hr = This->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &backBuffer);
 	if (SUCCEEDED(hr) && gGameSurface > 0)
 	{
@@ -308,48 +354,61 @@ HRESULT(__stdcall *pOrigReset)(IDirect3DDevice9* This,
 HRESULT __stdcall Hooked_Reset(IDirect3DDevice9* This,
 	D3DPRESENT_PARAMETERS *pPresentationParameters)
 {
-	// As soon as we know we are setting up a new resolution, we want to set the
-	// gGameSharedHandle to null, to notify the VR side that this is going away.
-	// Given the async and multi-threaded nature of these pieces in different
-	// processes, it's not clear if this will work in every case. 
-	//
-	// ToDo: We might need to keep VR and game side in sync to avoid dead texture use.
-	//
-	// No good way to properly dispose of this shared handle, we cannot CloseHandle
-	// because it's not a real handle.  Microsoft.  Geez.
+	HRESULT hr;
 
-	gGameSharedHandle = nullptr;
-
-	// We are also supposed to release any of our rendertargets before calling
-	// Reset, so let's go ahead and release these, now that the null gGameSharedHandle
-	// will have stalled drawing in the VR side.  
-
-	if (gGameSurface)
+	// Grab the KatangaSetupMutex, so that the VR side will be locked out of touching
+	// any shared surfaces until we rebuild the shared surface after CreateRenderedSurface.
+	CaptureSetupMutex();
 	{
-		gGameSurface->Release();
-		gGameSurface = NULL;
-	}
-	if (gSharedTarget)
-	{
-		gSharedTarget->Release();
-		gSharedTarget = NULL;
-	}
 
-	// Fire off the Reset.  After this is called every single texture on the
-	// device will have been released, including our shared one.  Any drawing
-	// use our shared texture can thus crash the device.
+		// As soon as we know we are setting up a new resolution, we want to set the
+		// gGameSharedHandle to null, to notify the VR side that this is going away.
+		// Given the async and multi-threaded nature of these pieces in different
+		// processes, it's not clear if this will work in every case. 
+		//
+		// ToDo: We might need to keep VR and game side in sync to avoid dead texture use.
+		//
+		// No good way to properly dispose of this shared handle, we cannot CloseHandle
+		// because it's not a real handle.  Microsoft.  Geez.
 
-	HRESULT hr = pOrigReset(This, pPresentationParameters);
+		gGameSharedHandle = nullptr;
+
+		// We are also supposed to release any of our rendertargets before calling
+		// Reset, so let's go ahead and release these, now that the null gGameSharedHandle
+		// will have stalled drawing in the VR side.  
+
+		if (gGameSurface)
+		{
+			gGameSurface->Release();
+			gGameSurface = NULL;
+		}
+		if (gSharedTarget)
+		{
+			gSharedTarget->Release();
+			gSharedTarget = NULL;
+		}
+
+		// Fire off the Reset.  After this is called every single texture on the
+		// device will have been released, including our shared one.  Any drawing
+		// use our shared texture can thus crash the device.
+
+		hr = pOrigReset(This, pPresentationParameters);
 
 #ifdef _DEBUG
-	if (pPresentationParameters)
-	{
-		wchar_t info[512];
-		swprintf_s(info, _countof(info), L"IDirect3DDevice9->Reset, HR: %d,  Width: %d, Height: %d, Format: %d\n"
-			, hr, pPresentationParameters->BackBufferWidth, pPresentationParameters->BackBufferHeight, pPresentationParameters->BackBufferFormat);
-		::OutputDebugString(info);
-}
+		if (pPresentationParameters)
+		{
+			wchar_t info[512];
+			swprintf_s(info, _countof(info), L"IDirect3DDevice9->Reset, HR: %d,  Width: %d, Height: %d, Format: %d\n"
+				, hr, pPresentationParameters->BackBufferWidth, pPresentationParameters->BackBufferHeight, pPresentationParameters->BackBufferFormat);
+			::OutputDebugString(info);
+		}
 #endif
+
+		// With this new graphic environment, reset the shared surfaces for VR side.
+		CreateSharedRenderTarget(This);
+	}
+	// All setup, allow VR side to draw using new surfaces.
+	ReleaseSetupMutex();
 
 	return hr;
 }
@@ -678,76 +737,87 @@ HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 		::OutputDebugString(info);
 	}
 
-	// This is called out in the debug layer as a potential performance problem, but the
-	// docs suggest adding this will slow things down.  It is unlikely to be actually
-	// necessary, because this is in the running game, and the other threads are actually
-	// in a different process altogether.  
-	// Direct3D9: (WARN) : Device that was created without D3DCREATE_MULTITHREADED is being used by a thread other than the creation thread.
-	// Also- this warning happens in TheBall, when run with only the debug layer. Not our fault.
-	// But, we are doing multithreaded StretchRect now, so let's add this.  Otherwise we get a
-	// a crash.  Not certain this is best, said to slow things down.
-	//BehaviorFlags |= D3DCREATE_MULTITHREADED;
-
-	// Run original call game is expecting.
-	// This will return a IDirect3DDevice9Ex variant regardless, but using the original
-	// call allows us to avoid a lot of weirdness with full screen handling.
-
-	hr = pOrigCreateDevice(This, Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters,
-		ppReturnedDeviceInterface);
-	if (FAILED(hr)) FatalExit(L"Failed to create IDirect3DDevice9");
-
-
-	// Using that fresh DX9 Device, we can now hook the Present and CreateTexture calls.
-
-	IDirect3DDevice9* pDevice9 = *ppReturnedDeviceInterface;
-
-	if (pOrigPresent == nullptr && SUCCEEDED(hr) && ppReturnedDeviceInterface != nullptr)
+	// Block the VR side from drawing, until we are done setting up graphics.
+	// By capturing this mutex, we force them to draw grey.
+	CaptureSetupMutex();
 	{
-		SIZE_T hook_id;
-		DWORD dwOsErr;
-		
-		dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigPresent,
-			lpvtbl_Present_DX9(pDevice9), Hooked_Present, 0);
-		if (FAILED(dwOsErr))
-			::OutputDebugStringA("Failed to hook IDirect3DDevice9::Present\n");
+		// This is called out in the debug layer as a potential performance problem, but the
+		// docs suggest adding this will slow things down.  It is unlikely to be actually
+		// necessary, because this is in the running game, and the other threads are actually
+		// in a different process altogether.  
+		// Direct3D9: (WARN) : Device that was created without D3DCREATE_MULTITHREADED is being used by a thread other than the creation thread.
+		// Also- this warning happens in TheBall, when run with only the debug layer. Not our fault.
+		// But, we are doing multithreaded StretchRect now, so let's add this.  Otherwise we get a
+		// a crash.  Not certain this is best, said to slow things down.
+		//BehaviorFlags |= D3DCREATE_MULTITHREADED;
 
-		dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigReset,
-			lpvtbl_Reset(pDevice9), Hooked_Reset, 0);
-		if (FAILED(dwOsErr))
-			::OutputDebugStringA("Failed to hook IDirect3DDevice9::Reset\n");
+		// Run original call game is expecting.
+		// This will return a IDirect3DDevice9Ex variant regardless, but using the original
+		// call allows us to avoid a lot of weirdness with full screen handling.
 
-		dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigCreateTexture,
-			lpvtbl_CreateTexture(pDevice9), Hooked_CreateTexture, 0);
-		if (FAILED(dwOsErr))
-			::OutputDebugStringA("Failed to hook IDirect3DDevice9::CreateTexture\n");
-
-		dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigCreateCubeTexture,
-			lpvtbl_CreateCubeTexture(pDevice9), Hooked_CreateCubeTexture, 0);
-		if (FAILED(dwOsErr))
-			::OutputDebugStringA("Failed to hook IDirect3DDevice9::CreateCubeTexture\n");
-
-		dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigCreateVertexBuffer,
-			lpvtbl_CreateVertexBuffer(pDevice9), Hooked_CreateVertexBuffer, 0);
-		if (FAILED(dwOsErr))
-			::OutputDebugStringA("Failed to hook IDirect3DDevice9::CreateVertexBuffer\n");
-
-		dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigCreateIndexBuffer,
-			lpvtbl_CreateIndexBuffer(pDevice9), Hooked_CreateIndexBuffer, 0);
-		if (FAILED(dwOsErr))
-			::OutputDebugStringA("Failed to hook IDirect3DDevice9::CreateIndexBuffer\n");
+		hr = pOrigCreateDevice(This, Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters,
+			ppReturnedDeviceInterface);
+		if (FAILED(hr)) FatalExit(L"Failed to create IDirect3DDevice9");
 
 
-		NvAPI_Status res = NvAPI_Initialize();
-		if (res != NVAPI_OK) FatalExit(L"NVidia driver not available.\n\nFailed to NvAPI_Initialize\n");
+		// Using that fresh DX9 Device, we can now hook the Present and CreateTexture calls.
 
-		res = NvAPI_Stereo_CreateHandleFromIUnknown(pDevice9, &gNVAPI);
-		if (res != NVAPI_OK) FatalExit(L"3D Vision is not enabled.\n\nFailed to NvAPI_Stereo_CreateHandleFromIUnknown\n");
+		IDirect3DDevice9* pDevice9 = *ppReturnedDeviceInterface;
 
-		// ToDo: Is this necessary?
-		// Seems like I just added it without knowing impact. Since we create 2x buffer, might just 
-		// cause problems.
-		//res = NvAPI_Stereo_SetSurfaceCreationMode(__in gNVAPI, __in NVAPI_STEREO_SURFACECREATEMODE_FORCESTEREO);
-		//if (FAILED(res)) FatalExit(L"Failed to NvAPI_Stereo_SetSurfaceCreationMode\n");
+		if (pOrigPresent == nullptr && SUCCEEDED(hr) && ppReturnedDeviceInterface != nullptr)
+		{
+			SIZE_T hook_id;
+			DWORD dwOsErr;
+
+			dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigPresent,
+				lpvtbl_Present_DX9(pDevice9), Hooked_Present, 0);
+			if (FAILED(dwOsErr))
+				::OutputDebugStringA("Failed to hook IDirect3DDevice9::Present\n");
+
+			dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigReset,
+				lpvtbl_Reset(pDevice9), Hooked_Reset, 0);
+			if (FAILED(dwOsErr))
+				::OutputDebugStringA("Failed to hook IDirect3DDevice9::Reset\n");
+
+			dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigCreateTexture,
+				lpvtbl_CreateTexture(pDevice9), Hooked_CreateTexture, 0);
+			if (FAILED(dwOsErr))
+				::OutputDebugStringA("Failed to hook IDirect3DDevice9::CreateTexture\n");
+
+			dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigCreateCubeTexture,
+				lpvtbl_CreateCubeTexture(pDevice9), Hooked_CreateCubeTexture, 0);
+			if (FAILED(dwOsErr))
+				::OutputDebugStringA("Failed to hook IDirect3DDevice9::CreateCubeTexture\n");
+
+			dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigCreateVertexBuffer,
+				lpvtbl_CreateVertexBuffer(pDevice9), Hooked_CreateVertexBuffer, 0);
+			if (FAILED(dwOsErr))
+				::OutputDebugStringA("Failed to hook IDirect3DDevice9::CreateVertexBuffer\n");
+
+			dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigCreateIndexBuffer,
+				lpvtbl_CreateIndexBuffer(pDevice9), Hooked_CreateIndexBuffer, 0);
+			if (FAILED(dwOsErr))
+				::OutputDebugStringA("Failed to hook IDirect3DDevice9::CreateIndexBuffer\n");
+
+
+			NvAPI_Status res = NvAPI_Initialize();
+			if (res != NVAPI_OK) FatalExit(L"NVidia driver not available.\n\nFailed to NvAPI_Initialize\n");
+
+			res = NvAPI_Stereo_CreateHandleFromIUnknown(pDevice9, &gNVAPI);
+			if (res != NVAPI_OK) FatalExit(L"3D Vision is not enabled.\n\nFailed to NvAPI_Stereo_CreateHandleFromIUnknown\n");
+
+			// ToDo: Is this necessary?
+			// Seems like I just added it without knowing impact. Since we create 2x buffer, might just 
+			// cause problems.
+			//res = NvAPI_Stereo_SetSurfaceCreationMode(__in gNVAPI, __in NVAPI_STEREO_SURFACECREATEMODE_FORCESTEREO);
+			//if (FAILED(res)) FatalExit(L"Failed to NvAPI_Stereo_SetSurfaceCreationMode\n");
+
+
+			// Setup shared surface for capturing blits during Present.
+			CreateSharedRenderTarget(pDevice9);
+		}
+		// All setup, OK for VR side to draw with using new surfaces.
+		ReleaseSetupMutex();
 
 
 		// Since we are doing setup here, also create a thread that will be used to copy

@@ -133,6 +133,22 @@ extern "C" UNITY_INTERFACE_EXPORT DXGI_FORMAT UNITY_INTERFACE_API GetGameFormat(
 	return s_CurrentAPI->GetGameFormat();
 }
 
+extern "C" UNITY_INTERFACE_EXPORT void UNITY_INTERFACE_API CreateSetupMutex()
+{
+	return s_CurrentAPI->CreateSetupMutex();
+}
+extern "C" UNITY_INTERFACE_EXPORT bool UNITY_INTERFACE_API GrabSetupMutex()
+{
+	return s_CurrentAPI->GrabSetupMutex();
+}
+extern "C" UNITY_INTERFACE_EXPORT void UNITY_INTERFACE_API ReleaseSetupMutex()
+{
+	return s_CurrentAPI->ReleaseSetupMutex();
+}
+extern "C" UNITY_INTERFACE_EXPORT void UNITY_INTERFACE_API DestroySetupMutex()
+{
+	return s_CurrentAPI->DestroySetupMutex();
+}
 
 static void ModifyTexturePixels()
 {

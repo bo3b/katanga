@@ -40,8 +40,12 @@ CNktHookLib nktInProc;
 // Required for reverse stereo blit to give us stereo backbuffer.
 StereoHandle gNVAPI = nullptr;
 
-// The actual shared Handle to the DX11 VR side.  Filled in by an active InProc_*.
+// The actual shared Handle to the DX11 or DX9 VR side.  Filled in by an active InProc_*.
 HANDLE gGameSharedHandle = nullptr;
+
+// The Named Mutex to prevent the VR side from interfering with game side, during
+// the creation or reset of the graphic device.
+HANDLE gSetupMutex = nullptr;
 
 
 // --------------------------------------------------------------------------------------------------
@@ -85,6 +89,14 @@ HRESULT WINAPI OnLoad()
 {
 	::OutputDebugStringA("NativePlugin::OnLoad called\n");
 
+	// Setup shared mutex, with the VR side owning it.  We should never arrive
+	// here without the Katanga side already having created it.
+	// We will grab mutex to lock their drawing, whenever we are setting up
+	// the shared surface.
+	gSetupMutex = OpenMutex(SYNCHRONIZE, false, L"KatangaSetupMutex");
+	if (gSetupMutex == NULL)
+		FatalExit(L"OnLoad: could not find KatangaSetupMutex");
+
 	// This is running inside the game itself, so make sure we can use
 	// COM here.
 	::CoInitializeEx(NULL, COINIT_MULTITHREADED);
@@ -108,6 +120,8 @@ VOID WINAPI OnUnload()
 {
 	::OutputDebugStringA("NativePlugin::OnUnLoad called\n");
 
+	if (gSetupMutex != NULL)
+		ReleaseMutex(gSetupMutex);
 	return;
 }
 

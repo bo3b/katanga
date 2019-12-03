@@ -53,6 +53,11 @@ public:
 	virtual UINT GetGameHeight();
 	virtual DXGI_FORMAT GetGameFormat();
 
+	virtual void CreateSetupMutex();
+	virtual bool GrabSetupMutex();
+	virtual void ReleaseSetupMutex();
+	virtual void DestroySetupMutex();
+
 private:
 	void CreateResources();
 	void ReleaseResources();
@@ -75,6 +80,9 @@ private:
 	UINT gWidth;
 	UINT gHeight;
 	DXGI_FORMAT gFormat;
+
+	// Mutex to avoid collisions from VR to game sides.  
+	HANDLE gSetupMutex = NULL;
 
 	//ID3D11Texture2D* m_SharedSurface;	// Same as DX9Ex surface
 };
@@ -304,6 +312,87 @@ void RenderAPI_D3D11::EndModifyTexture(void* textureHandle, int textureWidth, in
 }
 
 
+// ----------------------------------------------------------------------
+// Mutex handling is here because of the antique mono runtime does not support the
+// needed OpenMutex function.  We can do everything we need with this plugin.
+//
+// This section of code 'owns' the mutex, as it makes more sense for the VR side to
+// create and manage the mutex, because it is grabbing and releasing it every frame.
+// This allows us to set this up in a simpler fashion.  The game side will grab the
+// mutex only on really rare scenarios like first start, or reset of the graphics.
+
+void RenderAPI_D3D11::CreateSetupMutex()
+{
+	::OutputDebugString(L"\nRenderAPI_D3D11::CreateSetupMutex\n");
+
+	if (gSetupMutex != NULL)
+		FatalExit(L"RenderAPI_D3D11::CreateSetupMutex called, but already created.");
+
+	gSetupMutex = CreateMutex(NULL, false, L"KatangaSetupMutex");
+	if (gSetupMutex == NULL)
+	{
+		DWORD hr = GetLastError();
+		wchar_t info[512];
+		swprintf_s(info, _countof(info),
+			L"RenderAPI_D3D11::CreateSetupMutex failed. err: 0x%x\n", hr);
+		FatalExit(info);
+	}
+}
+
+bool RenderAPI_D3D11::GrabSetupMutex()
+{
+	::OutputDebugString(L"RenderAPI_D3D11::GrabSetupMutex\n");
+
+	if (gSetupMutex == NULL)
+		FatalExit(L"RenderAPI_D3D11::GrabSetupMutex called, but mutex does not exist.");
+
+	// See if we can grab the mutex immediately.  Using 0 wait time, because
+	// we don't want to stall the drawing in the VR environment, we'll just
+	// draw grey screen if we are locked out.
+
+	DWORD wait = WaitForSingleObject(gSetupMutex, 1000);
+	if (wait != WAIT_OBJECT_0)
+	{
+		wchar_t info[512];
+		DWORD hr = GetLastError();
+		swprintf_s(info, _countof(info), L"RenderAPI_D3D11::GrabSetupMutex: WaitForSingleObject failed. wait: 0x%x, err: 0x%x\n", wait, hr);
+		::OutputDebugString(info);
+
+		return false;
+	}
+
+	return true;
+}
+
+void RenderAPI_D3D11::ReleaseSetupMutex()
+{
+	::OutputDebugString(L"RenderAPI_D3D11::ReleaseSetupMutex\n");
+
+	if (gSetupMutex == NULL)
+		FatalExit(L"RenderAPI_D3D11::ReleaseSetupMutex: Mutex released before initialized.");
+
+	bool ok = ReleaseMutex(gSetupMutex);
+	if (!ok)
+	{
+		wchar_t info[512];
+		DWORD hr = GetLastError();
+		swprintf_s(info, _countof(info), L"RenderAPI_D3D11::ReleaseSetupMutex: ReleaseMutex failed, err: 0x%x\n", hr);
+		::OutputDebugString(info);
+	}
+}
+
+void RenderAPI_D3D11::DestroySetupMutex()
+{
+	::OutputDebugString(L"\nRenderAPI_D3D11::DestroySetupMutex\n");
+
+	if (gSetupMutex == NULL)
+		FatalExit(L"RenderAPI_D3D11::DestroySetupMutex: Mutex does not exist.");
+
+	ReleaseMutex(gSetupMutex);
+	CloseHandle(gSetupMutex);
+}
+
+// ----------------------------------------------------------------------
 UINT RenderAPI_D3D11::GetGameWidth()
 {
 	return gWidth;

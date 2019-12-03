@@ -15,4 +15,10 @@ EXPORTS
    GetGameWidth
    GetGameHeight
    GetGameFormat
+   
+   CreateSetupMutex
+   GrabSetupMutex
+   ReleaseSetupMutex
+   DestroySetupMutex
+
    TriggerEvent

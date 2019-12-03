@@ -42,6 +42,11 @@ public:
 	virtual UINT GetGameWidth() = 0;
 	virtual UINT GetGameHeight() = 0;
 	virtual DXGI_FORMAT GetGameFormat() = 0;
+
+	virtual void CreateSetupMutex() = 0;
+	virtual bool GrabSetupMutex() = 0;
+	virtual void ReleaseSetupMutex() = 0;
+	virtual void DestroySetupMutex() = 0;
 };
 
 

@@ -5,6 +5,7 @@ using System.IO;
 using UnityEngine;
 using UnityEngine.UI;
 using System.Collections;
+using System.Threading;
 
 public class LaunchAndPlay : MonoBehaviour
 {
@@ -29,11 +30,18 @@ public class LaunchAndPlay : MonoBehaviour
 
     // The very first thing that happens for the app.
 
+    [DllImport("UnityNativePlugin64")]
+    private static extern void CreateSetupMutex();
+
     private void Awake()
     {
         // Set our FatalExit as the handler for exceptions so that we get usable 
         // information from the users.
         Application.logMessageReceived += FatalExit;
+
+        // Create the mutex used to block drawing when the game side is busy rebuilding
+        // the graphic environment.
+        CreateSetupMutex();
     }
 
     // -----------------------------------------------------------------------------
@@ -54,6 +62,9 @@ public class LaunchAndPlay : MonoBehaviour
 
         // Allow the launching process to continue asychronously.
         StartCoroutine(game.Launch());
+
+        // Start drawing cycle to run at EndOfFrame
+        StartCoroutine(EndOfFrame());
     }
 
     // -----------------------------------------------------------------------------
@@ -206,15 +217,21 @@ public class LaunchAndPlay : MonoBehaviour
     // Update is called once per frame, before rendering. Great diagram:
     // https://docs.unity3d.com/Manual/ExecutionOrder.html
 
-    void Update()
+    [DllImport("UnityNativePlugin64")]
+    private static extern bool GrabSetupMutex();
+
+    void LateUpdate()
     {
         // Keep checking for a change in resolution by the game. This needs to be
         // done every frame to avoid using textures disposed by Reset.
+        // During actual drawing, from LateUpdate to FixedUpdate, we want to lock
+        // out the game side from changing the underlying graphics.  
 
-        // ToDo: Seems pretty likely to be a race condition this way.  
-        // Can be destroyed in mid-use.  Hangs/crashes at resolution changes?
-
-        PollForSharedSurface();
+        bool okToDraw = GrabSetupMutex();
+        if (!okToDraw)
+            screenMaterial.mainTexture = greyTexture;
+        else
+            PollForSharedSurface();
 
         // Doing GC on an ongoing basis is recommended for VR, to avoid weird stalls
         // at random times.
@@ -227,6 +244,34 @@ public class LaunchAndPlay : MonoBehaviour
             Application.Quit();
     }
 
+    // Waits for the end of frame, after all rendering is complete. At this point,
+    // we are not in conflict with game side, and we can relinquish the Mutex.
+    // We lock out the game side from LateUpdate until WaitForEndOfFrame, because
+    // we might be drawing from the shared surface.
+
+    [DllImport("UnityNativePlugin64")]
+    private static extern bool ReleaseSetupMutex();
+
+    private IEnumerator EndOfFrame()
+    {
+        while (true)
+        {
+            yield return new WaitForEndOfFrame();
+
+            ReleaseSetupMutex();
+        }
+    }
+
+
+    // -----------------------------------------------------------------------------
+
+    [DllImport("UnityNativePlugin64")]
+    private static extern void DestroySetupMutex();
+
+    private void OnApplicationQuit()
+    {
+        DestroySetupMutex();
+    }
 
     // -----------------------------------------------------------------------------
 
