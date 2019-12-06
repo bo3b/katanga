@@ -58,7 +58,7 @@ bool gDirectMode = false;
 
 //HANDLE WINAPI GetEventHandle(int* in)
 //{
-//	::OutputDebugString(L"GetSharedEvent::\n");
+//	fprintf(LogFile, "GetSharedEvent::\n");
 //
 //	return gFreshBits;
 //}
@@ -71,14 +71,14 @@ bool gDirectMode = false;
 //
 //HANDLE WINAPI TriggerEvent(int* in)
 //{
-//	//	::OutputDebugString(L"TriggerEvent::\n");
+//	//	fprintf(LogFile, "TriggerEvent::\n");
 //
 //
 //	if ((int)in == 1)		// Active triggered
 //	{
 //		BOOL set = SetEvent(gFreshBits);
 //		if (!set)
-//			::OutputDebugString(L"Bad SetEvent in TriggerEvent.\n");
+//			fprintf(LogFile, "Bad SetEvent in TriggerEvent.\n");
 //
 //		// Waste time spinning, while we wait for high resolution timer.
 //		// This timer using QueryPerformanceCounter should be accurate
@@ -94,14 +94,14 @@ bool gDirectMode = false;
 //			LONGLONG startMS = startTriggeredTicks.QuadPart * 1000 / frequency.QuadPart;
 //			swprintf_s(info, _countof(info),
 //				L"SetEvent - ms: %lld, frequency: %lld, triggerCount: %d\n", startMS, frequency.QuadPart, triggerCount);
-//			::OutputDebugString(info);
+//			fprintf(LogFile, info);
 //		}
 //	}
 //	else					// Reset untriggered
 //	{
 //		BOOL reset = ResetEvent(gFreshBits);
 //		if (!reset)
-//			::OutputDebugString(L"Bad ResetEvent in TriggerEvent.\n");
+//			fprintf(LogFile, "Bad ResetEvent in TriggerEvent.\n");
 //
 //		QueryPerformanceCounter(&resetTriggerTicks);
 //
@@ -111,7 +111,7 @@ bool gDirectMode = false;
 //			LONGLONG endMS = frameTicks * 1000 / frequency.QuadPart;
 //			swprintf_s(info, _countof(info),
 //				L"ResetEvent - ms: %lld\n", endMS);
-//			::OutputDebugString(info);
+//			fprintf(LogFile, info);
 //		}
 //	}
 //
@@ -348,7 +348,7 @@ HRESULT __stdcall Hooked_Present(IDXGISwapChain * This,
 //		hr = device->StretchRect(gGameSurface, nullptr, gSharedTarget, nullptr, D3DTEXF_NONE);
 //		// Not supposed to use CLR.
 //		//if (FAILED(hr))
-//		//	::OutputDebugString(L"Bad StretchRect to RenderTarget in CopyGameToShared thread.\n");
+//		//	fprintf(LogFile, "Bad StretchRect to RenderTarget in CopyGameToShared thread.\n");
 //
 //		reset = ResetEvent(gFreshBits);
 //		if (!reset)
@@ -386,6 +386,8 @@ HRESULT __stdcall Hooked_ResizeBuffers(IDXGISwapChain* This,
 {
 	HRESULT hr;
 
+	fprintf(LogFile, "NativePlugin::Hooked_ResizeBuffers called\n");
+
 	// Grab the KatangaSetupMutex, so that the VR side will be locked out of touching
 	// any shared surfaces until we rebuild the shared surface after CreateRenderedSurface.
 	CaptureSetupMutex();
@@ -402,15 +404,8 @@ HRESULT __stdcall Hooked_ResizeBuffers(IDXGISwapChain* This,
 
 		gGameSharedHandle = nullptr;
 
-#ifdef _DEBUG
-		wchar_t info[512];
 
-		::OutputDebugString(L"NativePlugin::Hooked_ResizeBuffers called\n");
-
-		swprintf_s(info, _countof(info), L"  Width: %d, Height: %d, Format: %d\n"
-			, Width, Height, NewFormat);
-		::OutputDebugString(info);
-#endif
+		fprintf(LogFile, "  Width: %d, Height: %d, Format: %d\n", Width, Height, NewFormat);
 
 		// Run original call game is expecting.
 
@@ -448,18 +443,18 @@ HRESULT __stdcall Hooked_CreateSwapChainForHwnd(IDXGIFactory2 * This,
 {
 	HRESULT hr;
 
-#ifdef _DEBUG
-	wchar_t info[512];
-
-	::OutputDebugString(L"NativePlugin::Hooked_CreateSwapChainForHwnd called\n");
-
-	if (pDesc)
-	{
-		swprintf_s(info, _countof(info), L"  Width: %d, Height: %d, Format: %d\n"
-			, pDesc->Width, pDesc->Height, pDesc->Format);
-		::OutputDebugString(info);
-	}
-#endif
+//#ifdef _DEBUG
+//	wchar_t info[512];
+//
+//	fprintf(LogFile, "NativePlugin::Hooked_CreateSwapChainForHwnd called\n");
+//
+//	if (pDesc)
+//	{
+//		swprintf_s(info, _countof(info), L"  Width: %d, Height: %d, Format: %d\n"
+//			, pDesc->Width, pDesc->Height, pDesc->Format);
+//		fprintf(LogFile, info);
+//	}
+//#endif
 
 	// Run original call game is expecting.
 
@@ -497,19 +492,11 @@ HRESULT __stdcall Hooked_CreateSwapChain(IDXGIFactory1 * This,
 	_COM_Outptr_  IDXGISwapChain **ppSwapChain)
 {
 	HRESULT hr;
-
-#ifdef _DEBUG
-	wchar_t info[512];
-
-	::OutputDebugString(L"NativePlugin::Hooked_CreateSwapChain called\n");
+	
+	fprintf(LogFile, "NativePlugin::Hooked_CreateSwapChain called\n");
 
 	if (pDesc)
-	{
-		swprintf_s(info, _countof(info), L"  Width: %d, Height: %d, Format: %d\n"
-			, pDesc->BufferDesc.Width, pDesc->BufferDesc.Height, pDesc->BufferDesc.Format);
-		::OutputDebugString(info);
-	}
-#endif
+		fprintf(LogFile, "  Width: %d, Height: %d, Format: %d\n", pDesc->BufferDesc.Width, pDesc->BufferDesc.Height, pDesc->BufferDesc.Format);
 
 	// Run original call game is expecting.
 
@@ -621,12 +608,12 @@ void HookPresent(IDXGISwapChain* pSwapChain)
 		dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigPresent,
 			lpvtbl_Present_DX11(pSwapChain), Hooked_Present, 0);
 		if (FAILED(dwOsErr))
-			::OutputDebugStringA("Failed to hook IDXGISwapChain::Present\n");
+			fprintf(LogFile, "Failed to hook IDXGISwapChain::Present\n");
 
 		dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigResizeBuffers,
 			lpvtbl_ResizeBuffers(pSwapChain), Hooked_ResizeBuffers, 0);
 		if (FAILED(dwOsErr))
-			::OutputDebugStringA("Failed to hook IDXGISwapChain::ResizeBuffers\n");
+			fprintf(LogFile, "Failed to hook IDXGISwapChain::ResizeBuffers\n");
 
 		// Create Texture2D and HANDLE we'll use to share the stereo game bits across
 		// the process boundary.
@@ -687,12 +674,7 @@ NvAPI_Status __cdecl Hooked_NvAPI_Stereo_SetDriverMode(NV_STEREO_DRIVER_MODE mod
 
 	NvAPI_Status ret = pOrigNvAPI_Stereo_SetDriverMode(mode);
 
-#ifdef _DEBUG
-	wchar_t info[512];
-	swprintf_s(info, _countof(info),
-		L"NativePlugin::Hooked_NvAPI_Stereo_SetDriverMode - mode: %d  ret: %d\n", mode, ret);
-	::OutputDebugString(info);
-#endif
+	fprintf(LogFile, "NativePlugin::Hooked_NvAPI_Stereo_SetDriverMode - mode: %d  ret: %d\n", mode, ret);
 
 	return ret;
 }
@@ -782,7 +764,7 @@ Status::Enum FindAndHookPresent()
 	HMODULE libD3D11;
 	if ((libD3D11 = ::GetModuleHandle(KIERO_TEXT("d3d11.dll"))) == NULL)
 	{
-		::OutputDebugStringA("Failed to load d3d11.dll\n");
+		fprintf(LogFile, "Failed to load d3d11.dll\n");
 		::DestroyWindow(window);
 		::UnregisterClass(windowClass.lpszClassName, windowClass.hInstance);
 		return Status::ModuleNotFoundError;
@@ -791,7 +773,7 @@ Status::Enum FindAndHookPresent()
 	void* fnD3D11CreateDeviceAndSwapChain;
 	if ((fnD3D11CreateDeviceAndSwapChain = ::GetProcAddress(libD3D11, "D3D11CreateDeviceAndSwapChain")) == NULL)
 	{
-		::OutputDebugStringA("Failed to GetProcAddress on D3D11CreateDeviceAndSwapChain\n");
+		fprintf(LogFile, "Failed to GetProcAddress on D3D11CreateDeviceAndSwapChain\n");
 		::DestroyWindow(window);
 		::UnregisterClass(windowClass.lpszClassName, windowClass.hInstance);
 		return Status::UnknownError;
@@ -846,7 +828,7 @@ Status::Enum FindAndHookPresent()
 		ID3D11DeviceContext**))(fnD3D11CreateDeviceAndSwapChain))(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, 0, NULL, NULL, D3D11_SDK_VERSION, &swapChainDesc, &swapChain, &device, NULL, &context);
 	if (FAILED(hr))
 	{
-		::OutputDebugStringA("Failed call to D3D11CreateDeviceAndSwapChain\n");
+		fprintf(LogFile, "Failed call to D3D11CreateDeviceAndSwapChain\n");
 		::DestroyWindow(window);
 		::UnregisterClass(windowClass.lpszClassName, windowClass.hInstance);
 		return Status::UnknownError;
@@ -871,7 +853,7 @@ Status::Enum FindAndHookPresent()
 	::DestroyWindow(window);
 	::UnregisterClass(windowClass.lpszClassName, windowClass.hInstance);
 
-	::OutputDebugStringA("Successfully hooked DXGI::Present\n");
+	fprintf(LogFile, "Successfully hooked DXGI::Present\n");
 
 	return Status::Success;
 }

@@ -8,8 +8,10 @@
 
 #include "DeviarePlugin.h"
 
+
 #include <atlbase.h>
 #include <thread>
+#include <shlobj_core.h>
 
 
 // We need the Deviare interface though, to be able to provide the OnLoad,
@@ -27,12 +29,13 @@
 #endif
 
 
-
-
 // --------------------------------------------------------------------------------------------------
 // Globals definition here, with extern reference in the .h file ensures that we 
 // only have a single instance of each.  Even though they aren't used in this
 // compilation unit, it is the named target of the project, so they belong here.
+
+// Always logging to Unity LocalLow file. 
+FILE* LogFile;
 
 // This is automatically instantiated by C++, so the hooking library
 // is immediately available.
@@ -60,7 +63,7 @@ HANDLE gSetupMutex = nullptr;
 HANDLE WINAPI GetSharedHandle(int* in)
 {
 #ifdef _DEBUG
-	::OutputDebugString(L"GetSharedHandle::\n");
+	fprintf(LogFile, "GetSharedHandle::\n");
 #endif
 
 	return gGameSharedHandle;
@@ -76,7 +79,8 @@ void CaptureSetupMutex()
 {
 	DWORD waitResult;
 
-	::OutputDebugString(L"-> CaptureSetupMutex@%d:\n");
+	std::thread::id tid = std::this_thread::get_id();
+	fprintf(LogFile, "-> CaptureSetupMutex@%d:\n", tid);
 
 	if (gSetupMutex == NULL)
 		FatalExit(L"CaptureSetupMutex: mutex does not exist.");
@@ -101,7 +105,8 @@ void CaptureSetupMutex()
 
 void ReleaseSetupMutex()
 {
-	::OutputDebugString(L"<- ReleaseSetupMutex@%d\n");
+	std::thread::id tid = std::this_thread::get_id();
+	fprintf(LogFile, "<- ReleaseSetupMutex@%d\n", tid);
 
 	if (gSetupMutex == NULL)
 		FatalExit(L"ReleaseSetupMutex: mutex does not exist.");
@@ -113,8 +118,28 @@ void ReleaseSetupMutex()
 		DWORD hr = GetLastError();
 		std::thread::id tid = std::this_thread::get_id();
 		swprintf_s(info, _countof(info), L"ReleaseSetupMutex@%d: ReleaseMutex failed, err: 0x%x\n", tid,  hr);
-		::OutputDebugString(info);
+		fwprintf(LogFile, info);
 	}
+}
+
+// --------------------------------------------------------------------------------------------------
+
+// A bit too involved for inline, let's put this log file creation/appending here.
+// Trying to append to whatever Unity is using to log, so that game side info will
+// be properly interspersed with VR side info.
+// If LogFile is null, we'll get errors on logging, but does not seem worth failing for.
+
+void OpenLogFile()
+{
+	// Fetch App Data LocalLow folder path where Unity log is stored.
+	wchar_t* localLowAppData = 0;
+	SHGetKnownFolderPath(FOLDERID_LocalAppDataLow, 0, NULL, &localLowAppData);
+
+	std::wstring localLowPath(localLowAppData);
+	std::wstring w_logFilePath = localLowPath + L"\\Katanga\\Katanga\\output_log.txt";
+	LPCWSTR logFilePath = w_logFilePath.c_str();
+
+	LogFile = _wfsopen(logFilePath, L"a", _SH_DENYNO);
 }
 
 // --------------------------------------------------------------------------------------------------
@@ -138,7 +163,9 @@ using namespace Deviare2;
 
 HRESULT WINAPI OnLoad()
 {
-	::OutputDebugStringA("NativePlugin::OnLoad called\n");
+	OpenLogFile();
+	
+	fprintf(LogFile, "NativePlugin::OnLoad called\n");
 
 	// This is running inside the game itself, so make sure we can use
 	// COM here.
@@ -170,7 +197,7 @@ HRESULT WINAPI OnLoad()
 
 VOID WINAPI OnUnload()
 {
-	::OutputDebugStringA("NativePlugin::OnUnLoad called\n");
+	fprintf(LogFile, "NativePlugin::OnUnLoad called\n");
 
 	if (gSetupMutex != NULL)
 		ReleaseMutex(gSetupMutex);
@@ -196,7 +223,7 @@ HRESULT WINAPI OnHookAdded(__in INktHookInfo *lpHookInfo, __in DWORD dwChainInde
 	lpHookInfo->get_Address(&address);
 	sprintf_s(szBufA, 1024, "DeviarePlugin::OnHookAdded called [Hook: %S @ 0x%IX / Chain:%lu]\n",
 		name, address, dwChainIndex);
-	::OutputDebugStringA(szBufA);
+	fprintf(LogFile, szBufA);
 
 	hr = lpHookInfo->CurrentProcess(&pProc);
 	if (FAILED(hr))
@@ -221,7 +248,7 @@ VOID WINAPI OnHookRemoved(__in INktHookInfo *lpHookInfo, __in DWORD dwChainIndex
 	lpHookInfo->get_Address(&address);
 	sprintf_s(szBufA, 1024, "DeviarePlugin::OnHookRemoved called [Hook: %S @ 0x%IX / Chain:%lu]\n",
 		name, address, dwChainIndex);
-	::OutputDebugStringA(szBufA);
+	fprintf(LogFile, szBufA);
 
 	return;
 }
@@ -274,7 +301,7 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 	lpHookInfo->get_Address(&address);
 	sprintf_s(szBufA, 1024, "DeviarePlugin::OnFunctionCall called [Hook: %S @ 0x%IX / Chain:%lu]\n",
 		name, address, dwChainIndex);
-	::OutputDebugStringA(szBufA);
+	fprintf(LogFile, szBufA);
 #endif
 
 
