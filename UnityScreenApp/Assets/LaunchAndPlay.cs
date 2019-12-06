@@ -17,6 +17,7 @@ public class LaunchAndPlay : MonoBehaviour
     // shared resource.
     Texture2D _bothEyes = null;
     System.Int32 gGameSharedHandle = 0;
+    bool ownMutex;
 
     // Original grey texture for the screen at launch, used again for resolution changes.
     public Renderer screen;
@@ -63,7 +64,8 @@ public class LaunchAndPlay : MonoBehaviour
         // Allow the launching process to continue asychronously.
         StartCoroutine(game.Launch());
 
-        // Start drawing cycle to run at EndOfFrame
+        // Start alternating drawing cycle to block mutex during drawing.
+        StartCoroutine(StartOfFrame());
         StartCoroutine(EndOfFrame());
     }
 
@@ -106,6 +108,7 @@ public class LaunchAndPlay : MonoBehaviour
     void PollForSharedSurface()
     {
         System.Int32 pollHandle = game.GetSharedHandle();
+        print("PollForSharedSurface handle: " + pollHandle);
 
         // When the game notifies us to Resize or Reset, we will set the gGameSharedHANDLE
         // to NULL to notify this side.  When this happens, immediately set the Quad
@@ -217,20 +220,16 @@ public class LaunchAndPlay : MonoBehaviour
     // Update is called once per frame, before rendering. Great diagram:
     // https://docs.unity3d.com/Manual/ExecutionOrder.html
 
-    [DllImport("UnityNativePlugin64")]
-    private static extern bool GrabSetupMutex();
-
-    void LateUpdate()
+    void Update()
     {
+        print("Update");
+
         // Keep checking for a change in resolution by the game. This needs to be
         // done every frame to avoid using textures disposed by Reset.
-        // During actual drawing, from LateUpdate to FixedUpdate, we want to lock
-        // out the game side from changing the underlying graphics.  
+        // During actual drawing, from yield null to yield WaitForEndOfFrame, we want
+        // to lock out the game side from changing the underlying graphics.  
 
-        bool okToDraw = GrabSetupMutex();
-        if (!okToDraw)
-            screenMaterial.mainTexture = greyTexture;
-        else
+        if (ownMutex)
             PollForSharedSurface();
 
         // Doing GC on an ongoing basis is recommended for VR, to avoid weird stalls
@@ -244,6 +243,33 @@ public class LaunchAndPlay : MonoBehaviour
             Application.Quit();
     }
 
+    // -----------------------------------------------------------------------------
+
+    // Default coroutine, that will run right before rendering, after Update,
+    // but before LateUpdate.  This allows us to lock our Mutex, to avoid
+    // conflicts during rendering.  This is setup up as a mirror image of the
+    // WaitForEndOfFrame, so that they remain exactly in sync.
+
+    [DllImport("UnityNativePlugin64")]
+    private static extern bool GrabSetupMutex();
+
+    private IEnumerator StartOfFrame()
+    {
+        print("Launch StartOfFrame");
+
+        while (true)
+        {
+            yield return null;
+
+            print("StartOfFrame");
+
+            ownMutex = GrabSetupMutex();
+            print("-> GrabSetupMutex: " + ownMutex);
+            if (!ownMutex)
+                screenMaterial.mainTexture = greyTexture;
+        }
+    }
+
     // Waits for the end of frame, after all rendering is complete. At this point,
     // we are not in conflict with game side, and we can relinquish the Mutex.
     // We lock out the game side from LateUpdate until WaitForEndOfFrame, because
@@ -254,11 +280,17 @@ public class LaunchAndPlay : MonoBehaviour
 
     private IEnumerator EndOfFrame()
     {
+        print("Launch EndOfFrame");
+
         while (true)
         {
+
             yield return new WaitForEndOfFrame();
 
-            ReleaseSetupMutex();
+            ownMutex = ReleaseSetupMutex();
+            print("<- ReleaseSetupMutex: " + ownMutex);
+
+            print("EndOfFrame");
         }
     }
 
@@ -270,6 +302,7 @@ public class LaunchAndPlay : MonoBehaviour
 
     private void OnApplicationQuit()
     {
+        ReleaseSetupMutex();
         DestroySetupMutex();
     }
 

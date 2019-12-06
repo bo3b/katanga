@@ -45,7 +45,7 @@ public:
 
 	virtual void CreateSetupMutex() = 0;
 	virtual bool GrabSetupMutex() = 0;
-	virtual void ReleaseSetupMutex() = 0;
+	virtual bool ReleaseSetupMutex() = 0;
 	virtual void DestroySetupMutex() = 0;
 };
 

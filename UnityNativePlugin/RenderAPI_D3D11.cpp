@@ -55,7 +55,7 @@ public:
 
 	virtual void CreateSetupMutex();
 	virtual bool GrabSetupMutex();
-	virtual void ReleaseSetupMutex();
+	virtual bool ReleaseSetupMutex();
 	virtual void DestroySetupMutex();
 
 private:
@@ -341,7 +341,7 @@ void RenderAPI_D3D11::CreateSetupMutex()
 
 bool RenderAPI_D3D11::GrabSetupMutex()
 {
-	::OutputDebugString(L"RenderAPI_D3D11::GrabSetupMutex\n");
+//	::OutputDebugString(L"RenderAPI_D3D11::GrabSetupMutex\n");
 
 	if (gSetupMutex == NULL)
 		FatalExit(L"RenderAPI_D3D11::GrabSetupMutex called, but mutex does not exist.");
@@ -350,7 +350,7 @@ bool RenderAPI_D3D11::GrabSetupMutex()
 	// we don't want to stall the drawing in the VR environment, we'll just
 	// draw grey screen if we are locked out.
 
-	DWORD wait = WaitForSingleObject(gSetupMutex, 1000);
+	DWORD wait = WaitForSingleObject(gSetupMutex, 100);
 	if (wait != WAIT_OBJECT_0)
 	{
 		wchar_t info[512];
@@ -364,9 +364,9 @@ bool RenderAPI_D3D11::GrabSetupMutex()
 	return true;
 }
 
-void RenderAPI_D3D11::ReleaseSetupMutex()
+bool RenderAPI_D3D11::ReleaseSetupMutex()
 {
-	::OutputDebugString(L"RenderAPI_D3D11::ReleaseSetupMutex\n");
+//	::OutputDebugString(L"RenderAPI_D3D11::ReleaseSetupMutex\n");
 
 	if (gSetupMutex == NULL)
 		FatalExit(L"RenderAPI_D3D11::ReleaseSetupMutex: Mutex released before initialized.");
@@ -379,6 +379,8 @@ void RenderAPI_D3D11::ReleaseSetupMutex()
 		swprintf_s(info, _countof(info), L"RenderAPI_D3D11::ReleaseSetupMutex: ReleaseMutex failed, err: 0x%x\n", hr);
 		::OutputDebugString(info);
 	}
+
+	return ok;
 }
 
 void RenderAPI_D3D11::DestroySetupMutex()

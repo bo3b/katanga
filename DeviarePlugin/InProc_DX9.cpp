@@ -210,55 +210,6 @@ void CreateSharedRenderTarget(IDirect3DDevice9* pDevice9)
 }
 
 //-----------------------------------------------------------
-
-// Used for both CreateDevice and Reset functions, where we are setting up the
-// graphic environment, and thus cannot allow the VR side to draw using anything
-// from here.
-
-void CaptureSetupMutex()
-{
-	DWORD waitResult;
-
-	::OutputDebugString(L"DX9 setup-  Capture Mutex\n");
-
-	if (gSetupMutex == NULL)
-		FatalExit(L"DX9 setup: mutex does not exist.");
-
-	waitResult = WaitForSingleObject(gSetupMutex, 1000);
-	if (waitResult != WAIT_OBJECT_0)
-	{
-		wchar_t info[512];
-		DWORD hr = GetLastError();
-		swprintf_s(info, _countof(info), L"DX9 CaptureSetupMutex: WaitForSingleObject failed. waitResult: 0x%x, err: 0x%x\n", waitResult, hr);
-		FatalExit(info);
-	}
-}
-
-// Release use of shared mutex, so the VR side can grab the mutex, and thus know that
-// it can fetch the shared surface and use it to draw.  Normal operation is that the
-// VR side grabs and releases the mutex for every frame, and is only blocked when
-// we are setting up the graphics environment here, either as first run where this
-// side creates the mutex as active and locked, or when Reset is called and we grab
-// the mutex to lock out the VR side.
-
-void ReleaseSetupMutex()
-{
-	::OutputDebugString(L"DX9 setup- Release Mutex\n");
-
-	if (gSetupMutex == NULL)
-		FatalExit(L"DX9 setup: mutex does not exist.");
-
-	bool ok = ReleaseMutex(gSetupMutex);
-	if (!ok)
-	{
-		wchar_t info[512];
-		DWORD hr = GetLastError();
-		swprintf_s(info, _countof(info), L"DX9 ReleaseSetupMutex: ReleaseMutex failed, err: %x\n", hr);
-		::OutputDebugString(info);
-	}
-}
-
-//-----------------------------------------------------------
 // StretchRect the stereo snapshot back onto the backbuffer so we can see what we got.
 // Keep aspect ratio intact, because we want to see if it's a stretched image.
 
@@ -307,7 +258,7 @@ HRESULT __stdcall Hooked_Present(IDirect3DDevice9* This,
 {
 	HRESULT hr;
 	IDirect3DSurface9* backBuffer;
-	
+
 	hr = This->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &backBuffer);
 	if (SUCCEEDED(hr) && gGameSurface > 0)
 	{
@@ -346,6 +297,9 @@ HRESULT __stdcall Hooked_Present(IDirect3DDevice9* This,
 // For IDirect3DDevice9->Reset, this is used to setup the backbuffer
 // again for a different resolution.  So we need to handle this and
 // rebuild our drawing chain whenever it changes.
+// 
+// We need to lock out the VR side while this is happening to avoid that
+// side from using stale or released surfaces, so we'll capture the Mutex first.
 
 HRESULT(__stdcall *pOrigReset)(IDirect3DDevice9* This,
 	D3DPRESENT_PARAMETERS *pPresentationParameters
@@ -358,9 +312,9 @@ HRESULT __stdcall Hooked_Reset(IDirect3DDevice9* This,
 
 	// Grab the KatangaSetupMutex, so that the VR side will be locked out of touching
 	// any shared surfaces until we rebuild the shared surface after CreateRenderedSurface.
+
 	CaptureSetupMutex();
 	{
-
 		// As soon as we know we are setting up a new resolution, we want to set the
 		// gGameSharedHandle to null, to notify the VR side that this is going away.
 		// Given the async and multi-threaded nature of these pieces in different
@@ -404,10 +358,12 @@ HRESULT __stdcall Hooked_Reset(IDirect3DDevice9* This,
 		}
 #endif
 
-		// With this new graphic environment, reset the shared surfaces for VR side.
+		// Remove and replace the shared texture to match new setup.
 		CreateSharedRenderTarget(This);
 	}
-	// All setup, allow VR side to draw using new surfaces.
+
+	// Free up the VR side to continue drawing, now that we have a cleanly setup shared surface,
+	// with no further conflicts.
 	ReleaseSetupMutex();
 
 	return hr;
@@ -516,7 +472,7 @@ HRESULT __stdcall Hooked_CreateTexture(IDirect3DDevice9* This,
 	HRESULT hr = pOrigCreateTexture(This, Width, Height, Levels, Usage, Format, Pool,
 		ppTexture, pSharedHandle);
 	if (FAILED(hr))
-		::OutputDebugStringA("Failed to call pOrigCreateTexture\n");
+		::OutputDebugString(L"Failed to call pOrigCreateTexture\n");
 
 	return hr;
 }
@@ -576,7 +532,7 @@ HRESULT __stdcall Hooked_CreateCubeTexture(IDirect3DDevice9* This,
 	HRESULT hr = pOrigCreateCubeTexture(This, EdgeLength, Levels, Usage, Format, Pool,
 		ppCubeTexture, pSharedHandle);
 	if (FAILED(hr))
-		::OutputDebugStringA("Failed to call pOrigCreateCubeTexture\n");
+		::OutputDebugString(L"Failed to call pOrigCreateCubeTexture\n");
 
 	return hr;
 }
@@ -634,7 +590,7 @@ HRESULT __stdcall Hooked_CreateVertexBuffer(IDirect3DDevice9* This,
 	HRESULT hr = pOrigCreateVertexBuffer(This, Length, Usage, FVF, Pool,
 		ppVertexBuffer, pSharedHandle);
 	if (FAILED(hr))
-		::OutputDebugStringA("Failed to call pOrigCreateVertexBuffer\n");
+		::OutputDebugString(L"Failed to call pOrigCreateVertexBuffer\n");
 
 	return hr;
 }
@@ -687,7 +643,7 @@ HRESULT __stdcall Hooked_CreateIndexBuffer(IDirect3DDevice9* This,
 	HRESULT hr = pOrigCreateIndexBuffer(This, Length, Usage, Format, Pool,
 		ppIndexBuffer, pSharedHandle);
 	if (FAILED(hr))
-		::OutputDebugStringA("Failed to call pOrigCreateIndexBuffer\n");
+		::OutputDebugString(L"Failed to call pOrigCreateIndexBuffer\n");
 
 	return hr;
 }
@@ -737,8 +693,12 @@ HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 		::OutputDebugString(info);
 	}
 
-	// Block the VR side from drawing, until we are done setting up graphics.
-	// By capturing this mutex, we force them to draw grey.
+	// Grab Mutex here during Device creation, and release it after we 
+	// have built our shared surface.  This will keep the VR side from drawing
+	// or conflicting with anything in game side here.
+	// This must be done here, because the Mutex cares what thread it is captured
+	// from, and we have to be on the same thread.
+
 	CaptureSetupMutex();
 	{
 		// This is called out in the debug layer as a potential performance problem, but the
@@ -772,32 +732,32 @@ HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 			dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigPresent,
 				lpvtbl_Present_DX9(pDevice9), Hooked_Present, 0);
 			if (FAILED(dwOsErr))
-				::OutputDebugStringA("Failed to hook IDirect3DDevice9::Present\n");
+				::OutputDebugString(L"Failed to hook IDirect3DDevice9::Present\n");
 
 			dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigReset,
 				lpvtbl_Reset(pDevice9), Hooked_Reset, 0);
 			if (FAILED(dwOsErr))
-				::OutputDebugStringA("Failed to hook IDirect3DDevice9::Reset\n");
+				::OutputDebugString(L"Failed to hook IDirect3DDevice9::Reset\n");
 
 			dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigCreateTexture,
 				lpvtbl_CreateTexture(pDevice9), Hooked_CreateTexture, 0);
 			if (FAILED(dwOsErr))
-				::OutputDebugStringA("Failed to hook IDirect3DDevice9::CreateTexture\n");
+				::OutputDebugString(L"Failed to hook IDirect3DDevice9::CreateTexture\n");
 
 			dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigCreateCubeTexture,
 				lpvtbl_CreateCubeTexture(pDevice9), Hooked_CreateCubeTexture, 0);
 			if (FAILED(dwOsErr))
-				::OutputDebugStringA("Failed to hook IDirect3DDevice9::CreateCubeTexture\n");
+				::OutputDebugString(L"Failed to hook IDirect3DDevice9::CreateCubeTexture\n");
 
 			dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigCreateVertexBuffer,
 				lpvtbl_CreateVertexBuffer(pDevice9), Hooked_CreateVertexBuffer, 0);
 			if (FAILED(dwOsErr))
-				::OutputDebugStringA("Failed to hook IDirect3DDevice9::CreateVertexBuffer\n");
+				::OutputDebugString(L"Failed to hook IDirect3DDevice9::CreateVertexBuffer\n");
 
 			dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigCreateIndexBuffer,
 				lpvtbl_CreateIndexBuffer(pDevice9), Hooked_CreateIndexBuffer, 0);
 			if (FAILED(dwOsErr))
-				::OutputDebugStringA("Failed to hook IDirect3DDevice9::CreateIndexBuffer\n");
+				::OutputDebugString(L"Failed to hook IDirect3DDevice9::CreateIndexBuffer\n");
 
 
 			NvAPI_Status res = NvAPI_Initialize();
@@ -813,42 +773,40 @@ HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 			//if (FAILED(res)) FatalExit(L"Failed to NvAPI_Stereo_SetSurfaceCreationMode\n");
 
 
-			// Setup shared surface for capturing blits during Present.
-			CreateSharedRenderTarget(pDevice9);
+
+			// Since we are doing setup here, also create a thread that will be used to copy
+			// from the stereo game surface into the shared surface.  This way the game will
+			// not stall while waiting for that copy.
+			//
+			// And the thread synchronization Event object. Signaled when we get fresh bits.
+			// Starts in off state, thread active, so it should pause at launch.
+			//gFreshBits = CreateEvent(
+			//	NULL,               // default security attributes
+			//	TRUE,               // manual, not auto-reset event
+			//	FALSE,              // initial state is nonsignaled
+			//	nullptr);			// object name
+			//if (gFreshBits == nullptr) FatalExit(L"Fail to CreateEvent for gFreshBits");
+
+			//gSharedThread = CreateThread(
+			//	NULL,                   // default security attributes
+			//	0,                      // use default stack size  
+			//	CopyGameToShared,       // thread function name
+			//	pDevice9,		        // device, as argument to thread function 
+			//	0,				        // runs immediately, to a pause state. 
+			//	nullptr);			    // returns the thread identifier 
+			//if (gSharedThread == nullptr) FatalExit(L"Fail to CreateThread for GameToShared");
+
+			// We are certain to be being called from the game's primary thread here,
+			// as this is CreateDevice.  Save the reference.
+			// ToDo: Can't use Suspend/Resume, because the task switching time is too
+			// high, like >16ms, which is must larger than we can use.
+			//HANDLE thread = GetCurrentThread();
+			//DuplicateHandle(GetCurrentProcess(), thread, GetCurrentProcess(), &gameThread, 0, TRUE, DUPLICATE_SAME_ACCESS);
 		}
-		// All setup, OK for VR side to draw with using new surfaces.
-		ReleaseSetupMutex();
 
-
-		// Since we are doing setup here, also create a thread that will be used to copy
-		// from the stereo game surface into the shared surface.  This way the game will
-		// not stall while waiting for that copy.
-		//
-		// And the thread synchronization Event object. Signaled when we get fresh bits.
-		// Starts in off state, thread active, so it should pause at launch.
-		//gFreshBits = CreateEvent(
-		//	NULL,               // default security attributes
-		//	TRUE,               // manual, not auto-reset event
-		//	FALSE,              // initial state is nonsignaled
-		//	nullptr);			// object name
-		//if (gFreshBits == nullptr) FatalExit(L"Fail to CreateEvent for gFreshBits");
-
-		//gSharedThread = CreateThread(
-		//	NULL,                   // default security attributes
-		//	0,                      // use default stack size  
-		//	CopyGameToShared,       // thread function name
-		//	pDevice9,		        // device, as argument to thread function 
-		//	0,				        // runs immediately, to a pause state. 
-		//	nullptr);			    // returns the thread identifier 
-		//if (gSharedThread == nullptr) FatalExit(L"Fail to CreateThread for GameToShared");
-
-		// We are certain to be being called from the game's primary thread here,
-		// as this is CreateDevice.  Save the reference.
-		// ToDo: Can't use Suspend/Resume, because the task switching time is too
-		// high, like >16ms, which is must larger than we can use.
-		//HANDLE thread = GetCurrentThread();
-		//DuplicateHandle(GetCurrentProcess(), thread, GetCurrentProcess(), &gameThread, 0, TRUE, DUPLICATE_SAME_ACCESS);
+		CreateSharedRenderTarget(pDevice9);
 	}
+	ReleaseSetupMutex();
 
 	// We are returning the IDirect3DDevice9Ex object, because the Device the game
 	// is going to use needs to be Ex type, so we can share from its backbuffer.

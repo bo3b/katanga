@@ -141,7 +141,7 @@ extern "C" UNITY_INTERFACE_EXPORT bool UNITY_INTERFACE_API GrabSetupMutex()
 {
 	return s_CurrentAPI->GrabSetupMutex();
 }
-extern "C" UNITY_INTERFACE_EXPORT void UNITY_INTERFACE_API ReleaseSetupMutex()
+extern "C" UNITY_INTERFACE_EXPORT bool UNITY_INTERFACE_API ReleaseSetupMutex()
 {
 	return s_CurrentAPI->ReleaseSetupMutex();
 }

@@ -9,6 +9,7 @@
 #include "DeviarePlugin.h"
 
 #include <atlbase.h>
+#include <thread>
 
 
 // We need the Deviare interface though, to be able to provide the OnLoad,
@@ -65,6 +66,56 @@ HANDLE WINAPI GetSharedHandle(int* in)
 	return gGameSharedHandle;
 }
 
+//-----------------------------------------------------------
+
+// Used for both CreateDevice and Reset/Resize functions, where we are setting up the
+// graphic environment, and thus cannot allow the VR side to draw using anything
+// from the game side here.
+
+void CaptureSetupMutex()
+{
+	DWORD waitResult;
+
+	::OutputDebugString(L"-> CaptureSetupMutex@%d:\n");
+
+	if (gSetupMutex == NULL)
+		FatalExit(L"CaptureSetupMutex: mutex does not exist.");
+
+	waitResult = WaitForSingleObject(gSetupMutex, 1000);
+	if (waitResult != WAIT_OBJECT_0)
+	{
+		wchar_t info[512];
+		DWORD hr = GetLastError();
+		std::thread::id tid = std::this_thread::get_id();
+		swprintf_s(info, _countof(info), L"CaptureSetupMutex@%d: WaitForSingleObject failed.\nwaitResult: 0x%x, err: 0x%x\n", tid, waitResult, hr);
+		FatalExit(info);
+	}
+}
+
+// Release use of shared mutex, so the VR side can grab the mutex, and thus know that
+// it can fetch the shared surface and use it to draw.  Normal operation is that the
+// VR side grabs and releases the mutex for every frame, and is only blocked when
+// we are setting up the graphics environment here, either as first run where this
+// side creates the mutex as active and locked, or when Reset/Resize is called and we grab
+// the mutex to lock out the VR side.
+
+void ReleaseSetupMutex()
+{
+	::OutputDebugString(L"<- ReleaseSetupMutex@%d\n");
+
+	if (gSetupMutex == NULL)
+		FatalExit(L"ReleaseSetupMutex: mutex does not exist.");
+
+	bool ok = ReleaseMutex(gSetupMutex);
+	if (!ok)
+	{
+		wchar_t info[512];
+		DWORD hr = GetLastError();
+		std::thread::id tid = std::this_thread::get_id();
+		swprintf_s(info, _countof(info), L"ReleaseSetupMutex@%d: ReleaseMutex failed, err: 0x%x\n", tid,  hr);
+		::OutputDebugString(info);
+	}
+}
 
 // --------------------------------------------------------------------------------------------------
 //
@@ -89,17 +140,9 @@ HRESULT WINAPI OnLoad()
 {
 	::OutputDebugStringA("NativePlugin::OnLoad called\n");
 
-	// Setup shared mutex, with the VR side owning it.  We should never arrive
-	// here without the Katanga side already having created it.
-	// We will grab mutex to lock their drawing, whenever we are setting up
-	// the shared surface.
-	gSetupMutex = OpenMutex(SYNCHRONIZE, false, L"KatangaSetupMutex");
-	if (gSetupMutex == NULL)
-		FatalExit(L"OnLoad: could not find KatangaSetupMutex");
-
 	// This is running inside the game itself, so make sure we can use
 	// COM here.
-	::CoInitializeEx(NULL, COINIT_MULTITHREADED);
+	::CoInitialize(NULL);
 
 	// At this earliest moment, setup a hook for the direct d3d9.dll
 	// call of Direct3DCreate9, using the In-Proc mechanism.
@@ -111,7 +154,16 @@ HRESULT WINAPI OnLoad()
 
 	// Find the Present call for current game
 	FindAndHookPresent();
-	
+
+
+	// Setup shared mutex, with the VR side owning it.  We should never arrive
+	// here without the Katanga side already having created it.
+	// We will grab mutex to lock their drawing, whenever we are setting up
+	// the shared surface.
+	gSetupMutex = OpenMutex(SYNCHRONIZE, false, L"KatangaSetupMutex");
+	if (gSetupMutex == NULL)
+		FatalExit(L"OnLoad: could not find KatangaSetupMutex");
+
 	return S_OK;
 }
 
@@ -122,6 +174,9 @@ VOID WINAPI OnUnload()
 
 	if (gSetupMutex != NULL)
 		ReleaseMutex(gSetupMutex);
+
+	::CoUninitialize();
+
 	return;
 }
 

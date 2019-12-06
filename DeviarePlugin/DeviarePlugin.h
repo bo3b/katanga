@@ -47,14 +47,15 @@
 
 void FatalExit(LPCWSTR errorString);
 
+extern FILE* LogFile;
 
 // Interface to InProc side
+void ReleaseSetupMutex();
+void CaptureSetupMutex();
 
 // DX9 - InProc_DX9.cpp
 void HookDirect3DCreate9();
 void HookCreateDevice(IDirect3D9Ex* pDX9Ex);
-void ReleaseSetupMutex();
-void CaptureSetupMutex(DWORD &waitResult);
 // DX11 - InProc_DX11.cpp
 void HookNvapiSetDriverMode();
 void HookCreateSwapChain(IDXGIFactory* dDXGIFactory);
@@ -119,6 +120,5 @@ extern "C" LPVOID lpvtbl_ResizeBuffers(IDXGISwapChain* pSwapChain);
 extern CNktHookLib nktInProc;
 extern StereoHandle gNVAPI;
 extern HANDLE gGameSharedHandle;
-extern HANDLE gSetupMutex;
 
 extern "C" HANDLE WINAPI GetSharedHandle(int* in);
