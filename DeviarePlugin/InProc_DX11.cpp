@@ -141,83 +141,87 @@ ID3D11Device* CreateSharedTexture(IDXGISwapChain* pSwapChain)
 	D3D11_TEXTURE2D_DESC desc;
 	ID3D11Texture2D* oldGameTexture;
 
-	// Save possible prior usage to be disposed after we recreate.
+	CaptureSetupMutex();
+	{
+		// Save possible prior usage to be disposed after we recreate.
 
-	oldGameTexture = gGameTexture;
+		oldGameTexture = gGameTexture;
 
-	// It's more reliable to get the pDevice of an actual D3D11Device from
-	// the swap chain directly, because bad code like UE4 can pass in a 
-	// DXGIDevice, which is not usable here.
+		// It's more reliable to get the pDevice of an actual D3D11Device from
+		// the swap chain directly, because bad code like UE4 can pass in a 
+		// DXGIDevice, which is not usable here.
 
-	hr = pSwapChain->GetDevice(__uuidof(ID3D11Device), (void**)&pDevice);
-	if (FAILED(hr)) FatalExit(L"Failed to GetDevice");
+		hr = pSwapChain->GetDevice(__uuidof(ID3D11Device), (void**)&pDevice);
+		if (FAILED(hr)) FatalExit(L"Failed to GetDevice");
 
-	// Using the D3D11Device we fetched above, we also want to initialize nvidia
-	// stereo so that we can fetch the stereo backbuffer during Present.
+		// Using the D3D11Device we fetched above, we also want to initialize nvidia
+		// stereo so that we can fetch the stereo backbuffer during Present.
 
-	NvAPI_Status res = NvAPI_Initialize();
-	if (res != NVAPI_OK) FatalExit(L"NVidia driver not available.\n\nFailed to NvAPI_Initialize\n");
+		NvAPI_Status res = NvAPI_Initialize();
+		if (res != NVAPI_OK) FatalExit(L"NVidia driver not available.\n\nFailed to NvAPI_Initialize\n");
 
-	res = NvAPI_Stereo_CreateHandleFromIUnknown(pDevice, &gNVAPI);
-	if (res != NVAPI_OK) FatalExit(L"3D Vision is not enabled.\n\nFailed to NvAPI_Stereo_CreateHandleFromIUnknown\n");
+		res = NvAPI_Stereo_CreateHandleFromIUnknown(pDevice, &gNVAPI);
+		if (res != NVAPI_OK) FatalExit(L"3D Vision is not enabled.\n\nFailed to NvAPI_Stereo_CreateHandleFromIUnknown\n");
 
 
-	// Now that we have a proper SwapChain from the game, let's also make a 
-	// DX11 Texture2D, so that we can snapshot the game output. 
-	//
-	// Make it exactly match the backbuffer, which ensures that the stereo copy
-	// using ReverseStereoBlit will work.
+		// Now that we have a proper SwapChain from the game, let's also make a 
+		// DX11 Texture2D, so that we can snapshot the game output. 
+		//
+		// Make it exactly match the backbuffer, which ensures that the stereo copy
+		// using ReverseStereoBlit will work.
 
-	hr = pSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&backBuffer);
-	if (FAILED(hr)) FatalExit(L"Fail to get backbuffer");
+		hr = pSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&backBuffer);
+		if (FAILED(hr)) FatalExit(L"Fail to get backbuffer");
 
-	backBuffer->GetDesc(&desc);
-	backBuffer->Release();
+		backBuffer->GetDesc(&desc);
+		backBuffer->Release();
 
-	// Some games like TheSurge and Dishonored2 will specify a DXGI_FORMAT_R8G8B8A8_UNORM_SRGB
-	// as their backbuffer.  This doesn't work for us because our output is going to the VR HMD,
-	// and thus we get a doubled up sRGB/gamma curve, which makes it too dark, and the in-game
-	// slider doesn't have enough range to correct.  
-	// If we get one of these sRGB formats, we are going to strip that and return the Linear
-	// version instead, so that we avoid this problem.  This allows us to use Gamma for the Unity
-	// app itself, which matches 90% of the games, and still handle these oddball games automatically.
+		// Some games like TheSurge and Dishonored2 will specify a DXGI_FORMAT_R8G8B8A8_UNORM_SRGB
+		// as their backbuffer.  This doesn't work for us because our output is going to the VR HMD,
+		// and thus we get a doubled up sRGB/gamma curve, which makes it too dark, and the in-game
+		// slider doesn't have enough range to correct.  
+		// If we get one of these sRGB formats, we are going to strip that and return the Linear
+		// version instead, so that we avoid this problem.  This allows us to use Gamma for the Unity
+		// app itself, which matches 90% of the games, and still handle these oddball games automatically.
 
-	if (desc.Format == DXGI_FORMAT_R8G8B8A8_UNORM_SRGB)
-		desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-	if (desc.Format == DXGI_FORMAT_B8G8R8A8_UNORM_SRGB)
-		desc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+		if (desc.Format == DXGI_FORMAT_R8G8B8A8_UNORM_SRGB)
+			desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		if (desc.Format == DXGI_FORMAT_B8G8R8A8_UNORM_SRGB)
+			desc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
 
-	// This texture needs to use the Shared flag, so that we can share it to 
-	// another Device.  Because these are all DX11 objects, the share will work.
+		// This texture needs to use the Shared flag, so that we can share it to 
+		// another Device.  Because these are all DX11 objects, the share will work.
 
-	desc.Width *= 2;								// Double width texture for stereo.
-	desc.BindFlags |= D3D11_BIND_SHADER_RESOURCE;	// Must add bind flag, so SRV can be created in Unity.
-	desc.MiscFlags = D3D11_RESOURCE_MISC_SHARED;	// To be shared. maybe D3D11_RESOURCE_MISC_SHARED_KEYEDMUTEX is better
+		desc.Width *= 2;								// Double width texture for stereo.
+		desc.BindFlags |= D3D11_BIND_SHADER_RESOURCE;	// Must add bind flag, so SRV can be created in Unity.
+		desc.MiscFlags = D3D11_RESOURCE_MISC_SHARED;	// To be shared. maybe D3D11_RESOURCE_MISC_SHARED_KEYEDMUTEX is better
 
-	hr = pDevice->CreateTexture2D(&desc, NULL, &gGameTexture);
-	if (FAILED(hr)) FatalExit(L"Fail to create shared stereo Texture");
+		hr = pDevice->CreateTexture2D(&desc, NULL, &gGameTexture);
+		if (FAILED(hr)) FatalExit(L"Fail to create shared stereo Texture");
 
-	// Now create the HANDLE which is used to share surfaces.  This follows the model from:
-	// https://docs.microsoft.com/en-us/windows/desktop/api/d3d11/nf-d3d11-id3d11device-opensharedresource
+		// Now create the HANDLE which is used to share surfaces.  This follows the model from:
+		// https://docs.microsoft.com/en-us/windows/desktop/api/d3d11/nf-d3d11-id3d11device-opensharedresource
 
-	IDXGIResource* pDXGIResource = NULL;
+		IDXGIResource* pDXGIResource = NULL;
 
-	hr = gGameTexture->QueryInterface(__uuidof(IDXGIResource), (LPVOID*)&pDXGIResource);
-	if (FAILED(hr))	FatalExit(L"Fail to QueryInterface on shared surface");
+		hr = gGameTexture->QueryInterface(__uuidof(IDXGIResource), (LPVOID*)&pDXGIResource);
+		if (FAILED(hr))	FatalExit(L"Fail to QueryInterface on shared surface");
 
-	hr = pDXGIResource->GetSharedHandle(&gGameSharedHandle);
-	if (FAILED(hr) || gGameSharedHandle == nullptr)	FatalExit(L"Fail to pDXGIResource->GetSharedHandle");
+		hr = pDXGIResource->GetSharedHandle(&gGameSharedHandle);
+		if (FAILED(hr) || gGameSharedHandle == nullptr)	FatalExit(L"Fail to pDXGIResource->GetSharedHandle");
+
+		pDXGIResource->Release();
+
+
+		// If we already had created one, let the old one go.  We do it after the recreation
+		// here fills in the prior globals, to avoid possible dead structure usage in the
+		// Unity app.
+
+		if (oldGameTexture)
+			oldGameTexture->Release();
+	}
+	ReleaseSetupMutex();
 	
-	pDXGIResource->Release();
-
-
-	// If we already had created one, let the old one go.  We do it after the recreation
-	// here fills in the prior globals, to avoid possible dead structure usage in the
-	// Unity app.
-
-	if (oldGameTexture)
-		oldGameTexture->Release();
-
 	return pDevice;
 }
 
@@ -269,6 +273,8 @@ HRESULT __stdcall Hooked_Present(IDXGISwapChain * This,
 	ID3D11Device* pDevice = nullptr;
 	ID3D11DeviceContext* pContext = nullptr;
 
+	// This only happens for first device creation, because we inject into an already
+	// setup game, and thus first thing we'll see is Present.
 	if (gGameSharedHandle == nullptr)
 		CreateSharedTexture(This);
 
@@ -380,32 +386,42 @@ HRESULT __stdcall Hooked_ResizeBuffers(IDXGISwapChain* This,
 {
 	HRESULT hr;
 
-	// As soon as we know we are setting up a new resolution, we want to set the
-	// gGameSharedHandle to null, to notify the VR side that this is going away.
-	// Given the async and multi-threaded nature of these pieces in different
-	// processes, it's not clear if this will work in every case. 
-	//
-	// ToDo: We might need to keep VR and game side in sync to avoid dead texture use.
-	//
-	// No good way to properly dispose of this shared handle, we cannot CloseHandle
-	// because it's not a real handle.  Microsoft.  Geez.
+	// Grab the KatangaSetupMutex, so that the VR side will be locked out of touching
+	// any shared surfaces until we rebuild the shared surface after CreateRenderedSurface.
+	CaptureSetupMutex();
+	{
+		// As soon as we know we are setting up a new resolution, we want to set the
+		// gGameSharedHandle to null, to notify the VR side that this is going away.
+		// Given the async and multi-threaded nature of these pieces in different
+		// processes, it's not clear if this will work in every case. 
+		//
+		// ToDo: We might need to keep VR and game side in sync to avoid dead texture use.
+		//
+		// No good way to properly dispose of this shared handle, we cannot CloseHandle
+		// because it's not a real handle.  Microsoft.  Geez.
 
-	gGameSharedHandle = nullptr;
+		gGameSharedHandle = nullptr;
 
 #ifdef _DEBUG
-	wchar_t info[512];
+		wchar_t info[512];
 
-	::OutputDebugString(L"NativePlugin::Hooked_ResizeBuffers called\n");
+		::OutputDebugString(L"NativePlugin::Hooked_ResizeBuffers called\n");
 
-	swprintf_s(info, _countof(info), L"  Width: %d, Height: %d, Format: %d\n"
-		, Width, Height, NewFormat);
-	::OutputDebugString(info);
+		swprintf_s(info, _countof(info), L"  Width: %d, Height: %d, Format: %d\n"
+			, Width, Height, NewFormat);
+		::OutputDebugString(info);
 #endif
 
-	// Run original call game is expecting.
+		// Run original call game is expecting.
 
-	hr = pOrigResizeBuffers(This, BufferCount, Width, Height, NewFormat, SwapChainFlags);
-	if (FAILED(hr)) FatalExit(L"Failed to IDXGISwapChain->ResizeBuffers");
+		hr = pOrigResizeBuffers(This, BufferCount, Width, Height, NewFormat, SwapChainFlags);
+		if (FAILED(hr)) FatalExit(L"Failed to IDXGISwapChain->ResizeBuffers");
+
+		// For this code path, don't wait for Present to rebuild shared surface. Since VR side
+		// is locked out, go ahead and create surface here.
+		CreateSharedTexture(This);
+	}
+	ReleaseSetupMutex();
 
 	return hr;
 }
@@ -766,7 +782,7 @@ Status::Enum FindAndHookPresent()
 	HMODULE libD3D11;
 	if ((libD3D11 = ::GetModuleHandle(KIERO_TEXT("d3d11.dll"))) == NULL)
 	{
-		::OutputDebugStringA("Failed to load d3d11.dll");
+		::OutputDebugStringA("Failed to load d3d11.dll\n");
 		::DestroyWindow(window);
 		::UnregisterClass(windowClass.lpszClassName, windowClass.hInstance);
 		return Status::ModuleNotFoundError;
@@ -775,7 +791,7 @@ Status::Enum FindAndHookPresent()
 	void* fnD3D11CreateDeviceAndSwapChain;
 	if ((fnD3D11CreateDeviceAndSwapChain = ::GetProcAddress(libD3D11, "D3D11CreateDeviceAndSwapChain")) == NULL)
 	{
-		::OutputDebugStringA("Failed to GetProcAddress on D3D11CreateDeviceAndSwapChain");
+		::OutputDebugStringA("Failed to GetProcAddress on D3D11CreateDeviceAndSwapChain\n");
 		::DestroyWindow(window);
 		::UnregisterClass(windowClass.lpszClassName, windowClass.hInstance);
 		return Status::UnknownError;
@@ -830,7 +846,7 @@ Status::Enum FindAndHookPresent()
 		ID3D11DeviceContext**))(fnD3D11CreateDeviceAndSwapChain))(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, 0, NULL, NULL, D3D11_SDK_VERSION, &swapChainDesc, &swapChain, &device, NULL, &context);
 	if (FAILED(hr))
 	{
-		::OutputDebugStringA("Failed call to D3D11CreateDeviceAndSwapChain");
+		::OutputDebugStringA("Failed call to D3D11CreateDeviceAndSwapChain\n");
 		::DestroyWindow(window);
 		::UnregisterClass(windowClass.lpszClassName, windowClass.hInstance);
 		return Status::UnknownError;
@@ -855,7 +871,7 @@ Status::Enum FindAndHookPresent()
 	::DestroyWindow(window);
 	::UnregisterClass(windowClass.lpszClassName, windowClass.hInstance);
 
-	::OutputDebugStringA("Successfully hooked DXGI::Present");
+	::OutputDebugStringA("Successfully hooked DXGI::Present\n");
 
 	return Status::Success;
 }
