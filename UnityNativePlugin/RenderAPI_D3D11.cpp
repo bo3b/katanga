@@ -11,7 +11,22 @@
 #include "Unity/IUnityGraphicsD3D11.h"
 
 #include <stdio.h>
+#include <share.h>
 #include <time.h>
+
+
+static FILE* gLogFile;
+
+#define Log(fmt, ...) \
+	do { if (gLogFile) fprintf(gLogFile, fmt, __VA_ARGS__); fflush(gLogFile); } while (0)
+
+static void LogDebug(char* text)
+{
+#ifdef _DEBUG 
+	Log(text);
+#endif
+}
+
 
 
 // ----------------------------------------------------------------------
@@ -47,6 +62,8 @@ public:
 
 	virtual void* BeginModifyTexture(void* textureHandle, int textureWidth, int textureHeight, int* outRowPitch);
 	virtual void EndModifyTexture(void* textureHandle, int textureWidth, int textureHeight, int rowPitch, void* dataPtr);
+
+	virtual void SetLogFile(char* logFile);
 
 	virtual ID3D11ShaderResourceView* CreateSharedSurface(HANDLE shared);
 	virtual UINT GetGameWidth();
@@ -313,6 +330,21 @@ void RenderAPI_D3D11::EndModifyTexture(void* textureHandle, int textureWidth, in
 
 
 // ----------------------------------------------------------------------
+// We are making a common log file between Unity side, this C++ native plugin,
+// and the C++ game plugin.  This captures the full path for the log file, so
+// that we can write to it here.
+
+void RenderAPI_D3D11::SetLogFile(char* logFilePath)
+{
+	gLogFile = _fsopen(logFilePath, "a", _SH_DENYNO);
+	if (gLogFile == NULL)
+		FatalExit(L"RenderAPI_D3D11::SetLogFile unable to open log for writing.");
+	
+	int x =fprintf(gLogFile, "..\n..Unity Native C++ logging enabled.\n");
+	int y = fflush(gLogFile);
+}
+
+// ----------------------------------------------------------------------
 // Mutex handling is here because of the antique mono runtime does not support the
 // needed OpenMutex function.  We can do everything we need with this plugin.
 //
@@ -323,7 +355,7 @@ void RenderAPI_D3D11::EndModifyTexture(void* textureHandle, int textureWidth, in
 
 void RenderAPI_D3D11::CreateSetupMutex()
 {
-	::OutputDebugString(L"\nRenderAPI_D3D11::CreateSetupMutex\n");
+	Log("\n..RenderAPI_D3D11::CreateSetupMutex\n");
 
 	if (gSetupMutex != NULL)
 		FatalExit(L"RenderAPI_D3D11::CreateSetupMutex called, but already created.");
@@ -341,7 +373,7 @@ void RenderAPI_D3D11::CreateSetupMutex()
 
 bool RenderAPI_D3D11::GrabSetupMutex()
 {
-//	::OutputDebugString(L"RenderAPI_D3D11::GrabSetupMutex\n");
+	LogDebug("..RenderAPI_D3D11::GrabSetupMutex\n");
 
 	if (gSetupMutex == NULL)
 		FatalExit(L"RenderAPI_D3D11::GrabSetupMutex called, but mutex does not exist.");
@@ -353,10 +385,8 @@ bool RenderAPI_D3D11::GrabSetupMutex()
 	DWORD wait = WaitForSingleObject(gSetupMutex, 100);
 	if (wait != WAIT_OBJECT_0)
 	{
-		wchar_t info[512];
 		DWORD hr = GetLastError();
-		swprintf_s(info, _countof(info), L"RenderAPI_D3D11::GrabSetupMutex: WaitForSingleObject failed. wait: 0x%x, err: 0x%x\n", wait, hr);
-		::OutputDebugString(info);
+		Log("..RenderAPI_D3D11::GrabSetupMutex: WaitForSingleObject failed. wait: 0x%x, err: 0x%x\n", wait, hr);
 
 		return false;
 	}
@@ -366,7 +396,7 @@ bool RenderAPI_D3D11::GrabSetupMutex()
 
 bool RenderAPI_D3D11::ReleaseSetupMutex()
 {
-//	::OutputDebugString(L"RenderAPI_D3D11::ReleaseSetupMutex\n");
+	LogDebug("..RenderAPI_D3D11::ReleaseSetupMutex\n");
 
 	if (gSetupMutex == NULL)
 		FatalExit(L"RenderAPI_D3D11::ReleaseSetupMutex: Mutex released before initialized.");
@@ -374,10 +404,8 @@ bool RenderAPI_D3D11::ReleaseSetupMutex()
 	bool ok = ReleaseMutex(gSetupMutex);
 	if (!ok)
 	{
-		wchar_t info[512];
 		DWORD hr = GetLastError();
-		swprintf_s(info, _countof(info), L"RenderAPI_D3D11::ReleaseSetupMutex: ReleaseMutex failed, err: 0x%x\n", hr);
-		::OutputDebugString(info);
+		Log("..RenderAPI_D3D11::ReleaseSetupMutex: ReleaseMutex failed, err: 0x%x\n", hr);
 	}
 
 	return ok;
@@ -385,7 +413,7 @@ bool RenderAPI_D3D11::ReleaseSetupMutex()
 
 void RenderAPI_D3D11::DestroySetupMutex()
 {
-	::OutputDebugString(L"\nRenderAPI_D3D11::DestroySetupMutex\n");
+	Log("..\nRenderAPI_D3D11::DestroySetupMutex\n");
 
 	if (gSetupMutex == NULL)
 		FatalExit(L"RenderAPI_D3D11::DestroySetupMutex: Mutex does not exist.");
@@ -444,13 +472,8 @@ ID3D11ShaderResourceView* RenderAPI_D3D11::CreateSharedSurface(HANDLE shared)
 		gHeight = tdesc.Height;
 		gFormat = tdesc.Format;
 
-#ifdef _DEBUG
-		wchar_t info[512];
-		swprintf_s(info, _countof(info),
-			L"RenderAPI_D3D11::CreateSharedSurface - Width: %d, Height: %d, Format: %d\n",
+		Log("RenderAPI_D3D11::CreateSharedSurface - Width: %d, Height: %d, Format: %d\n",
 			tdesc.Width, tdesc.Height, tdesc.Format);
-		::OutputDebugString(info);
-#endif 
 	}
 	resource->Release();
 

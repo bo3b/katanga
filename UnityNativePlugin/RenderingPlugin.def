@@ -11,6 +11,8 @@ EXPORTS
    SetMeshBuffersFromUnity
    GetRenderEventFunc
 
+   SetLogFile
+
    CreateSharedTexture
    GetGameWidth
    GetGameHeight

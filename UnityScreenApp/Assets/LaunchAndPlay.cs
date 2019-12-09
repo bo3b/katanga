@@ -9,6 +9,10 @@ using System.Threading;
 
 public class LaunchAndPlay : MonoBehaviour
 {
+    // For multipoint logging, including native C++ plugins/
+    private static FileStream m_FileStream;
+    private static StreamWriter m_StreamWriter;
+
     // Game object that handles launching and communicating with the running game.
     Game game;
 
@@ -36,6 +40,13 @@ public class LaunchAndPlay : MonoBehaviour
 
     private void Awake()
     {
+        CreateKatangaLog();
+        print("Awake");
+
+        // Add our log handler, to capture all output to a non-unity debug log,
+        // including our native C++ plugins for both game and Unity.
+        Application.logMessageReceived += DuplicateLog;
+
         // Set our FatalExit as the handler for exceptions so that we get usable 
         // information from the users.
         Application.logMessageReceived += FatalExit;
@@ -49,7 +60,7 @@ public class LaunchAndPlay : MonoBehaviour
 
     void Start()
     {
-        print("Command line arguments: " + System.Environment.CommandLine);
+        print("Start: Command line arguments: " + System.Environment.CommandLine);
 
         game = GetComponent<Game>();
         game.ParseGameArgs(System.Environment.GetCommandLineArgs());
@@ -108,7 +119,8 @@ public class LaunchAndPlay : MonoBehaviour
     void PollForSharedSurface()
     {
         System.Int32 pollHandle = game.GetSharedHandle();
-        print("PollForSharedSurface handle: " + pollHandle);
+
+        debugprint("PollForSharedSurface handle: " + pollHandle);
 
         // When the game notifies us to Resize or Reset, we will set the gGameSharedHANDLE
         // to NULL to notify this side.  When this happens, immediately set the Quad
@@ -222,7 +234,7 @@ public class LaunchAndPlay : MonoBehaviour
 
     void Update()
     {
-        print("Update");
+        debugprint("Update");
 
         // Keep checking for a change in resolution by the game. This needs to be
         // done every frame to avoid using textures disposed by Reset.
@@ -261,12 +273,11 @@ public class LaunchAndPlay : MonoBehaviour
         {
             yield return null;
 
-            print("StartOfFrame");
-
             ownMutex = GrabSetupMutex();
-            print("-> GrabSetupMutex: " + ownMutex);
             if (!ownMutex)
                 screenMaterial.mainTexture = greyTexture;
+
+            debugprint("-> GrabSetupMutex: " + ownMutex);
         }
     }
 
@@ -288,9 +299,8 @@ public class LaunchAndPlay : MonoBehaviour
             yield return new WaitForEndOfFrame();
 
             ownMutex = ReleaseSetupMutex();
-            print("<- ReleaseSetupMutex: " + ownMutex);
 
-            print("EndOfFrame");
+            debugprint("<- ReleaseSetupMutex: " + ownMutex);
         }
     }
 
@@ -302,8 +312,13 @@ public class LaunchAndPlay : MonoBehaviour
 
     private void OnApplicationQuit()
     {
+        print("OnApplicationQuit");
+
         ReleaseSetupMutex();
         DestroySetupMutex();
+
+        m_StreamWriter.Close();
+        m_FileStream.Close();
     }
 
     // -----------------------------------------------------------------------------
@@ -328,6 +343,56 @@ public class LaunchAndPlay : MonoBehaviour
         }
     }
 
+
+
+    // -----------------------------------------------------------------------------
+
+    // Create a duplicate log file in the Katanga directory, that we can will also
+    // be able to write to from both C++ plugins.
+
+    [DllImport("UnityNativePlugin64", CallingConvention = CallingConvention.Cdecl)]
+    private static extern void SetLogFile(string logFile);
+
+    static void CreateKatangaLog()
+    {
+        string katanga_log = Environment.CurrentDirectory + "\\katanga.log";
+
+        m_FileStream = new FileStream(katanga_log, FileMode.Append, FileAccess.Write, FileShare.Write);
+        m_StreamWriter = new StreamWriter(m_FileStream);
+
+        DateTime dateTime = DateTime.UtcNow;
+        string dateAndTime = dateTime.ToLongDateString() + " @ " + dateTime.ToLongTimeString() + " UTC";
+        m_StreamWriter.WriteLine(dateAndTime);
+        m_StreamWriter.WriteLine();
+
+        // Send this path to the Unity native plugin side, so it can log to same file.
+        SetLogFile(katanga_log);
+    }
+
+    // For every message sent through Debug.Log/print, we want to also duplicate them
+    // into our Katanga specific log file so we have a commplete set of info, including
+    // exact sequence of events.
+
+    static void DuplicateLog(string condition, string stackTrace, LogType type)
+    {
+        m_StreamWriter.WriteLine(condition);
+
+        if (type != LogType.Log)
+            m_StreamWriter.WriteLine(stackTrace);
+
+        m_StreamWriter.Flush();
+    }
+
+    // For Debug builds, we want to generate more verbose info, especially around 
+    // mutex handling.  This is far to much for release builds however.  Anything that
+    // is a one-off init, or a rare scenario is OK for print. Anything per-frame must
+    // be debugprint.
+
+    static void debugprint(object message)
+    {
+        if (Debug.isDebugBuild)
+            print(message);
+    }
 
     // -----------------------------------------------------------------------------
     // -----------------------------------------------------------------------------

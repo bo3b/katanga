@@ -37,6 +37,8 @@ public:
 	// End modifying texture data.
 	virtual void EndModifyTexture(void* textureHandle, int textureWidth, int textureHeight, int rowPitch, void* dataPtr) = 0;
 
+	virtual void SetLogFile(char* logFile) = 0;
+
 	// These are generic APIs, not DX specific.
 	virtual ID3D11ShaderResourceView* CreateSharedSurface(HANDLE shared) = 0;
 	virtual UINT GetGameWidth() = 0;

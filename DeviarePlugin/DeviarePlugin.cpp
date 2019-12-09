@@ -80,7 +80,7 @@ void CaptureSetupMutex()
 	DWORD waitResult;
 
 	std::thread::id tid = std::this_thread::get_id();
-	fprintf(LogFile, "-> CaptureSetupMutex@%d:\n", tid);
+	fprintf(LogFile, "-> CaptureSetupMutex@%d\n", tid);
 
 	if (gSetupMutex == NULL)
 		FatalExit(L"CaptureSetupMutex: mutex does not exist.");
@@ -136,10 +136,10 @@ void OpenLogFile()
 	SHGetKnownFolderPath(FOLDERID_LocalAppDataLow, 0, NULL, &localLowAppData);
 
 	std::wstring localLowPath(localLowAppData);
-	std::wstring w_logFilePath = localLowPath + L"\\Katanga\\Katanga\\output_log.txt";
+	std::wstring w_logFilePath = localLowPath + L"\\Katanga\\Katanga\\Output_log.txt";
 	LPCWSTR logFilePath = w_logFilePath.c_str();
 
-	LogFile = _wfsopen(logFilePath, L"a", _SH_DENYNO);
+	LogFile = _wfsopen(logFilePath, L"r+", _SH_DENYNO);
 }
 
 // --------------------------------------------------------------------------------------------------
@@ -203,6 +203,8 @@ VOID WINAPI OnUnload()
 		ReleaseMutex(gSetupMutex);
 
 	::CoUninitialize();
+
+	fclose(LogFile);
 
 	return;
 }

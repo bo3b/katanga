@@ -109,16 +109,17 @@ static void UNITY_INTERFACE_API OnGraphicsDeviceEvent(UnityGfxDeviceEventType ev
 
 
 // --------------------------------------------------------------------------
-// SetSharedHandle: 
-// Receive the gGameSurfaceShare HANDLE from DX9Ex so we can setup our DX11
-// side of the share.  Once we receive this handle, there is no reason to save it,
-// because this is notification that we should notify the DX11 plugin that
-// it should create and save the shared texture reference.
+
+extern "C" UNITY_INTERFACE_EXPORT void UNITY_INTERFACE_API SetLogFile(char* logFile)
+{
+	return s_CurrentAPI->SetLogFile(logFile);
+}
 
 extern "C" UNITY_INTERFACE_EXPORT ID3D11ShaderResourceView* UNITY_INTERFACE_API CreateSharedTexture(HANDLE sharedHandle)
 {
 	return s_CurrentAPI->CreateSharedSurface(sharedHandle);
 }
+
 
 extern "C" UNITY_INTERFACE_EXPORT UINT UNITY_INTERFACE_API GetGameWidth()
 {
