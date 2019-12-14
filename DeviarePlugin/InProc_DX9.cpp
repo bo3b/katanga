@@ -184,7 +184,7 @@ void CreateSharedRenderTarget(IDirect3DDevice9* pDevice9)
 	D3DSURFACE_DESC desc;
 	HANDLE tempSharedHandle = NULL;
 
-	LogInfo("GamePlugin:CreateSharedRenderTarget called.\n");
+	LogInfo("GamePlugin:DX9 CreateSharedRenderTarget called.\n");
 
 	res = pDevice9->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &pBackBuffer);
 	if (FAILED(res)) FatalExit(L"Fail to GetBackBuffer in CreateSharedRenderTarget");
