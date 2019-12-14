@@ -63,7 +63,7 @@ HANDLE gSetupMutex = nullptr;
 HANDLE WINAPI GetSharedHandle(int* in)
 {
 #ifdef _DEBUG
-	fprintf(LogFile, "GetSharedHandle::\n");
+	LogInfo("GetSharedHandle::%p\n", gGameSharedHandle);
 #endif
 
 	return gGameSharedHandle;
@@ -80,7 +80,7 @@ void CaptureSetupMutex()
 	DWORD waitResult;
 
 	std::thread::id tid = std::this_thread::get_id();
-	fprintf(LogFile, "-> CaptureSetupMutex@%d\n", tid);
+	LogInfo("-> CaptureSetupMutex@%d\n", tid);
 
 	if (gSetupMutex == NULL)
 		FatalExit(L"CaptureSetupMutex: mutex does not exist.");
@@ -106,7 +106,7 @@ void CaptureSetupMutex()
 void ReleaseSetupMutex()
 {
 	std::thread::id tid = std::this_thread::get_id();
-	fprintf(LogFile, "<- ReleaseSetupMutex@%d\n", tid);
+	LogInfo("<- ReleaseSetupMutex@%d\n", tid);
 
 	if (gSetupMutex == NULL)
 		FatalExit(L"ReleaseSetupMutex: mutex does not exist.");
@@ -114,11 +114,9 @@ void ReleaseSetupMutex()
 	bool ok = ReleaseMutex(gSetupMutex);
 	if (!ok)
 	{
-		wchar_t info[512];
 		DWORD hr = GetLastError();
 		std::thread::id tid = std::this_thread::get_id();
-		swprintf_s(info, _countof(info), L"ReleaseSetupMutex@%d: ReleaseMutex failed, err: 0x%x\n", tid,  hr);
-		fwprintf(LogFile, info);
+		LogInfo("ReleaseSetupMutex@%d: ReleaseMutex failed, err: 0x%x\n", tid,  hr);
 	}
 }
 
@@ -136,10 +134,13 @@ void OpenLogFile()
 	SHGetKnownFolderPath(FOLDERID_LocalAppDataLow, 0, NULL, &localLowAppData);
 
 	std::wstring localLowPath(localLowAppData);
-	std::wstring w_logFilePath = localLowPath + L"\\Katanga\\Katanga\\Output_log.txt";
+	std::wstring w_logFilePath = localLowPath + L"\\Katanga\\Katanga\\katanga.log";
 	LPCWSTR logFilePath = w_logFilePath.c_str();
 
-	LogFile = _wfsopen(logFilePath, L"r+", _SH_DENYNO);
+	LogFile = _wfsopen(logFilePath, L"a", _SH_DENYNO);
+	setvbuf(LogFile, NULL, _IONBF, 0);
+
+	LogInfo("GamePlugin: C++ logging enabled.\n\n");
 }
 
 // --------------------------------------------------------------------------------------------------
@@ -165,7 +166,7 @@ HRESULT WINAPI OnLoad()
 {
 	OpenLogFile();
 	
-	fprintf(LogFile, "NativePlugin::OnLoad called\n");
+	LogInfo("GamePlugin::OnLoad called\n");
 
 	// This is running inside the game itself, so make sure we can use
 	// COM here.
@@ -197,7 +198,7 @@ HRESULT WINAPI OnLoad()
 
 VOID WINAPI OnUnload()
 {
-	fprintf(LogFile, "NativePlugin::OnUnLoad called\n");
+	LogInfo("GamePlugin::OnUnLoad called\n");
 
 	if (gSetupMutex != NULL)
 		ReleaseMutex(gSetupMutex);
@@ -223,9 +224,9 @@ HRESULT WINAPI OnHookAdded(__in INktHookInfo *lpHookInfo, __in DWORD dwChainInde
 	if (FAILED(hr))
 		FatalExit(L"Failed GetFunctionName");
 	lpHookInfo->get_Address(&address);
-	sprintf_s(szBufA, 1024, "DeviarePlugin::OnHookAdded called [Hook: %S @ 0x%IX / Chain:%lu]\n",
+	sprintf_s(szBufA, 1024, "GamePlugin::OnHookAdded called [Hook: %S @ 0x%IX / Chain:%lu]\n",
 		name, address, dwChainIndex);
-	fprintf(LogFile, szBufA);
+	LogInfo(szBufA);
 
 	hr = lpHookInfo->CurrentProcess(&pProc);
 	if (FAILED(hr))
@@ -248,9 +249,9 @@ VOID WINAPI OnHookRemoved(__in INktHookInfo *lpHookInfo, __in DWORD dwChainIndex
 	if (FAILED(hr))
 		FatalExit(L"Failed GetFunctionName");
 	lpHookInfo->get_Address(&address);
-	sprintf_s(szBufA, 1024, "DeviarePlugin::OnHookRemoved called [Hook: %S @ 0x%IX / Chain:%lu]\n",
+	sprintf_s(szBufA, 1024, "GamePlugin::OnHookRemoved called [Hook: %S @ 0x%IX / Chain:%lu]\n",
 		name, address, dwChainIndex);
-	fprintf(LogFile, szBufA);
+	LogInfo(szBufA);
 
 	return;
 }
@@ -301,9 +302,9 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 	CHAR szBufA[1024];
 
 	lpHookInfo->get_Address(&address);
-	sprintf_s(szBufA, 1024, "DeviarePlugin::OnFunctionCall called [Hook: %S @ 0x%IX / Chain:%lu]\n",
+	sprintf_s(szBufA, 1024, "GamePlugin::OnFunctionCall called [Hook: %S @ 0x%IX / Chain:%lu]\n",
 		name, address, dwChainIndex);
-	fprintf(LogFile, szBufA);
+	LogInfo(szBufA);
 #endif
 
 

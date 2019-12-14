@@ -338,9 +338,11 @@ void RenderAPI_D3D11::SetLogFile(char* logFilePath)
 {
 	gLogFile = _fsopen(logFilePath, "a", _SH_DENYNO);
 	if (gLogFile == NULL)
-		FatalExit(L"RenderAPI_D3D11::SetLogFile unable to open log for writing.");
+		FatalExit(L"Katanga:SetLogFile unable to open log for writing.");
 	
-	int x =fprintf(gLogFile, "..\n..Unity Native C++ logging enabled.\n");
+	setvbuf(gLogFile, NULL, _IONBF, 0);
+
+	int x =fprintf(gLogFile, "\n..Unity Native C++ logging enabled.\n");
 	int y = fflush(gLogFile);
 }
 
@@ -355,10 +357,10 @@ void RenderAPI_D3D11::SetLogFile(char* logFilePath)
 
 void RenderAPI_D3D11::CreateSetupMutex()
 {
-	Log("\n..RenderAPI_D3D11::CreateSetupMutex\n");
+	Log("\n..Katanga:CreateSetupMutex\n");
 
 	if (gSetupMutex != NULL)
-		FatalExit(L"RenderAPI_D3D11::CreateSetupMutex called, but already created.");
+		FatalExit(L"Katanga:CreateSetupMutex called, but already created.");
 
 	gSetupMutex = CreateMutex(NULL, false, L"KatangaSetupMutex");
 	if (gSetupMutex == NULL)
@@ -366,27 +368,30 @@ void RenderAPI_D3D11::CreateSetupMutex()
 		DWORD hr = GetLastError();
 		wchar_t info[512];
 		swprintf_s(info, _countof(info),
-			L"RenderAPI_D3D11::CreateSetupMutex failed. err: 0x%x\n", hr);
+			L"Katanga:CreateSetupMutex failed. err: 0x%x\n", hr);
 		FatalExit(info);
 	}
 }
 
 bool RenderAPI_D3D11::GrabSetupMutex()
 {
-	LogDebug("..RenderAPI_D3D11::GrabSetupMutex\n");
+	LogDebug(">Katanga:GrabSetupMutex\n");
 
 	if (gSetupMutex == NULL)
-		FatalExit(L"RenderAPI_D3D11::GrabSetupMutex called, but mutex does not exist.");
+		FatalExit(L"Katanga:GrabSetupMutex called, but mutex does not exist.");
 
 	// See if we can grab the mutex immediately.  Using 0 wait time, because
 	// we don't want to stall the drawing in the VR environment, we'll just
 	// draw grey screen if we are locked out.
 
-	DWORD wait = WaitForSingleObject(gSetupMutex, 100);
+	DWORD wait = WaitForSingleObject(gSetupMutex, 0);
 	if (wait != WAIT_OBJECT_0)
 	{
 		DWORD hr = GetLastError();
-		Log("..RenderAPI_D3D11::GrabSetupMutex: WaitForSingleObject failed. wait: 0x%x, err: 0x%x\n", wait, hr);
+		if (wait == WAIT_TIMEOUT)
+			Log("..Katanga:GrabSetupMutex: WaitForSingleObject WAIT_TIMEOUT err: 0x%x\n", hr);
+		else
+			Log("..Katanga:GrabSetupMutex: WaitForSingleObject failed. wait: 0x%x, err: 0x%x\n", wait, hr);
 
 		return false;
 	}
@@ -396,16 +401,19 @@ bool RenderAPI_D3D11::GrabSetupMutex()
 
 bool RenderAPI_D3D11::ReleaseSetupMutex()
 {
-	LogDebug("..RenderAPI_D3D11::ReleaseSetupMutex\n");
+	LogDebug("<Katanga:ReleaseSetupMutex\n");
 
 	if (gSetupMutex == NULL)
-		FatalExit(L"RenderAPI_D3D11::ReleaseSetupMutex: Mutex released before initialized.");
+		FatalExit(L"Katanga:ReleaseSetupMutex: Mutex released before initialized.");
 
 	bool ok = ReleaseMutex(gSetupMutex);
 	if (!ok)
 	{
 		DWORD hr = GetLastError();
-		Log("..RenderAPI_D3D11::ReleaseSetupMutex: ReleaseMutex failed, err: 0x%x\n", hr);
+		if (hr == ERROR_NOT_OWNER)
+			Log("..Katanga:ReleaseSetupMutex: ReleaseMutex ERROR_NOT_OWNER\n");
+		else
+			Log("..Katanga:ReleaseSetupMutex: ReleaseMutex failed, err: 0x%x\n", hr);
 	}
 
 	return ok;
@@ -413,10 +421,10 @@ bool RenderAPI_D3D11::ReleaseSetupMutex()
 
 void RenderAPI_D3D11::DestroySetupMutex()
 {
-	Log("..\nRenderAPI_D3D11::DestroySetupMutex\n");
+	Log("\n..Katanga:DestroySetupMutex\n\n");
 
 	if (gSetupMutex == NULL)
-		FatalExit(L"RenderAPI_D3D11::DestroySetupMutex: Mutex does not exist.");
+		FatalExit(L"Katanga:DestroySetupMutex: Mutex does not exist.");
 
 	ReleaseMutex(gSetupMutex);
 	CloseHandle(gSetupMutex);
@@ -472,7 +480,7 @@ ID3D11ShaderResourceView* RenderAPI_D3D11::CreateSharedSurface(HANDLE shared)
 		gHeight = tdesc.Height;
 		gFormat = tdesc.Format;
 
-		Log("RenderAPI_D3D11::CreateSharedSurface - Width: %d, Height: %d, Format: %d\n",
+		Log("Katanga:CreateSharedSurface - Width: %d, Height: %d, Format: %d\n",
 			tdesc.Width, tdesc.Height, tdesc.Format);
 	}
 	resource->Release();

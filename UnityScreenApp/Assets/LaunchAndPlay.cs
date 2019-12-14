@@ -6,12 +6,12 @@ using UnityEngine;
 using UnityEngine.UI;
 using System.Collections;
 using System.Threading;
+using System.Text;
 
 public class LaunchAndPlay : MonoBehaviour
 {
     // For multipoint logging, including native C++ plugins/
     private static FileStream m_FileStream;
-    private static StreamWriter m_StreamWriter;
 
     // Game object that handles launching and communicating with the running game.
     Game game;
@@ -317,7 +317,6 @@ public class LaunchAndPlay : MonoBehaviour
         ReleaseSetupMutex();
         DestroySetupMutex();
 
-        m_StreamWriter.Close();
         m_FileStream.Close();
     }
 
@@ -355,15 +354,15 @@ public class LaunchAndPlay : MonoBehaviour
 
     static void CreateKatangaLog()
     {
-        string katanga_log = Environment.CurrentDirectory + "\\katanga.log";
+        string katanga_log = @"C:\Users\bo3b\AppData\LocalLow\Katanga\Katanga\katanga.log";  // Environment.CurrentDirectory + "\\katanga.log";
 
-        m_FileStream = new FileStream(katanga_log, FileMode.Append, FileAccess.Write, FileShare.Write);
-        m_StreamWriter = new StreamWriter(m_FileStream);
+        m_FileStream = new FileStream(katanga_log, FileMode.Create, FileAccess.Write, FileShare.Write);
 
         DateTime dateTime = DateTime.UtcNow;
-        string dateAndTime = dateTime.ToLongDateString() + " @ " + dateTime.ToLongTimeString() + " UTC";
-        m_StreamWriter.WriteLine(dateAndTime);
-        m_StreamWriter.WriteLine();
+        string dateAndTime = dateTime.ToLongDateString() + " @ " + dateTime.ToLongTimeString() + " UTC\n";
+        m_FileStream.Write(Encoding.Default.GetBytes(dateAndTime), 0, dateAndTime.Length);
+        m_FileStream.WriteByte(0xa);
+        m_FileStream.Close();
 
         // Send this path to the Unity native plugin side, so it can log to same file.
         SetLogFile(katanga_log);
@@ -375,12 +374,13 @@ public class LaunchAndPlay : MonoBehaviour
 
     static void DuplicateLog(string condition, string stackTrace, LogType type)
     {
-        m_StreamWriter.WriteLine(condition);
+        //m_FileStream.Write(Encoding.Default.GetBytes(condition), 0, condition.Length);
+        //m_FileStream.WriteByte(0xa);
 
-        if (type != LogType.Log)
-            m_StreamWriter.WriteLine(stackTrace);
+        //if (type != LogType.Log)
+        //    m_FileStream.Write(Encoding.Default.GetBytes(stackTrace), 0, stackTrace.Length);
 
-        m_StreamWriter.Flush();
+        //m_FileStream.Flush();
     }
 
     // For Debug builds, we want to generate more verbose info, especially around 
