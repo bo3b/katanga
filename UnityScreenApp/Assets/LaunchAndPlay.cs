@@ -346,15 +346,28 @@ public class LaunchAndPlay : MonoBehaviour
 
     // -----------------------------------------------------------------------------
 
-    // Create a duplicate log file in the Katanga directory, that we can will also
-    // be able to write to from both C++ plugins.
+    // Create a duplicate log file in the LocalLow directory, right next to the Unity
+    // Output.log.  We can write to this from both C++ plugins.
+
+    [DllImport("shell32.dll")]
+    static extern int SHGetKnownFolderPath(
+     [MarshalAs(UnmanagedType.LPStruct)] Guid rfid,
+     uint dwFlags,
+     IntPtr hToken,
+     out IntPtr pszPath  // API uses CoTaskMemAlloc
+     );
+    public static readonly Guid LocalAppDataLow = new Guid("A520A1A4-1780-4FF6-BD18-167343C5AF16");
 
     [DllImport("UnityNativePlugin64", CallingConvention = CallingConvention.Cdecl)]
     private static extern void SetLogFile(string logFile);
 
     static void CreateKatangaLog()
     {
-        string katanga_log = @"C:\Users\bo3b\AppData\LocalLow\Katanga\Katanga\katanga.log";  // Environment.CurrentDirectory + "\\katanga.log";
+        IntPtr localLowString;
+        SHGetKnownFolderPath(LocalAppDataLow, 0, IntPtr.Zero, out localLowString);
+
+        string katanga_log = Marshal.PtrToStringUni(localLowString);
+        katanga_log += @"\Katanga\Katanga\katanga.log";
 
         m_FileStream = new FileStream(katanga_log, FileMode.Create, FileAccess.Write, FileShare.Write);
 
