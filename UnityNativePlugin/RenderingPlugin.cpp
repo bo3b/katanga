@@ -110,9 +110,13 @@ static void UNITY_INTERFACE_API OnGraphicsDeviceEvent(UnityGfxDeviceEventType ev
 
 // --------------------------------------------------------------------------
 
-extern "C" UNITY_INTERFACE_EXPORT void UNITY_INTERFACE_API SetLogFile(char* logFile)
+extern "C" UNITY_INTERFACE_EXPORT void UNITY_INTERFACE_API OpenLogFile(char* logFile)
 {
-	return s_CurrentAPI->SetLogFile(logFile);
+	return s_CurrentAPI->OpenLogFile(logFile);
+}
+extern "C" UNITY_INTERFACE_EXPORT void UNITY_INTERFACE_API CloseLogFile()
+{
+	return s_CurrentAPI->CloseLogFile();
 }
 
 extern "C" UNITY_INTERFACE_EXPORT ID3D11ShaderResourceView* UNITY_INTERFACE_API CreateSharedTexture(HANDLE sharedHandle)

@@ -63,7 +63,8 @@ public:
 	virtual void* BeginModifyTexture(void* textureHandle, int textureWidth, int textureHeight, int* outRowPitch);
 	virtual void EndModifyTexture(void* textureHandle, int textureWidth, int textureHeight, int rowPitch, void* dataPtr);
 
-	virtual void SetLogFile(char* logFile);
+	virtual void OpenLogFile(char* logFile);
+	virtual void CloseLogFile();
 
 	virtual ID3D11ShaderResourceView* CreateSharedSurface(HANDLE shared);
 	virtual UINT GetGameWidth();
@@ -334,16 +335,21 @@ void RenderAPI_D3D11::EndModifyTexture(void* textureHandle, int textureWidth, in
 // and the C++ game plugin.  This captures the full path for the log file, so
 // that we can write to it here.
 
-void RenderAPI_D3D11::SetLogFile(char* logFilePath)
+void RenderAPI_D3D11::OpenLogFile(char* logFilePath)
 {
 	gLogFile = _fsopen(logFilePath, "a", _SH_DENYNO);
 	if (gLogFile == NULL)
-		FatalExit(L"Katanga:SetLogFile unable to open log for writing.");
+		FatalExit(L"Katanga:OpenLogFile unable to open log for writing.");
 	
 	setvbuf(gLogFile, NULL, _IONBF, 0);
 
-	int x =fprintf(gLogFile, "\n..Unity Native C++ logging enabled.\n");
-	int y = fflush(gLogFile);
+	Log("\n..Unity Native C++ logging enabled.\n");
+}
+
+void RenderAPI_D3D11::CloseLogFile()
+{
+	Log("\n..Unity Native C++ log closed.\n");
+	fclose(gLogFile);
 }
 
 // ----------------------------------------------------------------------

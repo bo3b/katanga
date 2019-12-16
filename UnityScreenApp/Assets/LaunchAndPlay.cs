@@ -316,8 +316,6 @@ public class LaunchAndPlay : MonoBehaviour
 
         ReleaseSetupMutex();
         DestroySetupMutex();
-
-        m_FileStream.Close();
     }
 
     // -----------------------------------------------------------------------------
@@ -359,7 +357,7 @@ public class LaunchAndPlay : MonoBehaviour
     public static readonly Guid LocalAppDataLow = new Guid("A520A1A4-1780-4FF6-BD18-167343C5AF16");
 
     [DllImport("UnityNativePlugin64", CallingConvention = CallingConvention.Cdecl)]
-    private static extern void SetLogFile(string logFile);
+    private static extern void OpenLogFile(string logFile);
 
     static void CreateKatangaLog()
     {
@@ -378,7 +376,7 @@ public class LaunchAndPlay : MonoBehaviour
         m_FileStream.Close();
 
         // Send this path to the Unity native plugin side, so it can log to same file.
-        SetLogFile(katanga_log);
+        OpenLogFile(katanga_log);
     }
 
     // For every message sent through Debug.Log/print, we want to also duplicate them
