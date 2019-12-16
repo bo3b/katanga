@@ -357,7 +357,7 @@ void RenderAPI_D3D11::SetLogFile(char* logFilePath)
 
 void RenderAPI_D3D11::CreateSetupMutex()
 {
-	Log("\n..Katanga:CreateSetupMutex\n");
+	Log("\n..Katanga:CreateSetupMutex-->\n");
 
 	if (gSetupMutex != NULL)
 		FatalExit(L"Katanga:CreateSetupMutex called, but already created.");
@@ -375,7 +375,7 @@ void RenderAPI_D3D11::CreateSetupMutex()
 
 bool RenderAPI_D3D11::GrabSetupMutex()
 {
-	LogDebug(">Katanga:GrabSetupMutex\n");
+	LogDebug("..>Katanga:GrabSetupMutex\n");
 
 	if (gSetupMutex == NULL)
 		FatalExit(L"Katanga:GrabSetupMutex called, but mutex does not exist.");
@@ -401,7 +401,7 @@ bool RenderAPI_D3D11::GrabSetupMutex()
 
 bool RenderAPI_D3D11::ReleaseSetupMutex()
 {
-	LogDebug("<Katanga:ReleaseSetupMutex\n");
+	LogDebug("..<Katanga:ReleaseSetupMutex\n");
 
 	if (gSetupMutex == NULL)
 		FatalExit(L"Katanga:ReleaseSetupMutex: Mutex released before initialized.");
@@ -421,7 +421,7 @@ bool RenderAPI_D3D11::ReleaseSetupMutex()
 
 void RenderAPI_D3D11::DestroySetupMutex()
 {
-	Log("\n..Katanga:DestroySetupMutex\n\n");
+	Log("..Katanga:DestroySetupMutex<--\n\n");
 
 	if (gSetupMutex == NULL)
 		FatalExit(L"Katanga:DestroySetupMutex: Mutex does not exist.");
@@ -480,7 +480,7 @@ ID3D11ShaderResourceView* RenderAPI_D3D11::CreateSharedSurface(HANDLE shared)
 		gHeight = tdesc.Height;
 		gFormat = tdesc.Format;
 
-		Log("Katanga:CreateSharedSurface - Width: %d, Height: %d, Format: %d\n",
+		Log("..Katanga:CreateSharedSurface - Width: %d, Height: %d, Format: %d\n",
 			tdesc.Width, tdesc.Height, tdesc.Format);
 	}
 	resource->Release();

@@ -140,7 +140,7 @@ void OpenLogFile()
 	LogFile = _wfsopen(logFilePath, L"a", _SH_DENYNO);
 	setvbuf(LogFile, NULL, _IONBF, 0);
 
-	LogInfo("GamePlugin: C++ logging enabled.\n\n");
+	LogInfo("\nGamePlugin C++ logging enabled.\n\n");
 }
 
 // --------------------------------------------------------------------------------------------------
@@ -205,6 +205,7 @@ VOID WINAPI OnUnload()
 
 	::CoUninitialize();
 
+	LogInfo("\nGamePlugin C++ log closed.\n\n");
 	fclose(LogFile);
 
 	return;
