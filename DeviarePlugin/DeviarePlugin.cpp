@@ -168,6 +168,16 @@ HRESULT WINAPI OnLoad()
 	
 	LogInfo("GamePlugin::OnLoad called\n");
 
+	// Setup shared mutex, with the VR side owning it.  We should never arrive
+	// here without the Katanga side already having created it.
+	// We will grab mutex to lock their drawing, whenever we are setting up
+	// the shared surface.
+	gSetupMutex = OpenMutex(SYNCHRONIZE, false, L"KatangaSetupMutex");
+	LogInfo("GamePlugin: OpenMutex called: %p\n", gSetupMutex);
+	if (gSetupMutex == NULL)
+		FatalExit(L"OnLoad: could not find KatangaSetupMutex");
+
+
 	// This is running inside the game itself, so make sure we can use
 	// COM here.
 	::CoInitialize(NULL);
@@ -184,14 +194,6 @@ HRESULT WINAPI OnLoad()
 	FindAndHookPresent();
 
 
-	// Setup shared mutex, with the VR side owning it.  We should never arrive
-	// here without the Katanga side already having created it.
-	// We will grab mutex to lock their drawing, whenever we are setting up
-	// the shared surface.
-	gSetupMutex = OpenMutex(SYNCHRONIZE, false, L"KatangaSetupMutex");
-	if (gSetupMutex == NULL)
-		FatalExit(L"OnLoad: could not find KatangaSetupMutex");
-
 	return S_OK;
 }
 
@@ -200,6 +202,7 @@ VOID WINAPI OnUnload()
 {
 	LogInfo("GamePlugin::OnUnLoad called\n");
 
+	LogInfo("GamePlugin: ReleaseMutex for %p\n", gSetupMutex);
 	if (gSetupMutex != NULL)
 		ReleaseMutex(gSetupMutex);
 
@@ -590,6 +593,6 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 
 void FatalExit(LPCWSTR errorString)
 {
-	MessageBox(NULL, errorString, L"Fatal Error", MB_OK);
+	MessageBox(NULL, errorString, L"GamePlugin: Fatal Error", MB_OK);
 	exit(1);
 }
