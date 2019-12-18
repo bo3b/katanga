@@ -335,7 +335,7 @@ public class LaunchAndPlay : MonoBehaviour
     {
         if (type == LogType.Exception)
         {
-            MessageBox(IntPtr.Zero, condition, "Fatal Error", 0);
+            MessageBox(IntPtr.Zero, condition, "Katanga Fatal Error", 0);
             Application.Quit();
         }
     }

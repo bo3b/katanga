@@ -81,8 +81,7 @@ void CaptureSetupMutex()
 {
 	DWORD waitResult;
 
-	std::thread::id tid = std::this_thread::get_id();
-	LogInfo(L"-> CaptureSetupMutex@%d mutex:%p\n", tid, gSetupMutex);
+	LogInfo(L"-> CaptureSetupMutex mutex:%p\n", gSetupMutex);
 
 	if (gSetupMutex == NULL)
 		FatalExit(L"CaptureSetupMutex: mutex does not exist.");
@@ -93,8 +92,7 @@ void CaptureSetupMutex()
 	{
 		wchar_t info[512];
 		DWORD hr = GetLastError();
-		std::thread::id tid = std::this_thread::get_id();
-		swprintf_s(info, _countof(info), L"CaptureSetupMutex@%d: WaitForSingleObject failed.\nwaitResult: 0x%x, err: 0x%x\n", tid, waitResult, hr);
+		swprintf_s(info, _countof(info), L"CaptureSetupMutex: WaitForSingleObject failed.\nwaitResult: 0x%x, err: 0x%x\n", waitResult, hr);
 		LogInfo(info);
 		FatalExit(info);
 	}
@@ -109,8 +107,7 @@ void CaptureSetupMutex()
 
 void ReleaseSetupMutex()
 {
-	std::thread::id tid = std::this_thread::get_id();
-	LogInfo(L"<- ReleaseSetupMutex@%d mutex:%p\n", tid, gSetupMutex);
+	LogInfo(L"<- ReleaseSetupMutex mutex:%p\n", gSetupMutex);
 
 	if (gSetupMutex == NULL)
 		FatalExit(L"ReleaseSetupMutex: mutex does not exist.");
@@ -120,8 +117,7 @@ void ReleaseSetupMutex()
 	if (!ok)
 	{
 		DWORD hr = GetLastError();
-		std::thread::id tid = std::this_thread::get_id();
-		LogInfo(L"ReleaseSetupMutex@%d: ReleaseMutex failed, err: 0x%x\n", tid,  hr);
+		LogInfo(L"ReleaseSetupMutex: ReleaseMutex failed, err: 0x%x\n",  hr);
 	}
 }
 
@@ -232,7 +228,7 @@ HRESULT WINAPI OnHookAdded(__in INktHookInfo *lpHookInfo, __in DWORD dwChainInde
 		FatalExit(L"Failed GetFunctionName");
 	lpHookInfo->get_Address(&address);
 	
-	LogInfo(L"GamePlugin::OnHookAdded called [Hook: %S @ 0x%IX / Chain:%lu]\n",
+	LogInfo(L"GamePlugin::OnHookAdded called [Hook: %ls @ 0x%IX / Chain:%lu]\n",
 		name, address, dwChainIndex);
 
 	hr = lpHookInfo->CurrentProcess(&pProc);
@@ -256,7 +252,7 @@ VOID WINAPI OnHookRemoved(__in INktHookInfo *lpHookInfo, __in DWORD dwChainIndex
 		FatalExit(L"Failed GetFunctionName");
 	lpHookInfo->get_Address(&address);
 
-	LogInfo(L"GamePlugin::OnHookRemoved called [Hook: %S @ 0x%IX / Chain:%lu]\n",
+	LogInfo(L"GamePlugin::OnHookRemoved called [Hook: %ls @ 0x%IX / Chain:%lu]\n",
 			name, address, dwChainIndex);
 
 	return;
@@ -306,7 +302,7 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 	my_ssize_t address;
 
 	lpHookInfo->get_Address(&address);
-	LogInfo(L"GamePlugin::OnFunctionCall called [Hook: %S @ 0x%IX / Chain:%lu]\n",
+	LogInfo(L"GamePlugin::OnFunctionCall called [Hook: %ls @ 0x%IX / Chain:%lu]\n",
 		name, address, dwChainIndex);
 
 

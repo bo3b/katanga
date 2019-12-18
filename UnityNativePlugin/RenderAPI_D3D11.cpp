@@ -18,9 +18,9 @@
 static FILE* gLogFile;
 
 #define Log(fmt, ...) \
-	do { if (gLogFile) fprintf(gLogFile, fmt, __VA_ARGS__); fflush(gLogFile); } while (0)
+	do { if (gLogFile) fwprintf(gLogFile, fmt, __VA_ARGS__); fflush(gLogFile); } while (0)
 
-static void LogDebug(char* text)
+static void LogDebug(wchar_t* text)
 {
 #ifdef _DEBUG 
 	Log(text);
@@ -44,7 +44,7 @@ static void LogDebug(char* text)
 
 void FatalExit(LPCWSTR errorString)
 {
-	MessageBox(NULL, errorString, L"Fatal Error", MB_OK);
+	MessageBox(NULL, errorString, L"Katanga:Plugin Fatal Error", MB_OK);
 	exit(1);
 }
 
@@ -343,12 +343,12 @@ void RenderAPI_D3D11::OpenLogFile(char* logFilePath)
 	
 	setvbuf(gLogFile, NULL, _IONBF, 0);
 
-	Log("\n..Unity Native C++ logging enabled.\n");
+	Log(L"\n..Unity Native C++ logging enabled.\n");
 }
 
 void RenderAPI_D3D11::CloseLogFile()
 {
-	Log("\n..Unity Native C++ log closed.\n");
+	Log(L"\n..Unity Native C++ log closed.\n");
 	fclose(gLogFile);
 }
 
@@ -363,7 +363,7 @@ void RenderAPI_D3D11::CloseLogFile()
 
 void RenderAPI_D3D11::CreateSetupMutex()
 {
-	Log("\n..Katanga:CreateSetupMutex--> ");
+	Log(L"\n..Katanga:CreateSetupMutex--> ");
 
 	if (gSetupMutex != NULL)
 		FatalExit(L"Katanga:CreateSetupMutex called, but already created.");
@@ -379,12 +379,12 @@ void RenderAPI_D3D11::CreateSetupMutex()
 		FatalExit(info);
 	}
 
-	Log("%p\n", gSetupMutex);
+	Log(L"%p\n", gSetupMutex);
 }
 
 bool RenderAPI_D3D11::GrabSetupMutex()
 {
-	LogDebug("..>Katanga:GrabSetupMutex\n");
+	LogDebug(L"..>Katanga:GrabSetupMutex\n");
 
 	if (gSetupMutex == NULL)
 		FatalExit(L"Katanga:GrabSetupMutex called, but mutex does not exist.");
@@ -398,9 +398,9 @@ bool RenderAPI_D3D11::GrabSetupMutex()
 	{
 		DWORD hr = GetLastError();
 		if (wait == WAIT_TIMEOUT)
-			Log("..Katanga:GrabSetupMutex: WaitForSingleObject WAIT_TIMEOUT err: 0x%x\n", hr);
+			Log(L"..Katanga:GrabSetupMutex: WaitForSingleObject WAIT_TIMEOUT err: 0x%x\n", hr);
 		else
-			Log("..Katanga:GrabSetupMutex: WaitForSingleObject failed. wait: 0x%x, err: 0x%x\n", wait, hr);
+			Log(L"..Katanga:GrabSetupMutex: WaitForSingleObject failed. wait: 0x%x, err: 0x%x\n", wait, hr);
 
 		return false;
 	}
@@ -410,7 +410,7 @@ bool RenderAPI_D3D11::GrabSetupMutex()
 
 bool RenderAPI_D3D11::ReleaseSetupMutex()
 {
-	LogDebug("..<Katanga:ReleaseSetupMutex\n");
+	LogDebug(L"..<Katanga:ReleaseSetupMutex\n");
 
 	if (gSetupMutex == NULL)
 		FatalExit(L"Katanga:ReleaseSetupMutex: Mutex released before initialized.");
@@ -420,9 +420,9 @@ bool RenderAPI_D3D11::ReleaseSetupMutex()
 	{
 		DWORD hr = GetLastError();
 		if (hr == ERROR_NOT_OWNER)
-			Log("..Katanga:ReleaseSetupMutex: ReleaseMutex ERROR_NOT_OWNER\n");
+			Log(L"..Katanga:ReleaseSetupMutex: ReleaseMutex ERROR_NOT_OWNER\n");
 		else
-			Log("..Katanga:ReleaseSetupMutex: ReleaseMutex failed, err: 0x%x\n", hr);
+			Log(L"..Katanga:ReleaseSetupMutex: ReleaseMutex failed, err: 0x%x\n", hr);
 	}
 
 	return ok;
@@ -430,7 +430,7 @@ bool RenderAPI_D3D11::ReleaseSetupMutex()
 
 void RenderAPI_D3D11::DestroySetupMutex()
 {
-	Log("..Katanga:DestroySetupMutex<-- %p\n\n", gSetupMutex);
+	Log(L"\n..Katanga:DestroySetupMutex<-- %p\n\n", gSetupMutex);
 
 	if (gSetupMutex == NULL)
 		FatalExit(L"Katanga:DestroySetupMutex: Mutex does not exist.");
@@ -466,19 +466,20 @@ ID3D11ShaderResourceView* RenderAPI_D3D11::CreateSharedSurface(HANDLE shared)
 	ID3D11Texture2D* texture;
 	ID3D11ShaderResourceView* pSRView;
 
-	if (shared == NULL)
-		return nullptr;
+	Log(L"..Katanga:CreateSharedSurface called. shared:%p\n", shared);
+
+	if (shared == NULL) FatalExit(L"CreateSharedSurface called with NULL handle.\n");
 
 	hr = m_Device->OpenSharedResource(shared, __uuidof(ID3D11Resource), (void**)(&resource));
+	Log(L"....OpenSharedResource on shared: %p, result: %d, resource: %p\n", shared, hr, resource);
 	{
 		if (FAILED(hr)) FatalExit(L"Failed to open shared.");
-
-		if (resource == nullptr)
-			return nullptr;
+		if (resource == nullptr) FatalExit(L"Failed to return shared.\n");
 
 		// Even though the input shared surface is a RenderTarget Surface, this
 		// Query for Texture still works.  Not sure if it is good or bad.
 		hr = resource->QueryInterface(__uuidof(ID3D11Texture2D), (void**)(&texture));
+		Log(L"....QueryInterface on shared resource %p, result: %d\n", resource, hr);
 		if (FAILED(hr)) FatalExit(L"Failed to QueryInterface of ID3D11Texture2D.");
 
 		// By capturing the Width/Height/Format here, we can let Unity side
@@ -489,7 +490,7 @@ ID3D11ShaderResourceView* RenderAPI_D3D11::CreateSharedSurface(HANDLE shared)
 		gHeight = tdesc.Height;
 		gFormat = tdesc.Format;
 
-		Log("..Katanga:CreateSharedSurface - Width: %d, Height: %d, Format: %d\n",
+		Log(L"....Successful CreateSharedSurface - Width: %d, Height: %d, Format: %d\n",
 			tdesc.Width, tdesc.Height, tdesc.Format);
 	}
 	resource->Release();
@@ -504,6 +505,7 @@ ID3D11ShaderResourceView* RenderAPI_D3D11::CreateSharedSurface(HANDLE shared)
 	// specifies, so passing NULL to make it identical.
 
 	hr = m_Device->CreateShaderResourceView(texture, NULL, &pSRView);
+	Log(L"....CreateShaderResourceView on texture: %p, result: %d, SRView: %p\n", texture, hr, pSRView); 
 	if (FAILED(hr))	FatalExit(L"Failed to CreateShaderResourceView.");
 
 	return pSRView;
