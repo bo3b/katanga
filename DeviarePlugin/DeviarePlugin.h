@@ -51,7 +51,7 @@ void FatalExit(LPCWSTR errorString);
 extern FILE* LogFile;
 
 #define LogInfo(fmt, ...) \
-	do { if (LogFile) { fprintf(LogFile, fmt, __VA_ARGS__); fflush(LogFile);} } while (0)
+	do { if (LogFile) { fwprintf(LogFile, fmt, __VA_ARGS__); fflush(LogFile);} } while (0)
 
 // Interface to InProc side
 void ReleaseSetupMutex();

@@ -63,7 +63,7 @@ HANDLE gSetupMutex = nullptr;
 HANDLE WINAPI GetSharedHandle(int* in)
 {
 #ifdef _DEBUG
-	LogInfo("GetSharedHandle::%p\n", gGameSharedHandle);
+	LogInfo(L"GetSharedHandle::%p\n", gGameSharedHandle);
 #endif
 
 	return gGameSharedHandle;
@@ -74,24 +74,28 @@ HANDLE WINAPI GetSharedHandle(int* in)
 // Used for both CreateDevice and Reset/Resize functions, where we are setting up the
 // graphic environment, and thus cannot allow the VR side to draw using anything
 // from the game side here.
+// We should be OK using a 1 second wait here, if we cannot grab the mutex from the
+// Katanga side in 1 second, something is definitely broken.
 
 void CaptureSetupMutex()
 {
 	DWORD waitResult;
 
 	std::thread::id tid = std::this_thread::get_id();
-	LogInfo("-> CaptureSetupMutex@%d\n", tid);
+	LogInfo(L"-> CaptureSetupMutex@%d mutex:%p\n", tid, gSetupMutex);
 
 	if (gSetupMutex == NULL)
 		FatalExit(L"CaptureSetupMutex: mutex does not exist.");
 
 	waitResult = WaitForSingleObject(gSetupMutex, 1000);
+	LogInfo(L"  WaitForSingleObject mutex:%p, result:0x%x\n", gSetupMutex, waitResult);
 	if (waitResult != WAIT_OBJECT_0)
 	{
 		wchar_t info[512];
 		DWORD hr = GetLastError();
 		std::thread::id tid = std::this_thread::get_id();
 		swprintf_s(info, _countof(info), L"CaptureSetupMutex@%d: WaitForSingleObject failed.\nwaitResult: 0x%x, err: 0x%x\n", tid, waitResult, hr);
+		LogInfo(info);
 		FatalExit(info);
 	}
 }
@@ -106,17 +110,18 @@ void CaptureSetupMutex()
 void ReleaseSetupMutex()
 {
 	std::thread::id tid = std::this_thread::get_id();
-	LogInfo("<- ReleaseSetupMutex@%d\n", tid);
+	LogInfo(L"<- ReleaseSetupMutex@%d mutex:%p\n", tid, gSetupMutex);
 
 	if (gSetupMutex == NULL)
 		FatalExit(L"ReleaseSetupMutex: mutex does not exist.");
 
 	bool ok = ReleaseMutex(gSetupMutex);
+	LogInfo(L"  ReleaseSetupMutex mutex:%p, result:%s\n", gSetupMutex, ok? L"OK" : L"FAIL");
 	if (!ok)
 	{
 		DWORD hr = GetLastError();
 		std::thread::id tid = std::this_thread::get_id();
-		LogInfo("ReleaseSetupMutex@%d: ReleaseMutex failed, err: 0x%x\n", tid,  hr);
+		LogInfo(L"ReleaseSetupMutex@%d: ReleaseMutex failed, err: 0x%x\n", tid,  hr);
 	}
 }
 
@@ -140,7 +145,7 @@ void OpenLogFile()
 	LogFile = _wfsopen(logFilePath, L"a", _SH_DENYNO);
 	setvbuf(LogFile, NULL, _IONBF, 0);
 
-	LogInfo("\nGamePlugin C++ logging enabled.\n\n");
+	LogInfo(L"\nGamePlugin C++ logging enabled.\n\n");
 }
 
 // --------------------------------------------------------------------------------------------------
@@ -166,14 +171,14 @@ HRESULT WINAPI OnLoad()
 {
 	OpenLogFile();
 	
-	LogInfo("GamePlugin::OnLoad called\n");
+	LogInfo(L"GamePlugin::OnLoad called\n");
 
 	// Setup shared mutex, with the VR side owning it.  We should never arrive
 	// here without the Katanga side already having created it.
 	// We will grab mutex to lock their drawing, whenever we are setting up
 	// the shared surface.
 	gSetupMutex = OpenMutex(SYNCHRONIZE, false, L"KatangaSetupMutex");
-	LogInfo("GamePlugin: OpenMutex called: %p\n", gSetupMutex);
+	LogInfo(L"GamePlugin: OpenMutex called: %p\n", gSetupMutex);
 	if (gSetupMutex == NULL)
 		FatalExit(L"OnLoad: could not find KatangaSetupMutex");
 
@@ -193,22 +198,21 @@ HRESULT WINAPI OnLoad()
 	// Find the Present call for current game
 	FindAndHookPresent();
 
-
 	return S_OK;
 }
 
 
 VOID WINAPI OnUnload()
 {
-	LogInfo("GamePlugin::OnUnLoad called\n");
+	LogInfo(L"GamePlugin::OnUnLoad called\n");
 
-	LogInfo("GamePlugin: ReleaseMutex for %p\n", gSetupMutex);
+	LogInfo(L"GamePlugin: ReleaseMutex for %p\n", gSetupMutex);
 	if (gSetupMutex != NULL)
 		ReleaseMutex(gSetupMutex);
 
 	::CoUninitialize();
 
-	LogInfo("\nGamePlugin C++ log closed.\n\n");
+	LogInfo(L"\nGamePlugin C++ log closed.\n\n");
 	fclose(LogFile);
 
 	return;
@@ -220,7 +224,6 @@ HRESULT WINAPI OnHookAdded(__in INktHookInfo *lpHookInfo, __in DWORD dwChainInde
 {
 	BSTR name;
 	my_ssize_t address;
-	CHAR szBufA[1024];
 	INktProcess* pProc;
 	long gGamePID;
 
@@ -228,9 +231,9 @@ HRESULT WINAPI OnHookAdded(__in INktHookInfo *lpHookInfo, __in DWORD dwChainInde
 	if (FAILED(hr))
 		FatalExit(L"Failed GetFunctionName");
 	lpHookInfo->get_Address(&address);
-	sprintf_s(szBufA, 1024, "GamePlugin::OnHookAdded called [Hook: %S @ 0x%IX / Chain:%lu]\n",
+	
+	LogInfo(L"GamePlugin::OnHookAdded called [Hook: %S @ 0x%IX / Chain:%lu]\n",
 		name, address, dwChainIndex);
-	LogInfo(szBufA);
 
 	hr = lpHookInfo->CurrentProcess(&pProc);
 	if (FAILED(hr))
@@ -247,15 +250,14 @@ VOID WINAPI OnHookRemoved(__in INktHookInfo *lpHookInfo, __in DWORD dwChainIndex
 {
 	BSTR name;
 	my_ssize_t address;
-	CHAR szBufA[1024];
 
 	HRESULT hr = lpHookInfo->get_FunctionName(&name);
 	if (FAILED(hr))
 		FatalExit(L"Failed GetFunctionName");
 	lpHookInfo->get_Address(&address);
-	sprintf_s(szBufA, 1024, "GamePlugin::OnHookRemoved called [Hook: %S @ 0x%IX / Chain:%lu]\n",
-		name, address, dwChainIndex);
-	LogInfo(szBufA);
+
+	LogInfo(L"GamePlugin::OnHookRemoved called [Hook: %S @ 0x%IX / Chain:%lu]\n",
+			name, address, dwChainIndex);
 
 	return;
 }
@@ -299,17 +301,13 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 
 	hr = lpHookInfo->get_FunctionName(&name);
 	if (FAILED(hr))
-		FatalExit(L"Failed GetFunctionName");
+		FatalExit(L"GamePlugin::OnFunctionCall Failed GetFunctionName");
 
-#ifdef _DEBUG
 	my_ssize_t address;
-	CHAR szBufA[1024];
 
 	lpHookInfo->get_Address(&address);
-	sprintf_s(szBufA, 1024, "GamePlugin::OnFunctionCall called [Hook: %S @ 0x%IX / Chain:%lu]\n",
+	LogInfo(L"GamePlugin::OnFunctionCall called [Hook: %S @ 0x%IX / Chain:%lu]\n",
 		name, address, dwChainIndex);
-	LogInfo(szBufA);
-#endif
 
 
 

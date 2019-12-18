@@ -363,7 +363,7 @@ void RenderAPI_D3D11::CloseLogFile()
 
 void RenderAPI_D3D11::CreateSetupMutex()
 {
-	Log("\n..Katanga:CreateSetupMutex-->\n");
+	Log("\n..Katanga:CreateSetupMutex--> ");
 
 	if (gSetupMutex != NULL)
 		FatalExit(L"Katanga:CreateSetupMutex called, but already created.");
@@ -375,8 +375,11 @@ void RenderAPI_D3D11::CreateSetupMutex()
 		wchar_t info[512];
 		swprintf_s(info, _countof(info),
 			L"Katanga:CreateSetupMutex failed. err: 0x%x\n", hr);
+	//	Log(info);
 		FatalExit(info);
 	}
+
+	Log("%p\n", gSetupMutex);
 }
 
 bool RenderAPI_D3D11::GrabSetupMutex()
@@ -427,7 +430,7 @@ bool RenderAPI_D3D11::ReleaseSetupMutex()
 
 void RenderAPI_D3D11::DestroySetupMutex()
 {
-	Log("..Katanga:DestroySetupMutex<--\n\n");
+	Log("..Katanga:DestroySetupMutex<-- %p\n\n", gSetupMutex);
 
 	if (gSetupMutex == NULL)
 		FatalExit(L"Katanga:DestroySetupMutex: Mutex does not exist.");

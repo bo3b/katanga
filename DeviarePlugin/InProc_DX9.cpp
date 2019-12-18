@@ -90,7 +90,7 @@ IDirect3DSurface9* gSharedTarget = nullptr;
 
 //HANDLE WINAPI GetEventHandle(int* in)
 //{
-//	LogInfo("GetSharedEvent::\n");
+//	LogInfo(LL"GetSharedEvent::\n");
 //
 //	return gFreshBits;
 //}
@@ -104,14 +104,14 @@ IDirect3DSurface9* gSharedTarget = nullptr;
 //HANDLE WINAPI TriggerEvent(int* in)
 //{
 //
-//	//	LogInfo("TriggerEvent::\n");
+//	//	LogInfo(LL"TriggerEvent::\n");
 //
 //
 //	if ((int)in == 1)		// Active triggered
 //	{
 //		BOOL set = SetEvent(gFreshBits);
 //		if (!set)
-//			LogInfo("Bad SetEvent in TriggerEvent.\n");
+//			LogInfo(L"Bad SetEvent in TriggerEvent.\n");
 //
 //		// Waste time spinning, while we wait for high resolution timer.
 //		// This timer using QueryPerformanceCounter should be accurate
@@ -134,7 +134,7 @@ IDirect3DSurface9* gSharedTarget = nullptr;
 //	{
 //		BOOL reset = ResetEvent(gFreshBits);
 //		if (!reset)
-//			LogInfo("Bad ResetEvent in TriggerEvent.\n");
+//			LogInfo(L"Bad ResetEvent in TriggerEvent.\n");
 //
 //		QueryPerformanceCounter(&resetTriggerTicks);
 //
@@ -184,7 +184,7 @@ void CreateSharedRenderTarget(IDirect3DDevice9* pDevice9)
 	D3DSURFACE_DESC desc;
 	HANDLE tempSharedHandle = NULL;
 
-	LogInfo("GamePlugin:DX9 CreateSharedRenderTarget called.\n");
+	LogInfo(L"GamePlugin:DX9 CreateSharedRenderTarget called. gGameSurface: %p, gGameSharedHandle: %p\n", gGameSurface, gGameSharedHandle);
 
 	res = pDevice9->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &pBackBuffer);
 	if (FAILED(res)) FatalExit(L"Fail to GetBackBuffer in CreateSharedRenderTarget");
@@ -197,7 +197,7 @@ void CreateSharedRenderTarget(IDirect3DDevice9* pDevice9)
 	D3DFORMAT format = desc.Format;
 	IDirect3DTexture9* stereoCopy = nullptr;
 
-	LogInfo("  Width: %d, Height: %d, Format: %d\n", width, height, format);
+	LogInfo(L"  Width: %d, Height: %d, Format: %d\n", width, height, format);
 
 	res = pDevice9->CreateTexture(width, height, 0, D3DUSAGE_RENDERTARGET, format, D3DPOOL_DEFAULT,
 		&stereoCopy, nullptr);
@@ -269,13 +269,13 @@ HRESULT __stdcall Hooked_Present(IDirect3DDevice9* This,
 	IDirect3DSurface9* backBuffer;
 
 	hr = This->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &backBuffer);
-	if (SUCCEEDED(hr) && gGameSurface > 0)
+	if (SUCCEEDED(hr) && gGameSurface != nullptr)
 	{
 		hr = NvAPI_Stereo_ReverseStereoBlitControl(gNVAPI, true);
 		{
 			hr = This->StretchRect(backBuffer, nullptr, gGameSurface, nullptr, D3DTEXF_NONE);
 			if (FAILED(hr))
-				LogInfo("Bad StretchRect to Texture.\n");
+				LogInfo(L"Bad StretchRect to Texture.\n");
 			hr = This->StretchRect(gGameSurface, nullptr, gSharedTarget, nullptr, D3DTEXF_NONE);
 
 //			SetEvent(gFreshBits);		// Signal other thread to start StretchRect
@@ -319,7 +319,13 @@ HRESULT __stdcall Hooked_Reset(IDirect3DDevice9* This,
 {
 	HRESULT hr;
 	
-	LogInfo("GamePlugin:Reset called.\n");
+	LogInfo(L"GamePlugin: IDirect3DDevice9->Reset called. gGameSurface: %p, gSharedTarget: %p, gGameSharedHandle: %p\n", 
+		gGameSurface, gSharedTarget, gGameSharedHandle);
+	if (pPresentationParameters != nullptr)
+	{
+		LogInfo(L"  Width: %d, Height: %d, Format: %d\n", 
+			pPresentationParameters->BackBufferWidth, pPresentationParameters->BackBufferHeight, pPresentationParameters->BackBufferFormat);
+	}
 
 	// Grab the KatangaSetupMutex, so that the VR side will be locked out of touching
 	// any shared surfaces until we rebuild the shared surface after CreateRenderedSurface.
@@ -344,11 +350,13 @@ HRESULT __stdcall Hooked_Reset(IDirect3DDevice9* This,
 
 		if (gGameSurface)
 		{
+			LogInfo(L"  Release gGameSurface: %p\n", gGameSurface);
 			gGameSurface->Release();
 			gGameSurface = NULL;
 		}
 		if (gSharedTarget)
 		{
+			LogInfo(L"  Release gSharedTarget: %p\n", gSharedTarget);
 			gSharedTarget->Release();
 			gSharedTarget = NULL;
 		}
@@ -358,14 +366,7 @@ HRESULT __stdcall Hooked_Reset(IDirect3DDevice9* This,
 		// use our shared texture can thus crash the device.
 
 		hr = pOrigReset(This, pPresentationParameters);
-
-#ifdef _DEBUG
-		if (pPresentationParameters)
-		{
-			LogInfo("IDirect3DDevice9->Reset, HR: %d,  Width: %d, Height: %d, Format: %d\n"
-				, hr, pPresentationParameters->BackBufferWidth, pPresentationParameters->BackBufferHeight, pPresentationParameters->BackBufferFormat);
-		}
-#endif
+		LogInfo(L"  IDirect3DDevice9->Reset result: %d\n", hr);
 
 		// Remove and replace the shared texture to match new setup.
 		CreateSharedRenderTarget(This);
@@ -411,7 +412,7 @@ HRESULT __stdcall Hooked_Reset(IDirect3DDevice9* This,
 //		hr = device->StretchRect(gGameSurface, nullptr, gSharedTarget, nullptr, D3DTEXF_NONE);
 //		// Not supposed to use CLR.
 //		//if (FAILED(hr))
-//		//	LogInfo("Bad StretchRect to RenderTarget in CopyGameToShared thread.\n");
+//		//	LogInfo(L"Bad StretchRect to RenderTarget in CopyGameToShared thread.\n");
 //
 //		reset = ResetEvent(gFreshBits);
 //		if (!reset)
@@ -460,7 +461,7 @@ HRESULT __stdcall Hooked_CreateTexture(IDirect3DDevice9* This,
 	/* [in] */          HANDLE            *pSharedHandle)
 {
 #ifdef _DEBUG
-		LogInfo("GamePlugin::Hooked_CreateTexture - Levels: %d, Usage: %x, Format: %d, Pool: %d\n",
+		LogInfo(L"GamePlugin::Hooked_CreateTexture - Levels: %d, Usage: %x, Format: %d, Pool: %d\n",
 			Levels, Usage, Format, Pool);
 #endif
 
@@ -478,7 +479,7 @@ HRESULT __stdcall Hooked_CreateTexture(IDirect3DDevice9* This,
 	HRESULT hr = pOrigCreateTexture(This, Width, Height, Levels, Usage, Format, Pool,
 		ppTexture, pSharedHandle);
 	if (FAILED(hr))
-		LogInfo("Failed to call pOrigCreateTexture\n");
+		LogInfo(L"Failed to call pOrigCreateTexture\n");
 
 	return hr;
 }
@@ -517,7 +518,7 @@ HRESULT __stdcall Hooked_CreateCubeTexture(IDirect3DDevice9* This,
 	/* [in] */          HANDLE                *pSharedHandle)
 {
 #ifdef _DEBUG
-		LogInfo("GamePlugin::Hooked_CreateTexture - Levels: %d, Usage: %x, Format: %d, Pool: %d\n",
+		LogInfo(L"GamePlugin::Hooked_CreateTexture - Levels: %d, Usage: %x, Format: %d, Pool: %d\n",
 			Levels, Usage, Format, Pool);
 #endif
 
@@ -535,7 +536,7 @@ HRESULT __stdcall Hooked_CreateCubeTexture(IDirect3DDevice9* This,
 	HRESULT hr = pOrigCreateCubeTexture(This, EdgeLength, Levels, Usage, Format, Pool,
 		ppCubeTexture, pSharedHandle);
 	if (FAILED(hr))
-		LogInfo("Failed to call pOrigCreateCubeTexture\n");
+		LogInfo(L"Failed to call pOrigCreateCubeTexture\n");
 
 	return hr;
 }
@@ -575,7 +576,7 @@ HRESULT __stdcall Hooked_CreateVertexBuffer(IDirect3DDevice9* This,
 	/* [in] */          HANDLE                 *pSharedHandle)
 {
 #ifdef _DEBUG
-		LogInfo("GamePlugin::Hooked_CreateVertexBuffer -  Usage: %x, Pool: %d\n",
+		LogInfo(L"GamePlugin::Hooked_CreateVertexBuffer -  Usage: %x, Pool: %d\n",
 			Usage, Pool);
 #endif
 
@@ -590,7 +591,7 @@ HRESULT __stdcall Hooked_CreateVertexBuffer(IDirect3DDevice9* This,
 	HRESULT hr = pOrigCreateVertexBuffer(This, Length, Usage, FVF, Pool,
 		ppVertexBuffer, pSharedHandle);
 	if (FAILED(hr))
-		LogInfo("Failed to call pOrigCreateVertexBuffer\n");
+		LogInfo(L"Failed to call pOrigCreateVertexBuffer\n");
 
 	return hr;
 }
@@ -625,7 +626,7 @@ HRESULT __stdcall Hooked_CreateIndexBuffer(IDirect3DDevice9* This,
 	/* [in] */          HANDLE                *pSharedHandle)
 {
 #ifdef _DEBUG
-		LogInfo("GamePlugin::Hooked_CreateIndexBuffer -  Usage: %x, Format: %d, Pool: %d\n",
+		LogInfo(L"GamePlugin::Hooked_CreateIndexBuffer -  Usage: %x, Format: %d, Pool: %d\n",
 			Usage, Format, Pool);
 #endif
 
@@ -640,7 +641,7 @@ HRESULT __stdcall Hooked_CreateIndexBuffer(IDirect3DDevice9* This,
 	HRESULT hr = pOrigCreateIndexBuffer(This, Length, Usage, Format, Pool,
 		ppIndexBuffer, pSharedHandle);
 	if (FAILED(hr))
-		LogInfo("Failed to call pOrigCreateIndexBuffer\n");
+		LogInfo(L"Failed to call pOrigCreateIndexBuffer\n");
 
 	return hr;
 }
@@ -681,11 +682,11 @@ HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 {
 	HRESULT hr;
 
-	LogInfo("\nGamePlugin::Hooked_CreateDevice called\n");
-	if (pPresentationParameters)
+	LogInfo(L"\nGamePlugin::Hooked_CreateDevice called\n");
+	if (pPresentationParameters != nullptr)
 	{
-		LogInfo("  Width: %d, Height: %d, Format: %d\n"
-			, pPresentationParameters->BackBufferWidth, pPresentationParameters->BackBufferHeight, pPresentationParameters->BackBufferFormat);
+		LogInfo(L"  Width: %d, Height: %d, Format: %d\n",
+			pPresentationParameters->BackBufferWidth, pPresentationParameters->BackBufferHeight, pPresentationParameters->BackBufferFormat);
 	}
 
 	// Grab Mutex here during Device creation, and release it after we 
@@ -715,45 +716,48 @@ HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 			ppReturnedDeviceInterface);
 		if (FAILED(hr)) FatalExit(L"Failed to create IDirect3DDevice9");
 
-
 		// Using that fresh DX9 Device, we can now hook the Present and CreateTexture calls.
 
-		IDirect3DDevice9* pDevice9 = *ppReturnedDeviceInterface;
+		IDirect3DDevice9* pDevice9 = (ppReturnedDeviceInterface != nullptr) ? *ppReturnedDeviceInterface : nullptr;
 
-		if (pOrigPresent == nullptr && SUCCEEDED(hr) && ppReturnedDeviceInterface != nullptr)
+		LogInfo(L"  IDirect3D9->CreateDevice result: %d, device: %p\n", hr, pDevice9);
+
+		if (pOrigPresent == nullptr && SUCCEEDED(hr) && pDevice9 != nullptr)
 		{
 			SIZE_T hook_id;
 			DWORD dwOsErr;
 
+			LogInfo(L"  Create hooks for all DX9 calls.\n");
+
 			dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigPresent,
 				lpvtbl_Present_DX9(pDevice9), Hooked_Present, 0);
 			if (FAILED(dwOsErr))
-				LogInfo("Failed to hook IDirect3DDevice9::Present\n");
+				LogInfo(L"Failed to hook IDirect3DDevice9::Present\n");
 
 			dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigReset,
 				lpvtbl_Reset(pDevice9), Hooked_Reset, 0);
 			if (FAILED(dwOsErr))
-				LogInfo("Failed to hook IDirect3DDevice9::Reset\n");
+				LogInfo(L"Failed to hook IDirect3DDevice9::Reset\n");
 
 			dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigCreateTexture,
 				lpvtbl_CreateTexture(pDevice9), Hooked_CreateTexture, 0);
 			if (FAILED(dwOsErr))
-				LogInfo("Failed to hook IDirect3DDevice9::CreateTexture\n");
+				LogInfo(L"Failed to hook IDirect3DDevice9::CreateTexture\n");
 
 			dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigCreateCubeTexture,
 				lpvtbl_CreateCubeTexture(pDevice9), Hooked_CreateCubeTexture, 0);
 			if (FAILED(dwOsErr))
-				LogInfo("Failed to hook IDirect3DDevice9::CreateCubeTexture\n");
+				LogInfo(L"Failed to hook IDirect3DDevice9::CreateCubeTexture\n");
 
 			dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigCreateVertexBuffer,
 				lpvtbl_CreateVertexBuffer(pDevice9), Hooked_CreateVertexBuffer, 0);
 			if (FAILED(dwOsErr))
-				LogInfo("Failed to hook IDirect3DDevice9::CreateVertexBuffer\n");
+				LogInfo(L"Failed to hook IDirect3DDevice9::CreateVertexBuffer\n");
 
 			dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigCreateIndexBuffer,
 				lpvtbl_CreateIndexBuffer(pDevice9), Hooked_CreateIndexBuffer, 0);
 			if (FAILED(dwOsErr))
-				LogInfo("Failed to hook IDirect3DDevice9::CreateIndexBuffer\n");
+				LogInfo(L"Failed to hook IDirect3DDevice9::CreateIndexBuffer\n");
 
 
 			NvAPI_Status res = NvAPI_Initialize();
@@ -849,6 +853,7 @@ void HookCreateDevice(IDirect3D9Ex* pDX9Ex)
 		// using In-Proc here.  Since we are using the CINTERFACE, we can 
 		// just directly access the address.
 
+		LogInfo(L"GamePlugin::HookCreateDevice\n");
 		SIZE_T hook_id;
 		DWORD dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigCreateDevice,
 			lpvtbl_CreateDevice(pDX9Ex), Hooked_CreateDevice, 0);
@@ -869,10 +874,7 @@ IDirect3D9* (__stdcall *pOrigDirect3DCreate9)(
 IDirect3D9* __stdcall Hooked_Direct3DCreate9(
 	UINT SDKVersion)
 {
-
-#ifdef _DEBUG
-	LogInfo("GamePlugin::Hooked_Direct3DCreate9 - SDK: %d\n", SDKVersion);
-#endif
+	LogInfo(L"GamePlugin::Hooked_Direct3DCreate9 - SDK: %d\n", SDKVersion);
 
 	IDirect3D9Ex* pDX9Ex = nullptr;
 	HRESULT hr = Direct3DCreate9Ex(D3D_SDK_VERSION, &pDX9Ex);
@@ -904,6 +906,8 @@ IDirect3D9* __stdcall Hooked_Direct3DCreate9(
 void HookDirect3DCreate9()
 {
 	WCHAR d3d9SystemPath[MAX_PATH];
+
+	LogInfo(L"GamePlugin::HookDirect3DCreate9\n");
 
 	UINT size = GetSystemDirectory(d3d9SystemPath, MAX_PATH);
 	if (size == 0) FatalExit(L"Failed to GetSystemDirectory at HookDirect3DCreat9");
