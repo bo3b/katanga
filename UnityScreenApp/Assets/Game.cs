@@ -262,12 +262,12 @@ public class Game : MonoBehaviour
         _spyMgr = new NktSpyMgr();
         hresult = _spyMgr.Initialize();
         if (hresult != 0)
-            throw new Exception("Deviare Initialize error.");
+            throw new Exception("Hook library initialize error.");
 #if _DEBUG
     _spyMgr.SettingOverride("SpyMgrDebugLevelMask", 0x2FF8);
     // _spyMgr.SettingOverride("SpyMgrAgentLevelMask", 0x040);
 #endif
-        print("Successful SpyMgr Init");
+        print("Successful hook library Init");
 
 
         // We must set the game directory specifically, otherwise it winds up being the 
@@ -354,11 +354,11 @@ public class Game : MonoBehaviour
             // The native DeviarePlugin has two versions, one for x32, one for x64, so we can handle
             // either x32 or x64 games.
 
-            print("Load DeviarePlugin");
+            print("Load GamePlugin");
             if (gameProc.PlatformBits == 64)
-                _nativeDLLName = Application.dataPath + "/Plugins/DeviarePlugin64.dll";
+                _nativeDLLName = Application.dataPath + "/Plugins/GamePlugin64.dll";
             else
-                _nativeDLLName = Application.dataPath + "/Plugins/DeviarePlugin.dll";
+                _nativeDLLName = Application.dataPath + "/Plugins/GamePlugin.dll";
 
             int loadResult = _spyMgr.LoadCustomDll(gameProc, _nativeDLLName, true, true);
             if (loadResult <= 0)
@@ -575,7 +575,7 @@ public class Game : MonoBehaviour
 
         int result;
         result = GetLastErrorCode();
-        print(string.Format("Last Deviare error: 0x{0:X}", result));
+        print(string.Format("Last hook library error: 0x{0:X}", result));
 
         Directory.SetCurrentDirectory(activeDirectory);
 
