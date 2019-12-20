@@ -64,13 +64,13 @@ public class ControllerActions : MonoBehaviour {
         // If it's not yet fully tracking, that's OK, we'll just leave as is.  This seems better
         // than adding in the SteamVR_PlayArea script.
 
-        var chaperone = OpenVR.Chaperone;
-        if (chaperone != null)
-        {
-            float width = 0, height = 0;
-            if (chaperone.GetPlayAreaSize(ref width, ref height))
-                floor.transform.localScale = new Vector3(width, height, 1);
-        }
+        //var chaperone = OpenVR.Chaperone;
+        //if (chaperone != null)
+        //{
+        //    float width = 0, height = 0;
+        //    if (chaperone.GetPlayAreaSize(ref width, ref height))
+        //        floor.transform.localScale = new Vector3(width, height, 1);
+        //}
     }
 
     //-------------------------------------------------
