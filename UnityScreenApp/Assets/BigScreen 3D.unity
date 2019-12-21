@@ -7311,6 +7311,9 @@ MonoBehaviour:
     actionPath: /actions/default/in/HideFloorAction
     needsReinit: 0
   floor: {fileID: 2144272173}
+  sky: {fileID: 614232028}
+  leftSnow: {fileID: 452460939}
+  rightSnow: {fileID: 59406037}
 --- !u!33 &488365434
 MeshFilter:
   m_ObjectHideFlags: 0
@@ -7337,6 +7340,11 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 2}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
+--- !u!20 &614232028 stripped
+Camera:
+  m_PrefabParentObject: {fileID: 2014920, guid: dc06161b6d97feb419f45f03b62e14b9,
+    type: 2}
+  m_PrefabInternal: {fileID: 1506634339}
 --- !u!1 &638167915
 GameObject:
   m_ObjectHideFlags: 0

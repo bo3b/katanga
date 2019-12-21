@@ -56,9 +56,7 @@ public class ControllerActions : MonoBehaviour {
         float sizeY = PlayerPrefs.GetFloat("size-y", -4.5f);
         screen.localScale = new Vector3(sizeX, sizeY, 1);
 
-        Int32 showFloor = PlayerPrefs.GetInt("floor", 1);
-        shown = Convert.ToBoolean(showFloor);
-        floor.SetActive(shown);
+        UpdateFloor();
 
         // Let's also clip the floor to whatever the size of the user's boundary.
         // If it's not yet fully tracking, that's OK, we'll just leave as is.  This seems better
@@ -312,29 +310,60 @@ public class ControllerActions : MonoBehaviour {
 
     // -----------------------------------------------------------------------------
 
-    // Hide the floor on center click of left trackpad. Toggle on/off.
-    // Creating our own Toggle here, because the touchpad is setup as d-pad and center 
-    // cannot be toggle by itself.
     // Upon any state change, save it as the new user preference.
 
     public SteamVR_Action_Boolean hideFloorAction;
     public GameObject floor;
-    private bool shown;
+    public Camera sky;          // As VRCamera object
+    public GameObject leftSnow;
+    public GameObject rightSnow;
 
     private void OnHideFloorAction(SteamVR_Action_Boolean fromAction, SteamVR_Input_Sources fromSource)
     {
-        if (shown)
-        {
-            floor.SetActive(false);
-            shown = false;
-        }
-        else
-        {
-            floor.SetActive(true);
-            shown = true;
-        }
+        int state = PlayerPrefs.GetInt("floor", 0);
+        state += 1;
+        if (state >= 4)
+            state = 0;
+        PlayerPrefs.SetInt("floor", state);
 
-        PlayerPrefs.SetInt("floor", Convert.ToInt32(shown));
+        UpdateFloor();
     }
 
+    // Hide the floor on grip of left control. Now cycle:
+    //  1) Snow off
+    //  2) Sky off
+    //  3) Floor off
+    //  4) All on
+     
+    private void UpdateFloor()
+    {
+        switch (PlayerPrefs.GetInt("floor", 0))
+        {
+            case 1:
+                floor.SetActive(true);
+                sky.clearFlags = CameraClearFlags.Skybox;
+                leftSnow.SetActive(false);
+                rightSnow.SetActive(false);
+                break;
+            case 2:
+                floor.SetActive(true);
+                sky.clearFlags = CameraClearFlags.SolidColor;
+                leftSnow.SetActive(false);
+                rightSnow.SetActive(false);
+                break;
+            case 3:
+                floor.SetActive(false);
+                sky.clearFlags = CameraClearFlags.SolidColor;
+                leftSnow.SetActive(false);
+                rightSnow.SetActive(false);
+                break;
+
+            default:
+                floor.SetActive(true);
+                sky.clearFlags = CameraClearFlags.Skybox;
+                leftSnow.SetActive(true);
+                rightSnow.SetActive(true);
+                break;
+        }
+    }
 }
