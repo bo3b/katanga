@@ -56,6 +56,7 @@ public class LaunchAndPlay : MonoBehaviour
 
         // Create the mutex used to block drawing when the game side is busy rebuilding
         // the graphic environment.
+        print("CreateSetupMutex");
         CreateSetupMutex();
     }
 
@@ -238,6 +239,10 @@ public class LaunchAndPlay : MonoBehaviour
             // With the game fully launched and showing frames, we no longer need InfoText.
             // Setting it Inactive makes it not take any drawing cycles, as opposed to an empty string.
             infoText.gameObject.SetActive(false);
+
+            // Successfully created the game view, so we need to disable our startup debug logging
+            // as it's too excessive for normal play.
+            showDebug = false;
         }
     }
 
@@ -327,6 +332,7 @@ public class LaunchAndPlay : MonoBehaviour
         print("OnApplicationQuit");
 
         ReleaseSetupMutex();
+        print("DestroySetupMutex");
         DestroySetupMutex();
     }
 
@@ -409,11 +415,15 @@ public class LaunchAndPlay : MonoBehaviour
     // For Debug builds, we want to generate more verbose info, especially around 
     // mutex handling.  This is far to much for release builds however.  Anything that
     // is a one-off init, or a rare scenario is OK for print. Anything per-frame must
-    // be debugprint.
+    // be debugprint.  
+    // But, at startup, we'll log every call as Debug, until we successfully get past
+    // the first CreateSharedTexture.
+
+    static bool showDebug = true;
 
     static void debugprint(object message)
     {
-        if (Debug.isDebugBuild)
+        if (Debug.isDebugBuild || showDebug)
             print(message);
     }
 

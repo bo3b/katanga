@@ -204,7 +204,12 @@ VOID WINAPI OnUnload()
 
 	LogInfo(L"GamePlugin: ReleaseMutex for %p\n", gSetupMutex);
 	if (gSetupMutex != NULL)
+	{
 		ReleaseMutex(gSetupMutex);
+		LogInfo(L"GamePlugin: ReleaseMutex err:0x%x\n", GetLastError());
+		CloseHandle(gSetupMutex);
+		LogInfo(L"GamePlugin: CloseHandle for %p, err:0x%x\n", gSetupMutex, GetLastError());
+	}
 
 	::CoUninitialize();
 
