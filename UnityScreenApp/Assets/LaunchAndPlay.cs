@@ -269,9 +269,23 @@ public class LaunchAndPlay : MonoBehaviour
             System.GC.Collect();
 
         if (Input.GetKey("escape"))
-            Application.Quit();
+            Quit();
         if (game.Exited())
-            Application.Quit();
+            Quit();
+    }
+
+
+    // If running in Editor, Application.Quit doesn't happen, which leaves the mutex open.
+    // For the UnityEditor case, we'll specify it should quit, which will call our
+    // OnApplicationQuit methods.
+
+    void Quit()
+    {
+#if UNITY_EDITOR
+        UnityEditor.EditorApplication.isPlaying = false;
+#else
+         Application.Quit();
+#endif
     }
 
     // -----------------------------------------------------------------------------
