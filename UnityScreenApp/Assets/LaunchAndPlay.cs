@@ -309,12 +309,10 @@ public class LaunchAndPlay : MonoBehaviour
 
         while (true)
         {
-
             yield return new WaitForEndOfFrame();
 
-            ownMutex = ReleaseSetupMutex();
-
             debugprint("<- ReleaseSetupMutex: " + ownMutex);
+            ReleaseSetupMutex();
         }
     }
 
