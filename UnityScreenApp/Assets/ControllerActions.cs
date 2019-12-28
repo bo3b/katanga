@@ -174,8 +174,12 @@ public class ControllerActions : MonoBehaviour {
             StopCoroutine(sizing);
     }
 
-    // ToDo: This is sizing bug.  Forced 16:9 aspect ratio is not correct for all cases.
-    //  Needs to be based on the resolution in the game itself.
+    // Whenever we are saving the x/y for the screen size, we want this to be at the 16:9 aspect
+    // ratio, because at launch we want to show that normal shaped screen.  
+    //
+    // However, when moving, we might be moving a 4:3 or 25:9 screen, and we want them to be
+    // able to see that live, like normal, so the actual move operation will be based off of
+    // whatever the current game is running at.
 
     IEnumerator SizingScreen(float delta)
     {
@@ -186,10 +190,11 @@ public class ControllerActions : MonoBehaviour {
             // layout, and Y is inverted.
             float dX = delta;
             float dY = -(delta * 9f / 16f);
-            screen.localScale += new Vector3(dX, dY);
-
             PlayerPrefs.SetFloat("size-x", screen.localScale.x);
             PlayerPrefs.SetFloat("size-y", screen.localScale.y);
+
+            dX = -dY * LaunchAndPlay.gameAspectRatio;
+            screen.localScale += new Vector3(dX, dY);
 
             yield return new WaitForSeconds(wait);
         }

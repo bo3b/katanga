@@ -21,7 +21,10 @@ public class LaunchAndPlay : MonoBehaviour
     // shared resource.
     Texture2D _bothEyes = null;
     System.Int32 gGameSharedHandle = 0;
-    bool ownMutex;
+    bool ownMutex = false;
+
+    // Filled in once the game is live.  
+    public static float gameAspectRatio = 16f/9f;
 
     // Original grey texture for the screen at launch, used again for resolution changes.
     public Renderer screen;
@@ -152,9 +155,20 @@ public class LaunchAndPlay : MonoBehaviour
             // making an interop for the GetDesc call.
 
             IntPtr shared = CreateSharedTexture(gGameSharedHandle);
-            int width = GetGameWidth();
-            int height = GetGameHeight();
+            int gameWidth = GetGameWidth();     // double width texture
+            int gameHeight = GetGameHeight();
             int format = GetGameFormat();
+            gameAspectRatio = (float)(gameWidth / 2) / (float)gameHeight;
+
+            // Make aspect ratio match the game settings.  Shrink or widen width only, so that
+            // the location of center does not change.  This gameWidth will also be used by the
+            // ControllerActions when resizing screen, but the master width is saved and restored
+            // by ControllerActions. 
+            // gameWidth is ephemeral, the ControllerActions PlayerPrefs(size-x) is the default.
+
+            Vector3 scale = screen.transform.localScale;
+            scale.x = -scale.y * (gameAspectRatio);
+            screen.transform.localScale = scale;
 
             // Really not sure how this color format works.  The DX9 values are completely different,
             // and typically the games are ARGB format there, but still look fine here once we
@@ -189,7 +203,7 @@ public class LaunchAndPlay : MonoBehaviour
             // This is the Unity Texture2D, double width texture, with right eye on the left half.
             // It will always be up to date with latest game image, because we pass in 'shared'.
 
-            _bothEyes = Texture2D.CreateExternalTexture(width, height, TextureFormat.RGBA32, noMipMaps, colorSpace, shared);
+            _bothEyes = Texture2D.CreateExternalTexture(gameWidth, gameHeight, TextureFormat.RGBA32, noMipMaps, colorSpace, shared);
 
             print("..eyes width: " + _bothEyes.width + " height: " + _bothEyes.height + " format: " + _bothEyes.format);
 
