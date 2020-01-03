@@ -364,7 +364,7 @@ namespace Valve.VR
             if (temporarySession)
                 ExitTemporarySession();
 
-            string bindingurl = "http://localhost:8998/dashboard/controllerbinding.html?app=" + SteamVR_Settings.instance.editorAppKey;
+            string bindingurl = "http://localhost:27062/dashboard/controllerbinding.html?app=" + SteamVR_Settings.instance.editorAppKey;
 
 #if UNITY_STANDALONE_WIN
             SteamVR_Windows_Editor_Helper.BrowserApplication browser = SteamVR_Windows_Editor_Helper.GetDefaultBrowser();
