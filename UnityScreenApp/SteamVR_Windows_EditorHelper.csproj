@@ -292,6 +292,8 @@
     <Compile Include="Assets\SteamVR\WindowsHelper\SteamVR_Windows_Editor_Helper.cs" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="Assets\PRISM.Sharpen\Shaders\PrismSharpen.cginc" />
+    <None Include="Assets\PRISM.Sharpen\Shaders\PrismSharpen.shader" />
     <None Include="Assets\SteamVR\InteractionSystem\Core\Shaders\SeeThru.shader" />
     <None Include="Assets\SteamVR\InteractionSystem\Core\Shaders\Silhouette.shader" />
     <None Include="Assets\SteamVR\InteractionSystem\Hints\Shaders\ControllerButtonHints.shader" />
