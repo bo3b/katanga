@@ -137,11 +137,11 @@ namespace Valve.VR
             }
         }
         
-        public virtual SteamVR_Action_Boolean ToggleSharpening
+        public virtual SteamVR_Action_Boolean ToggleSharpeningAction
         {
             get
             {
-                return SteamVR_Actions.default_ToggleSharpening;
+                return SteamVR_Actions.default_ToggleSharpeningAction;
             }
         }
         

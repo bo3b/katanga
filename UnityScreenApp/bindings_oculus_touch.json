@@ -86,7 +86,7 @@
                   }
                },
                "mode" : "button",
-               "path" : "/user/hand/right/input/grip"
+               "path" : "/user/hand/right/input/trigger"
             },
             {
                "inputs" : {
@@ -95,7 +95,16 @@
                   }
                },
                "mode" : "button",
-               "path" : "/user/hand/left/input/grip"
+               "path" : "/user/hand/left/input/trigger"
+            },
+            {
+               "inputs" : {
+                  "click" : {
+                     "output" : "/actions/default/in/togglesharpeningaction"
+                  }
+               },
+               "mode" : "button",
+               "path" : "/user/hand/left/input/x"
             }
          ]
       },

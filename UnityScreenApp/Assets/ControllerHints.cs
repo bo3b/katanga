@@ -107,8 +107,8 @@ namespace Valve.VR.InteractionSystem.Sample
                         ControllerButtonHints.ShowTextHint(rightHand, action, "Show/Hide Help");
                         break;
 
-                    case "ToggleSharpening":
-                        ControllerButtonHints.ShowTextHint(rightHand, action, "Sharpening On/Off");
+                    case "ToggleSharpeningAction":
+                        ControllerButtonHints.ShowTextHint(leftHand, action, "Sharpening On/Off");
                         break;
 
                     // For RightHand action, we'll look for single action to show the text

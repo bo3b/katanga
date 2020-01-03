@@ -7307,7 +7307,7 @@ MonoBehaviour:
     actionPath: /actions/default/in/RecenterAction
     needsReinit: 0
   toggleSharpening:
-    actionPath: /actions/default/in/ToggleSharpening
+    actionPath: /actions/default/in/ToggleSharpeningAction
     needsReinit: 0
   screen: {fileID: 488365435}
   globalScreen: {fileID: 1309692785}
@@ -7516,7 +7516,7 @@ MonoBehaviour:
   m_Camera: {fileID: 614232028}
   m_Material: {fileID: 0}
   m_Shader: {fileID: 4800000, guid: a884b698409ebfd41af0f6df151ca78c, type: 3}
-  sharpenAmount: 0.67
+  sharpenAmount: 1.85
   maximumSharpness: 0.25
   sharpenRadius: 1
   sharpenType: 0

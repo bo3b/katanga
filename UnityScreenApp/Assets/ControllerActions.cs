@@ -348,10 +348,13 @@ public class ControllerActions : MonoBehaviour {
      
     private void UpdateFloor()
     {
+        int state = PlayerPrefs.GetInt("floor", 0);
+        print("Set environment state: " + state);
+
         ParticleSystem.EmissionModule leftSnow = leftEmitter.GetComponent<ParticleSystem>().emission;
         ParticleSystem.EmissionModule rightSnow = rightEmitter.GetComponent<ParticleSystem>().emission;
 
-        switch (PlayerPrefs.GetInt("floor", 0))
+        switch (state)
         {
             case 1:
                 floor.SetActive(true);
@@ -412,9 +415,12 @@ public class ControllerActions : MonoBehaviour {
 
     private void UpdateSharpening()
     {
+        int state = PlayerPrefs.GetInt("sharpening", 1);
+        print("Sharpening state: " + state);
+
         PrismSharpen sharpener = vrCamera.GetComponent<PrismSharpen>();
 
-        if (PlayerPrefs.GetInt("sharpening", 1) == 1)
+        if (state == 1)
             sharpener.enabled = true;
         else
             sharpener.enabled = false;
