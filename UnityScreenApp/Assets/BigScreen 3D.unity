@@ -7248,7 +7248,7 @@ MeshRenderer:
   m_ReceiveShadows: 0
   m_DynamicOccludee: 0
   m_MotionVectors: 2
-  m_LightProbeUsage: 1
+  m_LightProbeUsage: 0
   m_ReflectionProbeUsage: 0
   m_Materials:
   - {fileID: 2100000, guid: a7dc2e74fc902654fb81647a1ede6934, type: 2}
@@ -7729,7 +7729,9 @@ Prefab:
       propertyPath: showDebugText
       value: 0
       objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    m_RemovedComponents:
+    - {fileID: 12440092, guid: dc06161b6d97feb419f45f03b62e14b9, type: 2}
+    - {fileID: 9215702, guid: dc06161b6d97feb419f45f03b62e14b9, type: 2}
   m_ParentPrefab: {fileID: 100100000, guid: dc06161b6d97feb419f45f03b62e14b9, type: 2}
   m_IsPrefabParent: 0
 --- !u!114 &1506634340 stripped
