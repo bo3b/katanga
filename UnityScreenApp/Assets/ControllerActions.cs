@@ -20,6 +20,10 @@ public class ControllerActions : MonoBehaviour {
     public SteamVR_Action_Boolean higherAction;
     public SteamVR_Action_Boolean lowerAction;
 
+    public SteamVR_Action_Boolean hideFloorAction;
+    public SteamVR_Action_Boolean recenterAction;
+    public SteamVR_Action_Boolean toggleSharpening;
+
     // This script is attached to the main Screen object, as the most logical place
     // to put all the screen sizing and location code.
     public Transform screen;
@@ -57,6 +61,7 @@ public class ControllerActions : MonoBehaviour {
         screen.localScale = new Vector3(sizeX, sizeY, 1);
 
         UpdateFloor();
+        UpdateSharpening();
 
         // Let's also clip the floor to whatever the size of the user's boundary.
         // If it's not yet fully tracking, that's OK, we'll just leave as is.  This seems better
@@ -90,6 +95,7 @@ public class ControllerActions : MonoBehaviour {
 
         recenterAction.AddOnChangeListener(OnRecenterAction, SteamVR_Input_Sources.RightHand);
         hideFloorAction.AddOnStateDownListener(OnHideFloorAction, SteamVR_Input_Sources.LeftHand);
+        toggleSharpening.AddOnStateDownListener(OnToggleSharpeningAction, SteamVR_Input_Sources.LeftHand);
     }
 
     private void OnDisable()
@@ -112,10 +118,12 @@ public class ControllerActions : MonoBehaviour {
             recenterAction.RemoveOnChangeListener(OnRecenterAction, SteamVR_Input_Sources.RightHand);
         if (hideFloorAction != null)
             hideFloorAction.RemoveOnStateDownListener(OnHideFloorAction, SteamVR_Input_Sources.LeftHand);
+        if (toggleSharpening != null)
+            toggleSharpening.RemoveOnStateDownListener(OnToggleSharpeningAction, SteamVR_Input_Sources.LeftHand);
     }
 
     //-------------------------------------------------
-    
+
     // Whenever we get clicks on Right controller trackpad, we want to loop on moving the
     // screen either in or out. Each tick of the Coroutine is worth 10cm in 3D space.Coroutine moving;
     Coroutine moving;
@@ -305,8 +313,6 @@ public class ControllerActions : MonoBehaviour {
     // We'll also handle the Right Controller Grip action as a RecenterHMD command.
     // And whenever the user is going out of there way to specify this, save that angle.
 
-    public SteamVR_Action_Boolean recenterAction;
-
     private void OnRecenterAction(SteamVR_Action_Boolean fromAction, SteamVR_Input_Sources fromSource, bool active)
     {
         if (active)
@@ -317,7 +323,6 @@ public class ControllerActions : MonoBehaviour {
 
     // Upon any state change, save it as the new user preference.
 
-    public SteamVR_Action_Boolean hideFloorAction;
     public GameObject floor;
     public Camera sky;          // As VRCamera object
     public GameObject leftEmitter;
@@ -386,5 +391,32 @@ public class ControllerActions : MonoBehaviour {
                 rightEmitter.SetActive(true);
                 break;
         }
+    }
+
+
+    // -----------------------------------------------------------------------------
+
+    // Sharpening effect will be on by default, but the user has the option to disable it,
+    // because it will cost some performance, and they may not care for it.
+
+    private void OnToggleSharpeningAction(SteamVR_Action_Boolean fromAction, SteamVR_Input_Sources fromSource)
+    {
+        int state = PlayerPrefs.GetInt("sharpening", 1);
+        state++;
+        if (state > 1)
+            state = 0;
+        PlayerPrefs.SetInt("sharpening", state);
+
+        UpdateSharpening();
+    }
+
+    private void UpdateSharpening()
+    {
+        PrismSharpen sharpener = vrCamera.GetComponent<PrismSharpen>();
+
+        if (PlayerPrefs.GetInt("sharpening", 1) == 1)
+            sharpener.enabled = true;
+        else
+            sharpener.enabled = false;
     }
 }

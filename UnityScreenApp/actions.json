@@ -64,6 +64,10 @@
       "type": "boolean"
     },
     {
+      "name": "/actions/default/in/ToggleSharpening",
+      "type": "boolean"
+    },
+    {
       "name": "/actions/default/out/Haptic",
       "type": "vibration"
     }
@@ -72,6 +76,10 @@
     {
       "name": "/actions/default",
       "usage": "leftright"
+    },
+    {
+      "name": "/actions/NewSet",
+      "usage": "single"
     }
   ],
   "default_bindings": [
@@ -130,7 +138,8 @@
       "/actions/default/in/HideFloorAction": "Hide Floor",
       "/actions/default/in/GrabPinch": "grab pinch",
       "/actions/default/in/GrabGrip": "GrabGrip",
-      "/actions/default/out/Haptic": "Haptic"
+      "/actions/default/out/Haptic": "Haptic",
+      "/actions/default/in/ToggleSharpening": "Toggle Sharpening"
     }
   ]
 }

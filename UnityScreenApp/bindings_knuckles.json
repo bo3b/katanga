@@ -1,96 +1,101 @@
 {
-   "action_manifest_version" : 0,
-   "alias_info" : {},
-   "app_key" : "application.generated.unity.katanga.exe",
-   "bindings" : {
-      "/actions/default" : {
-         "poses" : [
-            {
-               "output" : "/actions/default/in/pose",
-               "path" : "/user/hand/left/pose/raw"
+  "app_key": "application.generated.unity.katanga.exe",
+  "bindings": {
+    "/actions/default": {
+      "chords": [],
+      "poses": [
+        {
+          "output": "/actions/default/in/pose",
+          "path": "/user/hand/left/pose/raw"
+        },
+        {
+          "output": "/actions/default/in/pose",
+          "path": "/user/hand/right/pose/raw"
+        }
+      ],
+      "haptics": [],
+      "sources": [
+        {
+          "path": "/user/hand/right/input/thumbstick",
+          "mode": "dpad",
+          "parameters": {
+            "sub_mode": "touch"
+          },
+          "inputs": {
+            "north": {
+              "output": "/actions/default/in/screenfartheraction"
             },
-            {
-               "output" : "/actions/default/in/pose",
-               "path" : "/user/hand/right/pose/raw"
+            "south": {
+              "output": "/actions/default/in/screenneareraction"
             }
-         ],
-         "skeleton" : [
-            {
-               "output" : "none",
-               "path" : "/user/hand/right/input/skeleton/right"
+          }
+        },
+        {
+          "path": "/user/hand/right/input/a",
+          "mode": "toggle_button",
+          "parameters": {},
+          "inputs": {
+            "click": {
+              "output": "/actions/default/in/togglehintaction"
             }
-         ],
-         "sources" : [
-            {
-               "inputs" : {
-                  "north" : {
-                     "output" : "/actions/default/in/screenfartheraction"
-                  },
-                  "south" : {
-                     "output" : "/actions/default/in/screenneareraction"
-                  }
-               },
-               "mode" : "dpad",
-               "parameters" : {
-                  "sub_mode" : "touch"
-               },
-               "path" : "/user/hand/right/input/thumbstick"
+          }
+        },
+        {
+          "path": "/user/hand/left/input/thumbstick",
+          "mode": "dpad",
+          "parameters": {
+            "sub_mode": "touch"
+          },
+          "inputs": {
+            "east": {
+              "output": "/actions/default/in/screenbiggeraction"
             },
-            {
-               "inputs" : {
-                  "click" : {
-                     "output" : "/actions/default/in/togglehintaction"
-                  }
-               },
-               "mode" : "toggle_button",
-               "path" : "/user/hand/right/input/a"
+            "north": {
+              "output": "/actions/default/in/screenhigheraction"
             },
-            {
-               "inputs" : {
-                  "east" : {
-                     "output" : "/actions/default/in/screenbiggeraction"
-                  },
-                  "north" : {
-                     "output" : "/actions/default/in/screenhigheraction"
-                  },
-                  "south" : {
-                     "output" : "/actions/default/in/screenloweraction"
-                  },
-                  "west" : {
-                     "output" : "/actions/default/in/screensmalleraction"
-                  }
-               },
-               "mode" : "dpad",
-               "parameters" : {
-                  "sub_mode" : "touch"
-               },
-               "path" : "/user/hand/left/input/thumbstick"
+            "south": {
+              "output": "/actions/default/in/screenloweraction"
             },
-            {
-               "inputs" : {
-                  "click" : {
-                     "output" : "/actions/default/in/recenteraction"
-                  }
-               },
-               "mode" : "button",
-               "path" : "/user/hand/right/input/trigger"
-            },
-            {
-               "inputs" : {
-                  "click" : {
-                     "output" : "/actions/default/in/hideflooraction"
-                  }
-               },
-               "mode" : "button",
-               "path" : "/user/hand/left/input/trigger"
+            "west": {
+              "output": "/actions/default/in/screensmalleraction"
             }
-         ]
-      }
-   },
-   "category" : "steamvr_input",
-   "controller_type" : "knuckles",
-   "description" : "",
-   "name" : "Katanga",
-   "options" : {},
-   "simulated_actions" : []
+          }
+        },
+        {
+          "path": "/user/hand/right/input/trigger",
+          "mode": "button",
+          "parameters": {},
+          "inputs": {
+            "click": {
+              "output": "/actions/default/in/recenteraction"
+            }
+          }
+        },
+        {
+          "path": "/user/hand/left/input/trigger",
+          "mode": "button",
+          "parameters": {},
+          "inputs": {
+            "click": {
+              "output": "/actions/default/in/hideflooraction"
+            }
+          }
+        },
+        {
+          "path": "/user/hand/left/input/a",
+          "mode": "toggle_button",
+          "parameters": {},
+          "inputs": {
+            "click": {
+              "output": "/actions/default/in/togglesharpening"
+            }
+          }
+        }
+      ],
+      "skeleton": []
+    }
+  },
+  "controller_type": "knuckles",
+  "description": "",
+  "name": "My Katanga [Testing] configuration for Index Controller"
 }

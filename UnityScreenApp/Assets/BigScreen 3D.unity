@@ -7300,16 +7300,19 @@ MonoBehaviour:
   lowerAction:
     actionPath: /actions/default/in/ScreenLowerAction
     needsReinit: 0
+  hideFloorAction:
+    actionPath: /actions/default/in/HideFloorAction
+    needsReinit: 0
+  recenterAction:
+    actionPath: /actions/default/in/RecenterAction
+    needsReinit: 0
+  toggleSharpening:
+    actionPath: /actions/default/in/ToggleSharpening
+    needsReinit: 0
   screen: {fileID: 488365435}
   globalScreen: {fileID: 1309692785}
   player: {fileID: 1751585949}
   vrCamera: {fileID: 987663060}
-  recenterAction:
-    actionPath: /actions/default/in/RecenterAction
-    needsReinit: 0
-  hideFloorAction:
-    actionPath: /actions/default/in/HideFloorAction
-    needsReinit: 0
   floor: {fileID: 2144272173}
   sky: {fileID: 614232028}
   leftEmitter: {fileID: 452460939}
