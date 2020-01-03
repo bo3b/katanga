@@ -320,14 +320,14 @@ public class ControllerActions : MonoBehaviour {
     public SteamVR_Action_Boolean hideFloorAction;
     public GameObject floor;
     public Camera sky;          // As VRCamera object
-    public GameObject leftSnow;
-    public GameObject rightSnow;
+    public GameObject leftEmitter;
+    public GameObject rightEmitter;
 
     private void OnHideFloorAction(SteamVR_Action_Boolean fromAction, SteamVR_Input_Sources fromSource)
     {
         int state = PlayerPrefs.GetInt("floor", 0);
-        state += 1;
-        if (state >= 4)
+        state++;
+        if (state > 4)
             state = 0;
         PlayerPrefs.SetInt("floor", state);
 
@@ -335,39 +335,55 @@ public class ControllerActions : MonoBehaviour {
     }
 
     // Hide the floor on grip of left control. Now cycle:
-    //  1) Snow off
-    //  2) Sky off
-    //  3) Floor off
-    //  4) All on
+    //  1) Snow less
+    //  2) Snow off
+    //  3) Sky off
+    //  4) Floor off
+    //  5) All on
      
     private void UpdateFloor()
     {
+        ParticleSystem.EmissionModule leftSnow = leftEmitter.GetComponent<ParticleSystem>().emission;
+        ParticleSystem.EmissionModule rightSnow = rightEmitter.GetComponent<ParticleSystem>().emission;
+
         switch (PlayerPrefs.GetInt("floor", 0))
         {
             case 1:
                 floor.SetActive(true);
                 sky.clearFlags = CameraClearFlags.Skybox;
-                leftSnow.SetActive(false);
-                rightSnow.SetActive(false);
+                leftEmitter.SetActive(false);                   // Disable, then enable makes immediate 
+                rightEmitter.SetActive(false);                  // visible difference in rate from prewarm.
+                leftSnow.rateOverTime = 50f;
+                rightSnow.rateOverTime = 50f;
+                leftEmitter.SetActive(true);
+                rightEmitter.SetActive(true);
                 break;
             case 2:
                 floor.SetActive(true);
-                sky.clearFlags = CameraClearFlags.SolidColor;
-                leftSnow.SetActive(false);
-                rightSnow.SetActive(false);
+                sky.clearFlags = CameraClearFlags.Skybox;
+                leftEmitter.SetActive(false);
+                rightEmitter.SetActive(false);
                 break;
             case 3:
+                floor.SetActive(true);
+                sky.clearFlags = CameraClearFlags.SolidColor;
+                leftEmitter.SetActive(false);
+                rightEmitter.SetActive(false);
+                break;
+            case 4:
                 floor.SetActive(false);
                 sky.clearFlags = CameraClearFlags.SolidColor;
-                leftSnow.SetActive(false);
-                rightSnow.SetActive(false);
+                leftEmitter.SetActive(false);
+                rightEmitter.SetActive(false);
                 break;
 
             default:
                 floor.SetActive(true);
                 sky.clearFlags = CameraClearFlags.Skybox;
-                leftSnow.SetActive(true);
-                rightSnow.SetActive(true);
+                leftSnow.rateOverTime = 500f;
+                rightSnow.rateOverTime = 500f;
+                leftEmitter.SetActive(true);
+                rightEmitter.SetActive(true);
                 break;
         }
     }

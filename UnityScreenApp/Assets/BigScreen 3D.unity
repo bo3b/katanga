@@ -244,7 +244,7 @@ ParticleSystem:
   moveWithTransform: 0
   moveWithCustomTransform: {fileID: 0}
   scalingMode: 1
-  randomSeed: 141540465
+  randomSeed: 421031126
   InitialModule:
     serializedVersion: 3
     enabled: 1
@@ -804,7 +804,7 @@ ParticleSystem:
     rateOverTime:
       serializedVersion: 2
       minMaxState: 0
-      scalar: 480
+      scalar: 500
       minScalar: 10
       maxCurve:
         serializedVersion: 2
@@ -845,7 +845,7 @@ ParticleSystem:
     rateOverDistance:
       serializedVersion: 2
       minMaxState: 0
-      scalar: 20
+      scalar: 50
       minScalar: 0
       maxCurve:
         serializedVersion: 2
@@ -3905,14 +3905,14 @@ ParticleSystem:
   moveWithTransform: 0
   moveWithCustomTransform: {fileID: 0}
   scalingMode: 1
-  randomSeed: 167844289
+  randomSeed: 1905751684
   InitialModule:
     serializedVersion: 3
     enabled: 1
     startLifetime:
       serializedVersion: 2
       minMaxState: 0
-      scalar: 25
+      scalar: 30
       minScalar: 5
       maxCurve:
         serializedVersion: 2
@@ -4301,7 +4301,7 @@ ParticleSystem:
         m_PostInfinity: 2
         m_RotationOrder: 4
     randomizeRotationDirection: 0
-    maxNumParticles: 25000
+    maxNumParticles: 50000
     size3D: 0
     rotation3D: 0
     gravityModifier:
@@ -4465,7 +4465,7 @@ ParticleSystem:
     rateOverTime:
       serializedVersion: 2
       minMaxState: 0
-      scalar: 480
+      scalar: 500
       minScalar: 10
       maxCurve:
         serializedVersion: 2
@@ -7312,8 +7312,8 @@ MonoBehaviour:
     needsReinit: 0
   floor: {fileID: 2144272173}
   sky: {fileID: 614232028}
-  leftSnow: {fileID: 452460939}
-  rightSnow: {fileID: 59406037}
+  leftEmitter: {fileID: 452460939}
+  rightEmitter: {fileID: 59406037}
 --- !u!33 &488365434
 MeshFilter:
   m_ObjectHideFlags: 0
@@ -7513,7 +7513,7 @@ MonoBehaviour:
   m_Camera: {fileID: 614232028}
   m_Material: {fileID: 0}
   m_Shader: {fileID: 4800000, guid: a884b698409ebfd41af0f6df151ca78c, type: 3}
-  sharpenAmount: 2
+  sharpenAmount: 0.67
   maximumSharpness: 0.25
   sharpenRadius: 1
   sharpenType: 0

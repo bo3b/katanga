@@ -107,9 +107,13 @@ namespace Valve.VR.InteractionSystem.Sample
                         ControllerButtonHints.ShowTextHint(rightHand, action, "Show/Hide Help");
                         break;
 
-                        // For RightHand action, we'll look for single action to show the text
-                        // for the dpad controls.  ControllerButtonHints does not support dpad specific 
-                        // names, so we need one text for the whole dpad.
+                    case "ToggleSharpening":
+                        ControllerButtonHints.ShowTextHint(rightHand, action, "Sharpening On/Off");
+                        break;
+
+                    // For RightHand action, we'll look for single action to show the text
+                    // for the dpad controls.  ControllerButtonHints does not support dpad specific 
+                    // names, so we need one text for the whole dpad.
                     case "RecenterAction":
                         ControllerButtonHints.ShowTextHint(rightHand, action, "Recenter Screen");
                         break;
@@ -120,7 +124,7 @@ namespace Valve.VR.InteractionSystem.Sample
                     // For LeftHand actions, we'll look for the single action and build the
                     // large text help for all 5 dpad actions.
                     case "HideFloorAction":
-                        ControllerButtonHints.ShowTextHint(leftHand, action, "Show/Hide Floor");
+                        ControllerButtonHints.ShowTextHint(leftHand, action, "Cycle environment");
                         break;
                     case "ScreenBiggerAction":
                         string help = "Up: Screen Up\nDown: Screen Down\nLeft: Screen Smaller\nRight: Screen Bigger";
