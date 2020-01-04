@@ -330,7 +330,7 @@ public class ControllerActions : MonoBehaviour {
 
     private void OnHideFloorAction(SteamVR_Action_Boolean fromAction, SteamVR_Input_Sources fromSource)
     {
-        int state = PlayerPrefs.GetInt("floor", 0);
+        int state = PlayerPrefs.GetInt("floor", 3);
         state++;
         if (state > 4)
             state = 0;
@@ -348,7 +348,7 @@ public class ControllerActions : MonoBehaviour {
      
     private void UpdateFloor()
     {
-        int state = PlayerPrefs.GetInt("floor", 0);
+        int state = PlayerPrefs.GetInt("floor", 3);
         print("Set environment state: " + state);
 
         ParticleSystem.EmissionModule leftSnow = leftEmitter.GetComponent<ParticleSystem>().emission;
