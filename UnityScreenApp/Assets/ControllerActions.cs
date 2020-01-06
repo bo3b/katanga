@@ -85,8 +85,8 @@ public class ControllerActions : MonoBehaviour {
 
     private void OnEnable()
     {
-        fartherAction.AddOnChangeListener(OnFartherAction, SteamVR_Input_Sources.RightHand);
-        nearerAction.AddOnChangeListener(OnNearerAction, SteamVR_Input_Sources.RightHand);
+        fartherAction.AddOnChangeListener(OnZoomAction, SteamVR_Input_Sources.RightHand);
+        nearerAction.AddOnChangeListener(OnZoomAction, SteamVR_Input_Sources.RightHand);
 
         biggerAction.AddOnChangeListener(OnBiggerAction, SteamVR_Input_Sources.LeftHand);
         smallerAction.AddOnChangeListener(OnSmallerAction, SteamVR_Input_Sources.LeftHand);
@@ -101,9 +101,9 @@ public class ControllerActions : MonoBehaviour {
     private void OnDisable()
     {
         if (fartherAction != null)
-            fartherAction.RemoveOnChangeListener(OnFartherAction, SteamVR_Input_Sources.RightHand);
+            fartherAction.RemoveOnChangeListener(OnZoomAction, SteamVR_Input_Sources.RightHand);
         if (nearerAction != null)
-            nearerAction.RemoveOnChangeListener(OnNearerAction, SteamVR_Input_Sources.RightHand);
+            nearerAction.RemoveOnChangeListener(OnZoomAction, SteamVR_Input_Sources.RightHand);
 
         if (biggerAction != null)
             biggerAction.RemoveOnChangeListener(OnBiggerAction, SteamVR_Input_Sources.LeftHand);
@@ -124,26 +124,55 @@ public class ControllerActions : MonoBehaviour {
 
     //-------------------------------------------------
 
-    // Whenever we get clicks on Right controller trackpad, we want to loop on moving the
-    // screen either in or out. Each tick of the Coroutine is worth 10cm in 3D space.Coroutine moving;
-    Coroutine moving;
+    // OnGUI is called 
 
-    // On D-pad up click, make screen farther away
-    private void OnFartherAction(SteamVR_Action_Boolean fromAction, SteamVR_Input_Sources fromSource, bool active)
+    void Update()
     {
-        if (active)
-            moving = StartCoroutine(MovingScreen(distance));
-        else
-            StopCoroutine(moving);
+        ZoomScreen();
+
+
     }
 
-    // On D-pad down click, make screen closer.
-    private void OnNearerAction(SteamVR_Action_Boolean fromAction, SteamVR_Input_Sources fromSource, bool active)
+
+    //-------------------------------------------------
+
+    // Whenever we get clicks on Right controller trackpad, we want to loop on moving the
+    // screen either in or out. Each tick of the Coroutine is worth 10cm in 3D space.
+    // 
+    // Dpad up or joystick up on VR controllers moves it away, down moves it closer.  This
+    // uses the SteamVR InputActions, and is bound through the Unity SteamVR Input menu.
+    //
+    // Keyboard pageup/dn and Xbox controller right stick also work using Unity InputManager.
+    // These can only be used when Katanga is frontmost, so they won't interfere with the game.
+
+    Coroutine unityMoving = null;
+
+    private void ZoomScreen()
     {
+        float movement = Input.GetAxis("ZoomScreen") + Input.GetAxis("Controller ZoomScreen");
+
+        if ((unityMoving == null) && (movement != 0.0f))
+        {
+            float delta = (movement > 0) ? distance : -distance;
+            unityMoving = StartCoroutine(MovingScreen(delta));
+        }
+        if ((unityMoving != null) && (movement == 0.0f))
+        {
+            StopCoroutine(unityMoving);
+            unityMoving = null;
+        }
+    }
+
+    Coroutine vrMoving = null;
+
+    private void OnZoomAction(SteamVR_Action_Boolean fromAction, SteamVR_Input_Sources fromSource, bool active)
+    {
+        float delta = (fromAction == fartherAction) ? distance : -distance;
+
         if (active)
-            moving = StartCoroutine(MovingScreen(-distance));
+            vrMoving = StartCoroutine(MovingScreen(delta));
         else
-            StopCoroutine(moving);
+            StopCoroutine(vrMoving);
     }
 
     IEnumerator MovingScreen(float delta)
