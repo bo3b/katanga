@@ -320,7 +320,7 @@ public class LaunchAndPlay : MonoBehaviour
     // we might be drawing from the shared surface.
 
     [DllImport("UnityNativePlugin64")]
-    private static extern void ReleaseSetupMutex();
+    private static extern bool ReleaseSetupMutex();
 
     private IEnumerator EndOfFrame()
     {
@@ -330,8 +330,10 @@ public class LaunchAndPlay : MonoBehaviour
         {
             yield return new WaitForEndOfFrame();
 
-            debugprint("<- ReleaseSetupMutex: " + ownMutex);
-            ReleaseSetupMutex();
+            bool release = ReleaseSetupMutex();
+            debugprint("<- ReleaseSetupMutex: " + release);
+
+            ownMutex = false;
         }
     }
 
