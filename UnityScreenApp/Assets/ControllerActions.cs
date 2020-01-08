@@ -124,13 +124,18 @@ public class ControllerActions : MonoBehaviour {
 
     //-------------------------------------------------
 
-    // OnGUI is called 
+    // Called during update loop, to watch for user input on the keyboard or on a connected
+    // controller.  
 
     void Update()
     {
-        ZoomScreen();
+        ScreenZoom();
+        ScreenBiggerSmaller();
+        ScreenHigherLower();
 
-
+        Recenter();
+        CycleEnvironment();
+        SharpeningToggle();
     }
 
 
@@ -147,7 +152,7 @@ public class ControllerActions : MonoBehaviour {
 
     Coroutine unityMoving = null;
 
-    private void ZoomScreen()
+    private void ScreenZoom()
     {
         float movement = Input.GetAxis("ZoomScreen") + Input.GetAxis("Controller ZoomScreen");
 
@@ -172,7 +177,10 @@ public class ControllerActions : MonoBehaviour {
         if (active)
             vrMoving = StartCoroutine(MovingScreen(delta));
         else
+        {
             StopCoroutine(vrMoving);
+            vrMoving = null;
+        }
     }
 
     IEnumerator MovingScreen(float delta)
@@ -188,27 +196,49 @@ public class ControllerActions : MonoBehaviour {
     }
 
     //-------------------------------------------------
-    
+
     // For left/right clicks on Left trackpad, we want to loop on growing or shrinking
     // the main Screen rectangle.  Each tick of the Coroutine is worth 10cm of screen height.
-    Coroutine sizing;
+    //
+    // For keyboard left arrow is smaller, right arrow is bigger.
+    // For controller, left joystick x axis  is bigger/smaller.
+
+    Coroutine unitySizing = null;
+
+    private void ScreenBiggerSmaller()
+    {
+        float movement = Input.GetAxis("SizeScreen") + Input.GetAxis("Controller SizeScreen");
+
+        if ((unitySizing == null) && (movement != 0.0f))
+        {
+            float delta = (movement > 0) ? distance : -distance;
+            unitySizing = StartCoroutine(SizingScreen(delta));
+        }
+        if ((unitySizing != null) && (movement == 0.0f))
+        {
+            StopCoroutine(unitySizing);
+            unitySizing = null;
+        }
+    }
+
+    Coroutine vrSizing;
 
     // For D-pad right click, grow the Screen rectangle.
     private void OnBiggerAction(SteamVR_Action_Boolean fromAction, SteamVR_Input_Sources fromSource, bool active)
     {
         if (active)
-            sizing = StartCoroutine(SizingScreen(distance));
+            vrSizing = StartCoroutine(SizingScreen(distance));
         else
-            StopCoroutine(sizing);
+            StopCoroutine(vrSizing);
     }
 
     // For D-pad left click, shrink the Screen rectangle.
     private void OnSmallerAction(SteamVR_Action_Boolean fromAction, SteamVR_Input_Sources fromSource, bool active)
     {
         if (active)
-            sizing = StartCoroutine(SizingScreen(-distance));
+            vrSizing = StartCoroutine(SizingScreen(-distance));
         else
-            StopCoroutine(sizing);
+            StopCoroutine(vrSizing);
     }
 
     // Whenever we are saving the x/y for the screen size, we want this to be at the 16:9 aspect
@@ -241,24 +271,46 @@ public class ControllerActions : MonoBehaviour {
 
     // For up/down clicks on the Left trackpad, we want to move the screen higher
     // or lower.  Each tick of the Coroutine will be worth 10cm in 3D space.
-    Coroutine sliding;
+    //
+    // For keyboard, arrow up moves screen up, arrow down moves down.
+    // For xbox controller, left stick Y axis moves screen up/down.
+
+    Coroutine unitySliding = null;
+
+    private void ScreenHigherLower()
+    {
+        float movement = Input.GetAxis("SlideScreen") + Input.GetAxis("Controller SlideScreen");
+
+        if ((unitySliding == null) && (movement != 0.0f))
+        {
+            float delta = (movement > 0) ? distance : -distance;
+            unitySliding = StartCoroutine(SlidingScreen(delta));
+        }
+        if ((unitySliding != null) && (movement == 0.0f))
+        {
+            StopCoroutine(unitySliding);
+            unitySliding = null;
+        }
+    }
+
+    Coroutine vrSliding;
 
     // For an up click on the left trackpad, we want to move the screen up.
     private void OnHigherAction(SteamVR_Action_Boolean fromAction, SteamVR_Input_Sources fromSource, bool active)
     {
         if (active)
-            sliding = StartCoroutine(SlidingScreen(distance));
+            vrSliding = StartCoroutine(SlidingScreen(distance));
         else
-            StopCoroutine(sliding);
+            StopCoroutine(vrSliding);
     }
 
     // For a down click on the left trackpad, we want to move the screen down.
     private void OnLowerAction(SteamVR_Action_Boolean fromAction, SteamVR_Input_Sources fromSource, bool active)
     {
         if (active)
-            sliding = StartCoroutine(SlidingScreen(-distance));
+            vrSliding = StartCoroutine(SlidingScreen(-distance));
         else
-            StopCoroutine(sliding);
+            StopCoroutine(vrSliding);
     }
 
     IEnumerator SlidingScreen(float delta)
@@ -348,6 +400,15 @@ public class ControllerActions : MonoBehaviour {
             RecenterHMD(true);
     }
 
+    // For Keyboard, recenter key is Home.
+    // For xbox controller, recenter is right bumper.
+
+    private void Recenter()
+    {
+        if (Input.GetButtonDown("Recenter"))
+            RecenterHMD(true);
+    }
+
     // -----------------------------------------------------------------------------
 
     // Upon any state change, save it as the new user preference.
@@ -368,13 +429,31 @@ public class ControllerActions : MonoBehaviour {
         UpdateFloor();
     }
 
+    // For Keyboard, cycle environment key is backspace.
+    // For xbox controller, cycle is left bumper.
+
+    private void CycleEnvironment()
+    {
+        if (Input.GetButtonDown("Cycle Environment"))
+        {
+            int state = PlayerPrefs.GetInt("floor", 3);
+            state++;
+            if (state > 4)
+                state = 0;
+            PlayerPrefs.SetInt("floor", state);
+
+            UpdateFloor();
+        }
+    }
+
+
     // Hide the floor on grip of left control. Now cycle:
     //  1) Snow less
     //  2) Snow off
     //  3) Sky off
     //  4) Floor off
     //  5) All on
-     
+
     private void UpdateFloor()
     {
         int state = PlayerPrefs.GetInt("floor", 3);
@@ -442,10 +521,26 @@ public class ControllerActions : MonoBehaviour {
         UpdateSharpening();
     }
 
+    // For Keyboard, sharpening key is Insert.
+    // For xbox controller, sharpening toggle is Y button.
+
+    private void SharpeningToggle()
+    {
+        if (Input.GetButtonDown("Sharpening Toggle"))
+        {
+            int state = PlayerPrefs.GetInt("sharpening", 1);
+            state++;
+            if (state > 1)
+                state = 0;
+            PlayerPrefs.SetInt("sharpening", state);
+
+            UpdateSharpening();
+        }
+    }
+
     private void UpdateSharpening()
     {
         int state = PlayerPrefs.GetInt("sharpening", 1);
-        print("Sharpening state: " + state);
 
         PrismSharpen sharpener = vrCamera.GetComponent<PrismSharpen>();
 
@@ -453,5 +548,7 @@ public class ControllerActions : MonoBehaviour {
             sharpener.enabled = true;
         else
             sharpener.enabled = false;
+
+        print("Sharpening state: " + state);
     }
 }
