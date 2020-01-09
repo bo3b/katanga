@@ -23,6 +23,7 @@ public class ControllerActions : MonoBehaviour {
     public SteamVR_Action_Boolean hideFloorAction;
     public SteamVR_Action_Boolean recenterAction;
     public SteamVR_Action_Boolean toggleSharpening;
+    public GameObject billboard;
 
     // This script is attached to the main Screen object, as the most logical place
     // to put all the screen sizing and location code.
@@ -62,6 +63,7 @@ public class ControllerActions : MonoBehaviour {
 
         UpdateFloor();
         UpdateSharpening();
+        UpdateBillboard();
 
         // Let's also clip the floor to whatever the size of the user's boundary.
         // If it's not yet fully tracking, that's OK, we'll just leave as is.  This seems better
@@ -136,6 +138,7 @@ public class ControllerActions : MonoBehaviour {
         Recenter();
         CycleEnvironment();
         SharpeningToggle();
+        BillboardToggle();
     }
 
 
@@ -551,4 +554,42 @@ public class ControllerActions : MonoBehaviour {
 
         print("Sharpening state: " + state);
     }
+
+    // -----------------------------------------------------------------------------
+
+    // For Keyboard, hint key is F1.
+    // For xbox controller, show/hide hint is A button.
+    // This is done separately, because the VR controller may never be turned on.
+    // 
+    // Stored in separate PlayerPref, because if it was turned off in VR controller,
+    // it may never be seen here, and vice versa.  The billboard is out of view on the
+    // left side, so won't interfere while gaming.
+
+    private void BillboardToggle()
+    {
+        if (Input.GetButtonDown("Hide Info"))
+        {
+            int state = PlayerPrefs.GetInt("keyhints", 1);
+            state++;
+            if (state > 1)
+                state = 0;
+            PlayerPrefs.SetInt("keyhints", state);
+
+            UpdateBillboard();
+        }
+    }
+
+    private void UpdateBillboard()
+    {
+        int state = PlayerPrefs.GetInt("keyhints", 1);
+
+        if (state == 1)
+            billboard.SetActive(true);
+        else
+            billboard.SetActive(false);
+
+        print("Hint state: " + state);
+    }
+
+
 }
