@@ -425,6 +425,18 @@ bool RenderAPI_D3D11::ReleaseSetupMutex()
 			Log(L"..Katanga:ReleaseSetupMutex: ReleaseMutex failed, err: 0x%x\n", hr);
 	}
 
+	// There are bugs in the Unity startup code, such that Update can be called multiple
+	// times before the EndOfFrame happens, where we release the mutex.  If we see multiple
+	// calls to capture the mutex, we can wind up locking out the game because each capture
+	// must be matched to a release.  
+	// To avoid this annoying problem, we'll do a second ReleaseMutex here, which will free
+	// up at least one of those bad locks every frame, until we get into a free running state
+	// where this second one will always return an ERROR_NOT_OWNER every time.
+
+	ok = ReleaseMutex(gSetupMutex);
+	if (ok)
+		Log(L"..Katanga:ReleaseSetupMutex: Double lock detected.");
+
 	return ok;
 }
 

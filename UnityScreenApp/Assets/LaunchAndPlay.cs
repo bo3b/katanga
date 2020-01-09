@@ -80,7 +80,6 @@ public class LaunchAndPlay : MonoBehaviour
         StartCoroutine(game.Launch());
 
         // Start alternating drawing cycle to block mutex during drawing.
-        StartCoroutine(StartOfFrame());
         StartCoroutine(EndOfFrame());
     }
 
@@ -250,10 +249,23 @@ public class LaunchAndPlay : MonoBehaviour
 
     // Update is called once per frame, before rendering. Great diagram:
     // https://docs.unity3d.com/Manual/ExecutionOrder.html
+    //
+    // We are grabbing the mutex at the top of Update, then releasing at the 
+    // WaitForEndOfFrame, which is after scene rendering.  This should block
+    // any game side usage during the time this Unity side is drawing.
+
+    [DllImport("UnityNativePlugin64")]
+    private static extern bool GrabSetupMutex();
 
     void Update()
     {
         debugprint("Update");
+
+        ownMutex = GrabSetupMutex();
+        if (!ownMutex)
+            screenMaterial.mainTexture = greyTexture;
+
+        debugprint("-> GrabSetupMutex, ownMutex=" + ownMutex);
 
         // Keep checking for a change in resolution by the game. This needs to be
         // done every frame to avoid using textures disposed by Reset.
@@ -288,35 +300,10 @@ public class LaunchAndPlay : MonoBehaviour
 #endif
     }
 
-    // -----------------------------------------------------------------------------
-
-    // Default coroutine, that will run right before rendering, after Update,
-    // but before LateUpdate.  This allows us to lock our Mutex, to avoid
-    // conflicts during rendering.  This is setup up as a mirror image of the
-    // WaitForEndOfFrame, so that they remain exactly in sync.
-
-    [DllImport("UnityNativePlugin64")]
-    private static extern bool GrabSetupMutex();
-
-    private IEnumerator StartOfFrame()
-    {
-        print("Launch StartOfFrame");
-
-        while (true)
-        {
-            yield return null;
-
-            ownMutex = GrabSetupMutex();
-            if (!ownMutex)
-                screenMaterial.mainTexture = greyTexture;
-
-            debugprint("-> GrabSetupMutex: " + ownMutex);
-        }
-    }
 
     // Waits for the end of frame, after all rendering is complete. At this point,
     // we are not in conflict with game side, and we can relinquish the Mutex.
-    // We lock out the game side from LateUpdate until WaitForEndOfFrame, because
+    // We lock out the game side from Update until WaitForEndOfFrame, because
     // we might be drawing from the shared surface.
 
     [DllImport("UnityNativePlugin64")]
@@ -331,7 +318,7 @@ public class LaunchAndPlay : MonoBehaviour
             yield return new WaitForEndOfFrame();
 
             bool release = ReleaseSetupMutex();
-            debugprint("<- ReleaseSetupMutex: " + release);
+            debugprint("<- ReleaseSetupMutex, ownMutex=" + release);
 
             ownMutex = false;
         }
