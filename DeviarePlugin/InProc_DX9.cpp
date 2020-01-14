@@ -172,10 +172,11 @@ IDirect3DSurface9* gSharedTarget = nullptr;
 // the StretchRect fails at Present, and makes a mono copy.  Thus, we need to
 // create a second RenderTarget, which will be the one passed to the VR/Unity side.
 //
-// This setup process will be done with a late binding approach, where we setup this
-// side right before the game draws at Present, to avoid potential conflicts.
-// During the entire setup sequence, we will have captured the Mutex, which will
-// lock VR side out of using anything from the game here.
+// For DX9Ex this setup process will be done with a late binding approach, where we setup
+// this side right before the game draws at Present, to avoid potential conflicts.
+// During the CreateShared process, we'll lock out the mutex so the unity side cannot
+// get bad data. We double up the mutex lock during Reset call, so that it can lock
+// early.  As long as the Capture/Release are balanced, it will work.
 
 void CreateSharedRenderTarget(IDirect3DDevice9* pDevice9)
 {
@@ -277,6 +278,11 @@ HRESULT __stdcall Hooked_Present(IDirect3DDevice9* This,
 {
 	HRESULT hr;
 	IDirect3DSurface9* backBuffer;
+
+	// This only happens for first device creation, because we inject into an already
+	// setup game, and thus first thing we'll see is Present in DX9Ex case.
+	if (gGameSharedHandle == nullptr)
+		CreateSharedRenderTarget(This);
 
 	hr = This->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &backBuffer);
 	if (SUCCEEDED(hr) && gGameSurface != nullptr)
@@ -1106,7 +1112,7 @@ IDirect3D9* __stdcall Hooked_Direct3DCreate9(
 	LogInfo(L"GamePlugin::Hooked_Direct3DCreate9 - SDK: %d\n", SDKVersion);
 
 	IDirect3D9Ex* pDX9Ex = nullptr;
-	HRESULT hr = Direct3DCreate9Ex(D3D_SDK_VERSION, &pDX9Ex);
+	HRESULT hr = Direct3DCreate9Ex(SDKVersion, &pDX9Ex);
 	if (FAILED(hr)) FatalExit(L"Failed Direct3DCreate9Ex");
 
 	// Hook the next level of CreateDevice so that ultimately we

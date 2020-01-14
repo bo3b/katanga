@@ -185,14 +185,14 @@ HRESULT WINAPI OnLoad()
 
 	// At this earliest moment, setup a hook for the direct d3d9.dll
 	// call of Direct3DCreate9, using the In-Proc mechanism.
-	HookDirect3DCreate9();
+	//HookDirect3DCreate9();
 
 	// Hook the NVAPI.DLL!nvapi_QueryInterface, so that we can watch
 	// for Direct Mode by games.  ToDo: DX9 variant?
 	HookNvapiSetDriverMode();
 
 	// Find the Present call for current game
-	FindAndHookPresent();
+//	FindAndHookDX11Present();
 
 	return S_OK;
 }
@@ -220,6 +220,13 @@ VOID WINAPI OnUnload()
 }
 
 
+// Since the calling Unity app has the info passed to it from 3DFM, it will know what
+// type of game and what API we are targeting.  Let's use that info to specify the 
+// required hook to activate the agent here.  
+// If it's DX11, we'll send in the CreateDevice call.
+// If it's DX9, we'll send in the Direct3DCreate9 call.
+// If it's DX9Ex we'll send in the Direct3DCreate9Ex call.
+
 HRESULT WINAPI OnHookAdded(__in INktHookInfo *lpHookInfo, __in DWORD dwChainIndex,
 	__in LPCWSTR szParametersW)
 {
@@ -242,6 +249,13 @@ HRESULT WINAPI OnHookAdded(__in INktHookInfo *lpHookInfo, __in DWORD dwChainInde
 	hr = pProc->get_Id(&gGamePID);
 	if (FAILED(hr))
 		FatalExit(L"Failed get_Id");
+
+	if (wcscmp(name, L"D3D11.DLL!D3D11CreateDevice") == 0)
+		FindAndHookDX11Present();
+	if (wcscmp(name, L"D3D9.DLL!Direct3DCreate9") == 0)
+		HookDirect3DCreate9();
+	if (wcscmp(name, L"D3D9.DLL!Direct3DCreate9Ex") == 0)
+		FindAndHookDX9ExPresent();
 
 	return S_OK;
 }

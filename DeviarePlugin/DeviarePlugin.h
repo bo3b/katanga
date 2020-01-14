@@ -87,7 +87,8 @@ struct Status
 	};
 };
 
-Status::Enum FindAndHookPresent();
+Status::Enum FindAndHookDX9ExPresent();
+Status::Enum FindAndHookDX11Present();
 
 
 // These need to be declared as extern "C" so that the names are not mangled.
