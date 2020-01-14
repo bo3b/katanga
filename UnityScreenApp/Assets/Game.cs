@@ -23,6 +23,7 @@ using System.Collections;
 enum LaunchType
 {
     DX9,        // Requires SpyMgr launch
+    DX9Ex,      // Late binding, straight exe launch.
     DirectMode, // Implies DX11, but requires SpyMgr launch
     Steam,      // Steam.exe is available, use -applaunch to avoid relaunchers.
     Exe         // Implies DX11 direct Exe launch, but only for non-Steam games.
@@ -45,10 +46,14 @@ public class Game : MonoBehaviour
     // Becomes concatenated version of all arguments so we can properly pass them to the game.
     string launchArguments = "";
 
+    // We can improve launch behavior if we know specific exe to wait for, because we skip 
+    // launchers.  If it's DX9 launchType+ waitForExe, that lets us know it's a DX9Ex game.
+    string waitForExe = "";
+
     // If it's a Steam launch, these will be non-null.
     // ToDo: Non-functional Steam launch because DesktopGameTheater intercepts.
-    //string steamPath;
-    //string steamAppID;
+    string steamPath;
+    string steamAppID;
 
 
     static NktSpyMgr _spyMgr;
@@ -96,6 +101,7 @@ public class Game : MonoBehaviour
     // Full .exe path to launch.  --game-path: 
     // Cleaned title to display.  --game-title:
     // Launch type as Enum        --launch-type:
+    // Exe name to spinwait for   --waitfor-exe:
     // Full path to Steam.exe     --steam-path:
     // Game SteamAppID            --steam-appid:
 
@@ -118,15 +124,20 @@ public class Game : MonoBehaviour
                 i++;
                 launchType = ParseLaunchType<LaunchType>(args[i]);
             }
+            else if (args[i] == "--waitfor-exe")
+            {
+                i++;
+                waitForExe = args[i];
+            }
             else if (args[i] == "--steam-path")
             {
                 i++;
-                //    steamPath = args[i];
+                steamPath = args[i];
             }
             else if (args[i] == "--steam-appid")
             {
                 i++;
-                //    steamAppID = args[i];
+                steamAppID = args[i];
             }
             else
             {
@@ -137,11 +148,12 @@ public class Game : MonoBehaviour
             }
         }
 
-        //gamePath = @"W:\SteamLibrary\steamapps\common\BioShock Infinite\Binaries\Win32\bioshockinfinite.exe";
-        //displayName = "Infinite";
-        //launchType = LaunchType.Steam;
+        //gamePath = @"W:\SteamLibrary\steamapps\common\Prey\Binaries\Danielle\x64\Release\prey.exe";
+        //displayName = "prey";
+        //launchType = LaunchType.Exe;
         //steamPath = @"C:\Program Files (x86)\Steam";
-        //steamAppID = "8870";
+        //steamAppID = "480490";
+
         //gamePath = @"W:\SteamLibrary\steamapps\common\Kingdoms of Amalur - Reckoning Demo\reckoningdemo.exe";
         //displayName = "Reck";
         //launchType = LaunchType.DX9;
@@ -152,13 +164,28 @@ public class Game : MonoBehaviour
         //displayName = "portal 2";
         //launchType = LaunchType.DX9;
 
+        //gamePath = @"W:\SteamLibrary\steamapps\common\Bayonetta\bayonetta.exe";
+        //displayName = "bayonetta";
+        //waitForExe = "bayonetta.exe";
+        //launchType = LaunchType.DX9Ex;
+
+        //gamePath = @"W:\Games\SOMA\soma.exe";
+        //displayName = "soma";
+        //launchType = LaunchType.DirectMode;
+
+        //gamePath = @"W:\SteamLibrary\steamapps\common\Life Is Strange\Binaries\Win32\lifeisstrange.exe";
+        //launchType = LaunchType.Steam;
+        //displayName = "Life is";
+        //steamAppID = "319630";
+
+
         //gamePath = @"W:\SteamLibrary\steamapps\common\DiRT 4\dirt4.exe";
         //displayName = "Dirt4";
         //launchType = LaunchType.Exe;
 
         //gamePath = @"W:\SteamLibrary\steamapps\common\Headlander\Headlander.exe";
         //displayName = "Headlander";
-        //launchType = LaunchType.Steam;
+        //launchType = LaunchType.Exe;
         //steamPath = @"C:\Program Files (x86)\Steam";
         //steamAppID = "340000";
 
@@ -286,6 +313,9 @@ public class Game : MonoBehaviour
                 case LaunchType.DX9:
                     StartGameBySpyMgr(gamePath, out continueevent);
                     break;
+                case LaunchType.DX9Ex:
+                    StartGameByExeFile(gamePath, launchArguments);
+                    break;
                 case LaunchType.DirectMode:
                     StartGameBySpyMgr(gamePath, out continueevent);
                     break;
@@ -297,9 +327,8 @@ public class Game : MonoBehaviour
                     // I'm not sure this is the right path, but people are already getting
                     // confused by the DGT.
 
-                    //StartGameBySteamAppID(steamPath, steamAppID, launchArguments);
-                    //gameProc = WaitForDX11Exe(gamePath);
-                    //break;
+                    StartGameBySteamAppID(steamPath, steamAppID, launchArguments);
+                    break;
                 case LaunchType.Exe:
                     StartGameByExeFile(gamePath, launchArguments);
                     break;
@@ -379,6 +408,9 @@ public class Game : MonoBehaviour
                     HookDX9(_nativeDLLName, gameProc);
                     _spyMgr.ResumeProcess(gameProc, continueevent);
                     break;
+                case LaunchType.DX9Ex:
+                    HookDX9(_nativeDLLName, gameProc);
+                    break;
                 case LaunchType.DirectMode:
                     HookDX11(_nativeDLLName, gameProc);
                     _spyMgr.ResumeProcess(gameProc, continueevent);
@@ -440,25 +472,28 @@ public class Game : MonoBehaviour
 
     private void HookDX9(string katangaDLL, NktProcess gameProc)
     {
-        // We set this to flgOnlyPreCall, because we want to always create the IDirect3D9Ex object.
+        // We set this to flgOnlyPreCall, because we are just logging these.
 
-        print("Hook the D3D9.DLL!Direct3DCreate9...");
-        NktHook create9Hook = _spyMgr.CreateHook("D3D9.DLL!Direct3DCreate9", (int)eNktHookFlags.flgOnlyPreCall);
-        if (create9Hook == null)
-            throw new Exception("Failed to hook D3D9.DLL!Direct3DCreate9");
-
-        print("Hook the D3D9.DLL!Direct3DCreate9Ex...");
-        NktHook create9HookEx = _spyMgr.CreateHook("D3D9.DLL!Direct3DCreate9Ex", (int)eNktHookFlags.flgOnlyPreCall);
-        if (create9HookEx == null)
-            throw new Exception("Failed to hook D3D9.DLL!Direct3DCreate9Ex");
-
-        create9Hook.AddCustomHandler(katangaDLL, 0, "");
-        create9HookEx.AddCustomHandler(katangaDLL, 0, "");
-
-        create9Hook.Attach(gameProc, true);
-        create9Hook.Hook(true);
-        create9HookEx.Attach(gameProc, true);
-        create9HookEx.Hook(true);
+        if (string.IsNullOrEmpty(waitForExe))
+        {
+            print("Hook the D3D9.DLL!Direct3DCreate9...");
+            NktHook create9Hook = _spyMgr.CreateHook("D3D9.DLL!Direct3DCreate9", (int)eNktHookFlags.flgOnlyPreCall);
+            if (create9Hook == null)
+                throw new Exception("Failed to hook D3D9.DLL!Direct3DCreate9");
+            create9Hook.AddCustomHandler(katangaDLL, 0, "");
+            create9Hook.Attach(gameProc, true);
+            create9Hook.Hook(true);
+        }
+        else
+        {
+            print("Hook the D3D9.DLL!Direct3DCreate9Ex...");
+            NktHook create9HookEx = _spyMgr.CreateHook("D3D9.DLL!Direct3DCreate9Ex", (int)eNktHookFlags.flgOnlyPreCall);
+            if (create9HookEx == null)
+                throw new Exception("Failed to hook D3D9.DLL!Direct3DCreate9Ex");
+            create9HookEx.AddCustomHandler(katangaDLL, 0, "");
+            create9HookEx.Attach(gameProc, true);
+            create9HookEx.Hook(true);
+        }
     }
 
     // -----------------------------------------------------------------------------
