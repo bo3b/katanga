@@ -747,7 +747,7 @@ void HookNvapiSetDriverMode()
 // This is only for the DX11 games.  Should have no impact on them to hook the DX11
 // Present call.
 
-Status::Enum FindAndHookPresent()
+Status::Enum FindAndHookDX11Present()
 {
 	WNDCLASSEX windowClass;
 	windowClass.cbSize = sizeof(WNDCLASSEX);
