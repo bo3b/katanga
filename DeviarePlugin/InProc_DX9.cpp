@@ -186,36 +186,46 @@ void CreateSharedRenderTarget(IDirect3DDevice9* pDevice9)
 
 	LogInfo(L"GamePlugin:DX9 CreateSharedRenderTarget called. gGameSurface: %p, gGameSharedHandle: %p\n", gGameSurface, gGameSharedHandle);
 
-	res = pDevice9->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &pBackBuffer);
-	if (FAILED(res)) FatalExit(L"Fail to GetBackBuffer in CreateSharedRenderTarget");
-	res = pBackBuffer->GetDesc(&desc);
-	if (FAILED(res)) FatalExit(L"Fail to GetDesc on BackBuffer");
-	pBackBuffer->Release();
+	CaptureSetupMutex();
+	{
+		NvAPI_Status nvres = NvAPI_Initialize();
+		if (nvres != NVAPI_OK) FatalExit(L"NVidia driver not available.\n\nFailed to NvAPI_Initialize\n");
 
-	UINT width = desc.Width * 2;
-	UINT height = desc.Height;
-	D3DFORMAT format = desc.Format;
-	IDirect3DTexture9* stereoCopy = nullptr;
+		nvres = NvAPI_Stereo_CreateHandleFromIUnknown(pDevice9, &gNVAPI);
+		if (nvres != NVAPI_OK) FatalExit(L"3D Vision is not enabled.\n\nFailed to NvAPI_Stereo_CreateHandleFromIUnknown\n");
 
-	LogInfo(L"  Width: %d, Height: %d, Format: %d\n", width, height, format);
+		res = pDevice9->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &pBackBuffer);
+		if (FAILED(res)) FatalExit(L"Fail to GetBackBuffer in CreateSharedRenderTarget");
+		res = pBackBuffer->GetDesc(&desc);
+		if (FAILED(res)) FatalExit(L"Fail to GetDesc on BackBuffer");
+		pBackBuffer->Release();
 
-	res = pDevice9->CreateTexture(width, height, 0, D3DUSAGE_RENDERTARGET, format, D3DPOOL_DEFAULT,
-		&stereoCopy, nullptr);
-	if (FAILED(res)) FatalExit(L"Fail to create shared stereo Texture");
+		UINT width = desc.Width * 2;
+		UINT height = desc.Height;
+		D3DFORMAT format = desc.Format;
+		IDirect3DTexture9* stereoCopy = nullptr;
 
-	res = stereoCopy->GetSurfaceLevel(0, &gGameSurface);
-	if (FAILED(res)) FatalExit(L"Fail to GetSurfaceLevel of stereo Texture");
+		LogInfo(L"  Width: %d, Height: %d, Format: %d\n", width, height, format);
 
-	// Actual shared surface, as a RenderTarget. RenderTarget because that is
-	// what the Unity side is expecting.  tempSharedHandle, to avoid kicking
-	// off changes just yet, and reusing the current gGameSharedHandle errors out.
-	res = pDevice9->CreateRenderTarget(width, height, format, D3DMULTISAMPLE_NONE, 0, true,
-		&gSharedTarget, &tempSharedHandle);
-	if (FAILED(res)) FatalExit(L"Fail to CreateRenderTarget for copy of stereo Texture");
+		res = pDevice9->CreateTexture(width, height, 0, D3DUSAGE_RENDERTARGET, format, D3DPOOL_DEFAULT,
+			&stereoCopy, nullptr);
+		if (FAILED(res)) FatalExit(L"Fail to create shared stereo Texture");
 
-	// Everything has been setup, or cleanly re-setup, and we can now enable the
-	// VR side to kick in and use the new surfaces.
-	gGameSharedHandle = tempSharedHandle;
+		res = stereoCopy->GetSurfaceLevel(0, &gGameSurface);
+		if (FAILED(res)) FatalExit(L"Fail to GetSurfaceLevel of stereo Texture");
+
+		// Actual shared surface, as a RenderTarget. RenderTarget because that is
+		// what the Unity side is expecting.  tempSharedHandle, to avoid kicking
+		// off changes just yet, and reusing the current gGameSharedHandle errors out.
+		res = pDevice9->CreateRenderTarget(width, height, format, D3DMULTISAMPLE_NONE, 0, true,
+			&gSharedTarget, &tempSharedHandle);
+		if (FAILED(res)) FatalExit(L"Fail to CreateRenderTarget for copy of stereo Texture");
+
+		// Everything has been setup, or cleanly re-setup, and we can now enable the
+		// VR side to kick in and use the new surfaces.
+		gGameSharedHandle = tempSharedHandle;
+	}
+	ReleaseSetupMutex();
 }
 
 //-----------------------------------------------------------
@@ -864,8 +874,227 @@ void HookCreateDevice(IDirect3D9Ex* pDX9Ex)
 
 
 //-----------------------------------------------------------
+// Interface to implement the hook for IDirect3D9->CreateDevice
+
+// This declaration serves a dual purpose of defining the interface routine as required by
+// DX9, and also is the storage for the original call, returned by nktInProc.Hook
+
+//HRESULT(__stdcall *pOrigCreateDeviceEx)(IDirect3D9Ex* This,
+//	/* [in] */          UINT                  Adapter,
+//	/* [in] */          D3DDEVTYPE            DeviceType,
+//	/* [in] */          HWND                  hFocusWindow,
+//	/* [in] */          DWORD                 BehaviorFlags,
+//	/* [in, out] */     D3DPRESENT_PARAMETERS *pPresentationParameters,
+//						D3DDISPLAYMODEEX      *pFullscreenDisplayMode,
+//	/* [out, retval] */ IDirect3DDevice9Ex      **ppReturnedDeviceInterface
+//	) = nullptr;
+
+
+// The actual Hooked routine for CreateDevice, called whenever the game
+// makes a IDirect3D9->CreateDevice call.
 //
-// This section handles the Direct3DCreate9 hooking.
+// However, because we always need to have a shared surface from the game
+// backbuffer, this device must actually be created as a IDirect3DDevice9Ex.
+// That allows us to create a shared surface, still on the GPU.  IDirect3DDevice9
+// objects can only share through system memory, which is too slow.
+// This should be OK, because the game should not know or care that it went Ex.
+
+//HRESULT __stdcall Hooked_CreateDeviceEx(IDirect3D9Ex* This,
+//	/* [in] */          UINT                  Adapter,
+//	/* [in] */          D3DDEVTYPE            DeviceType,
+//	/* [in] */          HWND                  hFocusWindow,
+//	/* [in] */          DWORD                 BehaviorFlags,
+//	/* [in, out] */     D3DPRESENT_PARAMETERS *pPresentationParameters,
+//						D3DDISPLAYMODEEX      *pFullscreenDisplayMode,
+//	/* [out, retval] */ IDirect3DDevice9Ex      **ppReturnedDeviceInterface)
+//{
+//	HRESULT hr;
+//
+//	LogInfo(L"\nGamePlugin::Hooked_CreateDeviceEx called\n");
+//	if (pPresentationParameters != nullptr)
+//	{
+//		LogInfo(L"  Width: %d, Height: %d, Format: %d\n",
+//			pPresentationParameters->BackBufferWidth, pPresentationParameters->BackBufferHeight, pPresentationParameters->BackBufferFormat);
+//	}
+//
+//	// Grab Mutex here during Device creation, and release it after we 
+//	// have built our shared surface.  This will keep the VR side from drawing
+//	// or conflicting with anything in game side here.
+//	// This must be done here, because the Mutex cares what thread it is captured
+//	// from, and we have to be on the same thread.
+//
+//	CaptureSetupMutex();
+//	{
+//
+//		// This is called out in the debug layer as a potential performance problem, but the
+//		// docs suggest adding this will slow things down.  It is unlikely to be actually
+//		// necessary, because this is in the running game, and the other threads are actually
+//		// in a different process altogether.  
+//		// Direct3D9: (WARN) : Device that was created without D3DCREATE_MULTITHREADED is being used by a thread other than the creation thread.
+//		// Also- this warning happens in TheBall, when run with only the debug layer. Not our fault.
+//		// But, we are doing multithreaded StretchRect now, so let's add this.  Otherwise we get a
+//		// a crash.  Not certain this is best, said to slow things down.
+//		//BehaviorFlags |= D3DCREATE_MULTITHREADED;
+//
+//		// Run original call game is expecting.
+//		// This will return a IDirect3DDevice9Ex variant regardless, but using the original
+//		// call allows us to avoid a lot of weirdness with full screen handling.
+//
+//		hr = pOrigCreateDeviceEx(This, Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters, pFullscreenDisplayMode,
+//			ppReturnedDeviceInterface);
+//		if (FAILED(hr)) FatalExit(L"Failed to create IDirect3DDevice9Ex");
+//
+//		// Using that fresh DX9Ex Device, we can now hook the Present and CreateTexture calls.
+//
+//		IDirect3DDevice9Ex* pDevice9Ex = (ppReturnedDeviceInterface != nullptr) ? *ppReturnedDeviceInterface : nullptr;
+//		IDirect3DDevice9* pDevice9;
+//		HRESULT hr = pDevice9Ex->QueryInterface(__uuidof(IDirect3DDevice9), (void**)&pDevice9);
+//
+//		LogInfo(L"  IDirect3D9Ex->CreateDevice result: %d, device9Ex: %p, device9: %p\n", hr, pDevice9Ex, pDevice9);
+//
+//		if (pOrigPresent == nullptr && SUCCEEDED(hr) && pDevice9Ex != nullptr)
+//		{
+//			SIZE_T hook_id;
+//			DWORD dwOsErr;
+//
+//			LogInfo(L"  Create hooks for all DX9Ex calls.\n");
+//
+//
+//			dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigPresent,
+//				lpvtbl_Present_DX9(pDevice9), Hooked_Present, 0);
+//			if (FAILED(dwOsErr))
+//				LogInfo(L"Failed to hook IDirect3DDevice9::Present\n");
+//
+//			dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigReset,
+//				lpvtbl_Reset(pDevice9), Hooked_Reset, 0);
+//			if (FAILED(dwOsErr))
+//				LogInfo(L"Failed to hook IDirect3DDevice9::Reset\n");
+//
+//			//dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigCreateTexture,
+//			//	lpvtbl_CreateTexture(pDevice9), Hooked_CreateTexture, 0);
+//			//if (FAILED(dwOsErr))
+//			//	LogInfo(L"Failed to hook IDirect3DDevice9::CreateTexture\n");
+//
+//			//dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigCreateCubeTexture,
+//			//	lpvtbl_CreateCubeTexture(pDevice9), Hooked_CreateCubeTexture, 0);
+//			//if (FAILED(dwOsErr))
+//			//	LogInfo(L"Failed to hook IDirect3DDevice9::CreateCubeTexture\n");
+//
+//			//dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigCreateVertexBuffer,
+//			//	lpvtbl_CreateVertexBuffer(pDevice9), Hooked_CreateVertexBuffer, 0);
+//			//if (FAILED(dwOsErr))
+//			//	LogInfo(L"Failed to hook IDirect3DDevice9::CreateVertexBuffer\n");
+//
+//			//dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigCreateIndexBuffer,
+//			//	lpvtbl_CreateIndexBuffer(pDevice9), Hooked_CreateIndexBuffer, 0);
+//			//if (FAILED(dwOsErr))
+//			//	LogInfo(L"Failed to hook IDirect3DDevice9::CreateIndexBuffer\n");
+//
+//
+//			NvAPI_Status res = NvAPI_Initialize();
+//			if (res != NVAPI_OK) FatalExit(L"NVidia driver not available.\n\nFailed to NvAPI_Initialize\n");
+//
+//			res = NvAPI_Stereo_CreateHandleFromIUnknown(pDevice9, &gNVAPI);
+//			if (res != NVAPI_OK) FatalExit(L"3D Vision is not enabled.\n\nFailed to NvAPI_Stereo_CreateHandleFromIUnknown\n");
+//
+//			// ToDo: Is this necessary?
+//			// Seems like I just added it without knowing impact. Since we create 2x buffer, might just 
+//			// cause problems.
+//			//res = NvAPI_Stereo_SetSurfaceCreationMode(__in gNVAPI, __in NVAPI_STEREO_SURFACECREATEMODE_FORCESTEREO);
+//			//if (FAILED(res)) FatalExit(L"Failed to NvAPI_Stereo_SetSurfaceCreationMode\n");
+//
+//
+//
+//			// Since we are doing setup here, also create a thread that will be used to copy
+//			// from the stereo game surface into the shared surface.  This way the game will
+//			// not stall while waiting for that copy.
+//			//
+//			// And the thread synchronization Event object. Signaled when we get fresh bits.
+//			// Starts in off state, thread active, so it should pause at launch.
+//			//gFreshBits = CreateEvent(
+//			//	NULL,               // default security attributes
+//			//	TRUE,               // manual, not auto-reset event
+//			//	FALSE,              // initial state is nonsignaled
+//			//	nullptr);			// object name
+//			//if (gFreshBits == nullptr) FatalExit(L"Fail to CreateEvent for gFreshBits");
+//
+//			//gSharedThread = CreateThread(
+//			//	NULL,                   // default security attributes
+//			//	0,                      // use default stack size  
+//			//	CopyGameToShared,       // thread function name
+//			//	pDevice9,		        // device, as argument to thread function 
+//			//	0,				        // runs immediately, to a pause state. 
+//			//	nullptr);			    // returns the thread identifier 
+//			//if (gSharedThread == nullptr) FatalExit(L"Fail to CreateThread for GameToShared");
+//
+//			// We are certain to be being called from the game's primary thread here,
+//			// as this is CreateDevice.  Save the reference.
+//			// ToDo: Can't use Suspend/Resume, because the task switching time is too
+//			// high, like >16ms, which is must larger than we can use.
+//			//HANDLE thread = GetCurrentThread();
+//			//DuplicateHandle(GetCurrentProcess(), thread, GetCurrentProcess(), &gameThread, 0, TRUE, DUPLICATE_SAME_ACCESS);
+//		}
+//
+//		CreateSharedRenderTarget(pDevice9);
+//	}
+//	ReleaseSetupMutex();
+//
+//	// We are returning the IDirect3DDevice9Ex object, because the Device the game
+//	// is going to use needs to be Ex type, so we can share from its backbuffer.
+//
+//	return hr;
+//}
+
+
+//-----------------------------------------------------------
+
+// Here we want to start the daisy chain of hooking DX9 interfaces, to
+// ultimately get access to IDirect3DDevice9Ex::Present
+//
+// The sequence a game will use is:
+//   IDirect3D9* Direct3DCreate9Ex();
+//   IDirect3D9::CreateDeviceEx(return pIDirect3DDevice9Ex);
+//   pIDirect3DDevice9Ex->Present
+//
+// This hook call is called from the Deviare side, to continue the 
+// daisy-chain to IDirect3DDevice9::Present.
+//
+// It's also worth noting that we convert the key objects into Ex
+// versions, because we need to share our copy of the game backbuffer.
+// We need to hook the CreateDevice, not CreateDeviceEx, because the
+// game is nearly certain to be calling CreateDevice.
+// 
+
+//void HookCreateDeviceEx(IDirect3D9Ex* pDX9Ex)
+//{
+//	// This can be called multiple times by a game, so let's be sure to
+//	// only hook once.
+//	if (pOrigCreateDeviceEx == nullptr && pDX9Ex != nullptr)
+//	{
+//#ifdef _DEBUG 
+//		nktInProc.SetEnableDebugOutput(TRUE);
+//#endif
+//
+//		// If we are here, we want to now hook the IDirect3D9::CreateDeviceEx
+//		// routine, as that will be the next thing the game does, and we
+//		// need access to the Direct3DDevice9.
+//		// This can't be done directly, because this is a vtable based API
+//		// call, not an export from a DLL, so we need to directly hook the 
+//		// address of the CreateDevice function. This is also why we are 
+//		// using In-Proc here.  Since we are using the CINTERFACE, we can 
+//		// just directly access the address.
+//
+//		LogInfo(L"GamePlugin::HookCreateDeviceEx\n");
+//		SIZE_T hook_id;
+//		DWORD dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigCreateDeviceEx,
+//			lpvtbl_CreateDeviceEx(pDX9Ex), Hooked_CreateDeviceEx, 0);
+//
+//		if (FAILED(dwOsErr)) FatalExit(L"Failed to hook IDirect3D9::CreateDeviceEx");
+//	}
+//}
+//
+
+//-----------------------------------------------------------
 
 IDirect3D9* (__stdcall *pOrigDirect3DCreate9)(
 	UINT SDKVersion
@@ -885,9 +1114,32 @@ IDirect3D9* __stdcall Hooked_Direct3DCreate9(
 
 	HookCreateDevice(pDX9Ex);
 
+	LogInfo(L"  Returned IDirect3D9Ex: %p\n", pDX9Ex);
 	return pDX9Ex;
 }
 
+//HRESULT (__stdcall *pOrigDirect3DCreate9Ex)(
+//	UINT         SDKVersion,
+//	IDirect3D9Ex **
+//) = nullptr;
+//
+//HRESULT __stdcall Hooked_Direct3DCreate9Ex(
+//	UINT         SDKVersion,
+//	IDirect3D9Ex **Direct3D9Ex)
+//{
+//	LogInfo(L"GamePlugin::Hooked_Direct3DCreate9Ex - SDK: %d\n", SDKVersion);
+//
+//	HRESULT hr = pOrigDirect3DCreate9Ex(SDKVersion, Direct3D9Ex);
+//	if (FAILED(hr)) FatalExit(L"Failed Direct3DCreate9Ex");
+//
+//	HookCreateDeviceEx(*Direct3D9Ex);
+//
+//	LogInfo(L"  Returned IDirect3D9Ex: %p\n", *Direct3D9Ex);
+//	return hr;
+//}
+
+
+//-----------------------------------------------------------
 
 // Here we want to start the daisy chain of hooking DX9 interfaces, to
 // ultimately get access to IDirect3DDevice9::Present
@@ -902,6 +1154,9 @@ IDirect3D9* __stdcall Hooked_Direct3DCreate9(
 // the address of the proxy HelixMod d3d9.dll, and cannot return our 
 // required IDirect3D9Ex object to HelixMod.  Without this, we just unhook
 // HelixMod, and we need it to fix the 3D effects.
+//
+// Now hooking Direct3Create9Ex as well, because some games actually use this,
+// like Alice, and also the Helifax OpenGL wrapper uses DX9Ex to show stereo.
 
 void HookDirect3DCreate9()
 {
@@ -935,6 +1190,148 @@ void HookDirect3DCreate9()
 
 		if (FAILED(dwOsErr)) FatalExit(L"Failed to hook D3D9.DLL::Direct3DCreate9");
 	}
+
+	// Not fatal if it doesn't exist, might be cases where it's not available.
+
+//	FARPROC systemDirect3DCreate9Ex = GetProcAddress(hSystemD3D9, "Direct3DCreate9Ex");
+//	if (systemDirect3DCreate9Ex == NULL) LogInfo(L"Failed to getProcedureAddress for system Direct3DCreate9Ex");
+//
+//	if (pOrigDirect3DCreate9Ex == nullptr && systemDirect3DCreate9Ex != nullptr)
+//	{
+//#ifdef _DEBUG 
+//		nktInProc.SetEnableDebugOutput(TRUE);
+//#endif
+//
+//		SIZE_T hook_id;
+//		DWORD dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigDirect3DCreate9Ex,
+//			systemDirect3DCreate9Ex, Hooked_Direct3DCreate9Ex, 0);
+//
+//		if (FAILED(dwOsErr)) FatalExit(L"Failed to hook D3D9.DLL::Direct3DCreate9Ex");
+//	}
 }
 
+//-----------------------------------------------------------
+
+// This is using the Kiero style creation of hooks for the Direct3DCreate9Ex variant, where the
+// game specifically requests Direct3DCreate9Ex, like Bayonetta.  In this case, we don't need 
+// to hook the other texture calls like CreateTexture, CreateCubeTexture to fix bugs.  It's thus
+// similar to the DX11 launch path, where we can just fetch the Present call at the start and
+// not daisychain to find it.  This lets us do the late-binding approach where the game can
+// fully launch before start to create the shared texture.  Bypasses launchers, and makes it 
+// more reliable.
+
+Status::Enum FindAndHookDX9ExPresent()
+{
+	WNDCLASSEX windowClass;
+	windowClass.cbSize = sizeof(WNDCLASSEX);
+	windowClass.style = CS_HREDRAW | CS_VREDRAW;
+	windowClass.lpfnWndProc = DefWindowProc;
+	windowClass.cbClsExtra = 0;
+	windowClass.cbWndExtra = 0;
+	windowClass.hInstance = GetModuleHandle(NULL);
+	windowClass.hIcon = NULL;
+	windowClass.hCursor = NULL;
+	windowClass.hbrBackground = NULL;
+	windowClass.lpszMenuName = NULL;
+	windowClass.lpszClassName = KIERO_TEXT("Kiero");
+	windowClass.hIconSm = NULL;
+
+	::RegisterClassEx(&windowClass);
+
+	HWND window = ::CreateWindow(windowClass.lpszClassName, KIERO_TEXT("Kiero DirectX Window"), WS_OVERLAPPEDWINDOW, 0, 0, 100, 100, NULL, NULL, windowClass.hInstance, NULL);
+
+	HMODULE libD3D9;
+	if ((libD3D9 = ::GetModuleHandle(KIERO_TEXT("d3d9.dll"))) == NULL)
+	{
+		::DestroyWindow(window);
+		::UnregisterClass(windowClass.lpszClassName, windowClass.hInstance);
+		return Status::ModuleNotFoundError;
+	}
+
+	void* Direct3DCreate9Ex;
+	if ((Direct3DCreate9Ex = ::GetProcAddress(libD3D9, "Direct3DCreate9Ex")) == NULL)
+	{
+		::DestroyWindow(window);
+		::UnregisterClass(windowClass.lpszClassName, windowClass.hInstance);
+		return Status::UnknownError;
+	}
+
+	IDirect3D9Ex* pDirect3D9Ex;
+	HRESULT hr = ((HRESULT(__stdcall*)(uint32_t, IDirect3D9Ex**))(Direct3DCreate9Ex))(D3D_SDK_VERSION, &pDirect3D9Ex);
+	if (FAILED(hr) || pDirect3D9Ex == NULL)
+	{
+		::DestroyWindow(window);
+		::UnregisterClass(windowClass.lpszClassName, windowClass.hInstance);
+		return Status::UnknownError;
+	}
+
+	D3DDISPLAYMODE displayMode;
+	if (pDirect3D9Ex->GetAdapterDisplayMode(D3DADAPTER_DEFAULT, &displayMode) < 0)
+	{
+		::DestroyWindow(window);
+		::UnregisterClass(windowClass.lpszClassName, windowClass.hInstance);
+		return Status::UnknownError;
+	}
+
+	D3DPRESENT_PARAMETERS params;
+	params.BackBufferWidth = 0;
+	params.BackBufferHeight = 0;
+	params.BackBufferFormat = displayMode.Format;
+	params.BackBufferCount = 0;
+	params.MultiSampleType = D3DMULTISAMPLE_NONE;
+	params.MultiSampleQuality = NULL;
+	params.SwapEffect = D3DSWAPEFFECT_DISCARD;
+	params.hDeviceWindow = window;
+	params.Windowed = 1;
+	params.EnableAutoDepthStencil = 0;
+	params.AutoDepthStencilFormat = D3DFMT_UNKNOWN;
+	params.Flags = NULL;
+	params.FullScreen_RefreshRateInHz = 0;
+	params.PresentationInterval = 0;
+
+	IDirect3DDevice9Ex* pDevice9Ex;
+	if (pDirect3D9Ex->CreateDeviceEx(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, window, D3DCREATE_SOFTWARE_VERTEXPROCESSING | D3DCREATE_DISABLE_DRIVER_MANAGEMENT, &params, NULL, &pDevice9Ex) < 0)
+	{
+		pDirect3D9Ex->Release();
+		::DestroyWindow(window);
+		::UnregisterClass(windowClass.lpszClassName, windowClass.hInstance);
+		return Status::UnknownError;
+	}
+
+	// With the device created, we can now fetch the address of the Present call by looking it up
+	// in the object vtable.  Let's convert the IDirect3DDevice9Ex device to the IDirect3DDevice9
+	// as we cannot trust the IDirect3DDevice9Ex APIs, and we know that it's the same address in 
+	// any case.  Let's still do this the proper way with QueryInterface, and not just use pointers.
+
+	IDirect3DDevice9* pDevice9;
+	hr = pDevice9Ex->QueryInterface(__uuidof(IDirect3DDevice9), (void**)&pDevice9);
+
+	LogInfo(L"  IDirect3D9Ex->CreateDevice result: %d, device9Ex: %p, device9: %p\n", hr, pDevice9Ex, pDevice9);
+
+	SIZE_T hook_id;
+	DWORD dwOsErr;
+	dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigPresent,
+		lpvtbl_Present_DX9(pDevice9), Hooked_Present, 0);
+	if (FAILED(dwOsErr))
+		LogInfo(L"Failed to hook IDirect3DDevice9Ex::Present\n");
+	dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigReset,
+		lpvtbl_Reset(pDevice9), Hooked_Reset, 0);
+	if (FAILED(dwOsErr))
+		LogInfo(L"Failed to hook IDirect3DDevice9::Reset\n");
+
+
+	// Now release all the created objects, as they were just used to get us to the vtable.
+	
+	pDevice9->Release();
+	pDevice9 = NULL;
+	pDevice9Ex->Release();
+	pDevice9Ex = NULL;
+
+	::DestroyWindow(window);
+	::UnregisterClass(windowClass.lpszClassName, windowClass.hInstance);
+
+	LogInfo(L"Successfully hooked IDirect3DDevice9Ex::Present\n");
+
+	return Status::Success;
+}
 
