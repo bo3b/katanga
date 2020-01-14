@@ -183,16 +183,9 @@ HRESULT WINAPI OnLoad()
 	// COM here.
 	::CoInitialize(NULL);
 
-	// At this earliest moment, setup a hook for the direct d3d9.dll
-	// call of Direct3DCreate9, using the In-Proc mechanism.
-	//HookDirect3DCreate9();
-
 	// Hook the NVAPI.DLL!nvapi_QueryInterface, so that we can watch
 	// for Direct Mode by games.  ToDo: DX9 variant?
 	HookNvapiSetDriverMode();
-
-	// Find the Present call for current game
-//	FindAndHookDX11Present();
 
 	return S_OK;
 }
@@ -250,6 +243,8 @@ HRESULT WINAPI OnHookAdded(__in INktHookInfo *lpHookInfo, __in DWORD dwChainInde
 	if (FAILED(hr))
 		FatalExit(L"Failed get_Id");
 
+	// Only hook the API the game is using.
+
 	if (wcscmp(name, L"D3D11.DLL!D3D11CreateDevice") == 0)
 		FindAndHookDX11Present();
 	if (wcscmp(name, L"D3D9.DLL!Direct3DCreate9") == 0)
@@ -296,7 +291,7 @@ VOID WINAPI OnHookRemoved(__in INktHookInfo *lpHookInfo, __in DWORD dwChainIndex
 //    3Dmigoto receives IDXGIFactory1, and saves it for wrapping use.
 //   3Dmigoto returns IDXGIFactory1 to game, which uses it to CreateSwapChain.
 
-
+// Previously was used for actual startup, now just logging.
 
 HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainIndex,
 	__in INktHookCallInfoPlugin *lpHookCallInfoPlugin)
@@ -306,9 +301,6 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 	BSTR name;
 	CComPtr<INktParamsEnum> paramsEnum;
 	CComPtr<INktParam> param;
-	//my_ssize_t pointeraddress;
-	//VARIANT_BOOL isNull;
-	//VARIANT_BOOL isPreCall;
 
 	IDXGIFactory* pDXGIFactory = nullptr;
 	ID3D11Device* pDevice = nullptr;
@@ -323,269 +315,6 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 	lpHookInfo->get_Address(&address);
 	LogInfo(L"GamePlugin::OnFunctionCall called [Hook: %ls @ 0x%IX / Chain:%lu]\n",
 		name, address, dwChainIndex);
-
-
-
-	//HRESULT WINAPI D3D11CreateDeviceAndSwapChain(
-	//	_In_opt_ IDXGIAdapter* pAdapter,
-	//	D3D_DRIVER_TYPE DriverType,
-	//	HMODULE Software,
-	//	UINT Flags,
-	//	_In_reads_opt_(FeatureLevels) CONST D3D_FEATURE_LEVEL* pFeatureLevels,
-	//	UINT FeatureLevels,
-	//	UINT SDKVersion,
-	//	_In_opt_ CONST DXGI_SWAP_CHAIN_DESC* pSwapChainDesc,
-	//	_COM_Outptr_opt_ IDXGISwapChain** ppSwapChain,
-	//	_COM_Outptr_opt_ ID3D11Device** ppDevice,
-	//	_Out_opt_ D3D_FEATURE_LEVEL* pFeatureLevel,
-	//	_COM_Outptr_opt_ ID3D11DeviceContext** ppImmediateContext);
-//	if (wcscmp(name, L"D3D11.DLL!D3D11CreateDeviceAndSwapChain") == 0)
-//	{
-//		hr = lpHookCallInfoPlugin->Params(&paramsEnum);
-//		if (FAILED(hr))
-//			FatalExit(L"Failed Nektra lpHookCallInfoPlugin->Params");
-//
-//		lpHookCallInfoPlugin->get_IsPreCall(&isPreCall);
-//		if (FAILED(hr))
-//			FatalExit(L"Failed Nektra get_IsPreCall");
-//
-//		if (isPreCall)
-//		{
-//#ifdef _DEBUG 
-//			unsigned long flags;	// should be UINT. long and int are both 32 bits on windows.
-//			hr = paramsEnum->GetAt(3, &param.p);
-//			if (FAILED(hr))
-//				FatalExit(L"Failed Nektra paramsEnum->GetAt(3)");
-//			hr = param->get_ULongVal(&flags);
-//			if (FAILED(hr))
-//				FatalExit(L"Failed Nektra paramsEnum->get_ULongVal()");
-//
-//			flags |= D3D11_CREATE_DEVICE_DEBUG;
-//
-//			hr = param->put_ULongVal(flags);
-//			if (FAILED(hr))
-//				FatalExit(L"Failed Nektra paramsEnum->put_ULongVal()");
-//#endif
-//			return S_OK;
-//		}
-//
-//		// This is PostCall.
-//		// Param 8 is returned _COM_Outptr_opt_ IDXGISwapChain** ppSwapChain
-//		hr = paramsEnum->GetAt(8, &param.p);
-//		if (FAILED(hr))
-//			FatalExit(L"Failed Nektra paramsEnum->GetAt(8)");
-//		hr = param->get_IsNullPointer(&isNull);
-//		if (FAILED(hr))
-//			FatalExit(L"Failed Nektra param->get_IsNullPointer");
-//		if (!isNull)
-//		{
-//			hr = param->Evaluate(&param.p);
-//			if (FAILED(hr))
-//				FatalExit(L"Failed Nektra param->Evaluate");
-//			hr = param->get_PointerVal(&pointeraddress);
-//			if (FAILED(hr))
-//				FatalExit(L"Failed Nektra param->get_PointerVal");
-//			pSwapChain = reinterpret_cast<IDXGISwapChain*>(pointeraddress);
-//		}
-//
-//		HookPresent(pSwapChain);
-//	}
-
-	// If it's CreateDevice, let's fetch the 7th parameter, which is
-	// the returned ppDevice from this Post call.
-	//HRESULT D3D11CreateDevice(
-	//	IDXGIAdapter            *pAdapter,
-	//	D3D_DRIVER_TYPE         DriverType,
-	//	HMODULE                 Software,
-	//	UINT                    Flags,
-	//	const D3D_FEATURE_LEVEL *pFeatureLevels,
-	//	UINT                    FeatureLevels,
-	//	UINT                    SDKVersion,
-	//	ID3D11Device            **ppDevice,
-	//	D3D_FEATURE_LEVEL       *pFeatureLevel,
-	//	ID3D11DeviceContext     **ppImmediateContext
-	//);
-//	if (wcscmp(name, L"D3D11.DLL!D3D11CreateDevice") == 0)
-//	{
-//		hr = lpHookCallInfoPlugin->Params(&paramsEnum);
-//		if (FAILED(hr))
-//			FatalExit(L"Failed Nektra lpHookCallInfoPlugin->Params");
-//
-//		lpHookCallInfoPlugin->get_IsPreCall(&isPreCall);
-//		if (FAILED(hr))
-//			FatalExit(L"Failed Nektra get_IsPreCall");
-//
-//		if (isPreCall)
-//		{
-//#ifdef _DEBUG 
-//			unsigned long flags;	// should be UINT. long and int are both 32 bits on windows.
-//			hr = paramsEnum->GetAt(3, &param.p);
-//			if (FAILED(hr))
-//				FatalExit(L"Failed Nektra paramsEnum->GetAt(3)");
-//			hr = param->get_ULongVal(&flags);
-//			if (FAILED(hr))
-//				FatalExit(L"Failed Nektra paramsEnum->get_ULongVal()");
-//
-//			flags |= D3D11_CREATE_DEVICE_DEBUG;
-//
-//			hr = param->put_ULongVal(flags);
-//			if (FAILED(hr))
-//				FatalExit(L"Failed Nektra paramsEnum->put_ULongVal()");
-//#endif
-//			return S_OK;
-//		}
-//
-//		// Param 7 is returned ID3D11Device** ppDevice
-//		hr = paramsEnum->GetAt(7, &param.p);
-//		if (FAILED(hr))
-//			FatalExit(L"Failed Nektra paramsEnum->GetAt(7)");
-//		hr = param->get_IsNullPointer(&isNull);
-//		if (FAILED(hr))
-//			FatalExit(L"Failed Nektra param->get_IsNullPointer");
-//		if (!isNull)
-//		{
-//			hr = param->Evaluate(&param.p);
-//			if (FAILED(hr))
-//				FatalExit(L"Failed Nektra param->Evaluate");
-//			hr = param->get_PointerVal(&pointeraddress);
-//			if (FAILED(hr))
-//				FatalExit(L"Failed Nektra param->get_PointerVal");
-//			pDevice = reinterpret_cast<ID3D11Device*>(pointeraddress);
-//		}
-//	}
-
-
-	// If it's CreateDXGIFactory, or CreateDXGIFactory1, let's fetch the 2nd parameter, which is
-	// the returned ppFactory from this Post Only call.  The Desired CreateSwapChain will be the
-	// same location for both factories, as Factory1 is descended from Factory.
-	// 
-	//HRESULT CreateDXGIFactory(
-	//	REFIID riid,
-	//	void   **ppFactory
-	//);
-	// HRESULT CreateDXGIFactory1(
-	//	REFIID riid,
-	//	void   **ppFactory
-	// );
-	//if (wcscmp(name, L"DXGI.DLL!CreateDXGIFactory") == 0 || wcscmp(name, L"DXGI.DLL!CreateDXGIFactory1") == 0)
-	//{
-	//	hr = lpHookCallInfoPlugin->Params(&paramsEnum);
-	//	if (FAILED(hr))
-	//		FatalExit(L"Failed Nektra lpHookCallInfoPlugin->Params");
-
-	//	hr = paramsEnum->GetAt(1, &param.p);
-	//	if (FAILED(hr))
-	//		FatalExit(L"Failed Nektra paramsEnum->GetAt(1)");
-	//	hr = param->Evaluate(&param.p);
-	//	if (FAILED(hr))
-	//		FatalExit(L"Failed Nektra param->Evaluate");
-	//	hr = param->get_PointerVal(&pointeraddress);
-	//	if (FAILED(hr))
-	//		FatalExit(L"Failed Nektra param->get_PointerVal");
-	//	pDXGIFactory = reinterpret_cast<IDXGIFactory*>(pointeraddress);
-
-	//	//ToDo: Not sure this is best way.
-	//	// Upcast to IDXGIFactory2.  
-	//	IUnknown* pUnknown;
-	//	hr = pDXGIFactory->QueryInterface(__uuidof(IUnknown), (void **)&pUnknown);
-	//	if (FAILED(hr))
-	//		FatalExit(L"Failed QueryInterface for IUnknown");
-
-	//	IDXGIFactory2* pFactory2;
-	//	hr = pUnknown->QueryInterface(__uuidof(IDXGIFactory2), (void **)&pFactory2);
-	//	if (FAILED(hr))
-	//		FatalExit(L"Failed QueryInterface for IDXGIFactory2");
-
-	//	HookCreateSwapChain(pFactory2);
-	//	HookCreateSwapChainForHwnd(pFactory2);
-	//}
-
-	// ----------------------------------------------------------------------
-	// This is the primary call we are interested in, for DX9.  It will be called before CreateDevice
-	// is called by the game.  We can then fetch the returned IDirect3D9 object, and
-	// use that to hook the next level, and daisy chain through the call sequence to 
-	// ultimately get the Present routine.
-	// 
-	// We can use the Deviare side to hook this function, because Direct3DCreate9 is
-	// a direct export from the d3d9 DLL, and is also directly supported in the 
-	// Deviare DB.
-	//
-	// We are going to actually call the Direct3DCreate9Ex instead however, so that we
-	// can get the Ex interface.  We need the Ex objects in order to share surfaces
-	// outside of the game Device.  This was a long uphill struggle to understand
-	// exactly what it takes.  There is no way to share surfaces with just DX9 itself,
-	// it must be DX9Ex.
-	// This also means the game is only ever getting a IDirect3D9Ex factory, which should
-	// be transparent to the game.
-	//
-	// We will return the Ex interface created, and do SkipCall on the original.
-
-	// Original API:
-	//	IDirect3D9* Direct3DCreate9(
-	//		UINT SDKVersion
-	//	);
-	//if (wcscmp(name, L"D3D9.DLL!Direct3DCreate9") == 0 || wcscmp(name, L"D3D9.DLL!Direct3DCreate9Ex") == 0)
-	//{
-	//	IDirect3D9Ex* pDX9Ex = nullptr;
-	//	INktParam* nktResult;
-
-	//	//pDX9Ex = reinterpret_cast<IDirect3D9Ex*>(Direct3DCreate9(D3D_SDK_VERSION));
-	//	hr = Direct3DCreate9Ex(D3D_SDK_VERSION, &pDX9Ex);
-	//	if (FAILED(hr))
-	//		FatalExit(L"Failed Direct3DCreate9Ex");
-
-	//	// At this point, we are going to switch from using Deviare style calls
-	//	// to In-Proc style calls, because the routines we need to hook are not
-	//	// found in the Deviare database.  It would be possible to add them 
-	//	// and then rebuilding it, but In-Proc works alongside Deviare so this
-	//	// approach is simpler.
-
-	//	HookCreateDevice(pDX9Ex);
-
-	//	// The result of the Direct3DCreate9Ex function is the IDirect3D9Ex object, which you 
-	//	// can think of as DX9 itself. 
-	//	//
-	//	// We want to skip the original call to Direct3DCreate9, because we want to just
-	//	// return this IDirect3D9Ex object.  This will tell Nektra to skip it.
-
-	//	hr = lpHookCallInfoPlugin->SkipCall();
-	//	if (FAILED(hr))
-	//		FatalExit(L"Failed SkipCall");
-
-	//	// However, we still need a proper return result from this call, so we set the 
-	//	// Nektra Result to be our IDirect3D9Ex object.  This will ultimately return to
-	//	// game, and be used as its IDirect3D9, even though it is IDirect3D9Ex.
-	//	//
-	//	// The Nektra API is poor and uses long, and long long here, so we need to
-	//	// carefully convert to those values.
-
-	//	LONG_PTR retPtr = (LONG_PTR)pDX9Ex;
-
-	//	hr = lpHookCallInfoPlugin->Result(&nktResult);
-	//	if (FAILED(hr))
-	//		FatalExit(L"Failed Get NktResult");
-	//	hr = nktResult->put_PointerVal(retPtr);
-	//	if (FAILED(hr))
-	//		FatalExit(L"Failed put pointer");
-	//}
-
-	// ToDo: wrong get I think for CreateDXGIFactory
-	//INktParam* nktResult;
-	//hr = lpHookCallInfoPlugin->Result(&nktResult);
-	//if (FAILED(hr))
-	//	FatalExit(L"Failed Get NktResult");
-	//hr = nktResult->get_PointerVal((__int64*)&pDXGIFactory);
-	//if (FAILED(hr))
-	//	FatalExit\(L"Failed put pointer"\);
-
-	// At this point, we are going to switch from using Deviare style calls
-	// to In-Proc style calls, because the routines we need to hook are not
-	// found in the Deviare database.  It would be possible to add them 
-	// and then rebuilding it, but In-Proc works alongside Deviare so this
-	// approach is simpler.
-
-	// HookCreateSwapChain(pDXGIFactory);
-
 
 	return S_OK;
 }
