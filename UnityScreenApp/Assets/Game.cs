@@ -195,11 +195,16 @@ public class Game : MonoBehaviour
         //steamPath = @"C:\Program Files (x86)\Steam";
         //steamAppID = "203160";
 
+        //steamPath = @"C:\Program Files (x86)\Steam";
+        //steamAppID = "39210";
+        //waitForExe = "ffxiv_dx11.exe";
+        //launchType = LaunchType.Steam;
+        //gamePath = @"W:\SteamLibrary\steamapps\common\FINAL FANTASY XIV Online\game\ffxiv_dx11.exe";
 
 
         // If they didn't pass a --game-path argument, then bring up the GetOpenFileName
         // dialog to let them choose. More for testing, not a usual path.
-        if (String.IsNullOrEmpty(gamePath))
+        if (String.IsNullOrEmpty(gamePath) && String.IsNullOrEmpty(waitForExe))
         {
             // Ask user to select the game to run in virtual 3D.  
             // We are doing this super early because there are scenarios where Unity
@@ -308,18 +313,17 @@ public class Game : MonoBehaviour
         {
             print("Launch type: " + launchType);
 
-            switch (launchType)
-            {
-                case LaunchType.DX9:
-                    StartGameBySpyMgr(gamePath, out continueevent);
-                    break;
-                case LaunchType.DX9Ex:
-                    StartGameByExeFile(gamePath, launchArguments);
-                    break;
-                case LaunchType.DirectMode:
-                    StartGameBySpyMgr(gamePath, out continueevent);
-                    break;
-                case LaunchType.Steam:
+            // If we are waitForExe, 3DFM already launched the game.
+            if (String.IsNullOrEmpty(waitForExe))
+                switch (launchType)
+                {
+                    case LaunchType.DX9:
+                        StartGameBySpyMgr(gamePath, out continueevent);
+                        break;
+                    case LaunchType.DirectMode:
+                        StartGameBySpyMgr(gamePath, out continueevent);
+                        break;
+
                     // Treat Steam launch as straight exe launch, because they ruin it by
                     // forcing Katanga to exit so they can do their dumb game theater.
                     // Probably will break some double-launch games that need SteamAPI,
@@ -327,12 +331,15 @@ public class Game : MonoBehaviour
                     // I'm not sure this is the right path, but people are already getting
                     // confused by the DGT.
 
-                    StartGameBySteamAppID(steamPath, steamAppID, launchArguments);
-                    break;
-                case LaunchType.Exe:
-                    StartGameByExeFile(gamePath, launchArguments);
-                    break;
-            }
+                    case LaunchType.Steam:
+                        //StartGameBySteamAppID(steamPath, steamAppID, launchArguments);
+                        //break;
+                    case LaunchType.DX9Ex:
+                    case LaunchType.Exe:
+                    default:
+                        StartGameByExeFile(gamePath, launchArguments);
+                        break;
+                }
 
             // For any launch, let's wait and watch for game exe to launch.
             // This works a lot better than launching it here and hooking
@@ -343,7 +350,11 @@ public class Game : MonoBehaviour
             // IEnumerator so that this can be asynchronous from the VR UI,
             // and thus not hang their VR environment while launching.
 
-            string gameExe = gamePath.Substring(gamePath.LastIndexOf('\\') + 1);
+            string gameExe;
+            if (String.IsNullOrEmpty(waitForExe))
+                gameExe = gamePath.Substring(gamePath.LastIndexOf('\\') + 1);
+            else
+                gameExe = waitForExe;
 
             // We finally answered the question for whether we want a startup delay or
             // not, and the answer is yes.  Battlefield3 in particular has a retarded
@@ -474,7 +485,7 @@ public class Game : MonoBehaviour
     {
         // We set this to flgOnlyPreCall, because we are just logging these.
 
-        if (string.IsNullOrEmpty(waitForExe))
+        if (String.IsNullOrEmpty(waitForExe))
         {
             print("Hook the D3D9.DLL!Direct3DCreate9...");
             NktHook create9Hook = _spyMgr.CreateHook("D3D9.DLL!Direct3DCreate9", (int)eNktHookFlags.flgOnlyPreCall);
