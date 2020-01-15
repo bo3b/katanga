@@ -7669,7 +7669,7 @@ MonoBehaviour:
   m_Camera: {fileID: 614232028}
   m_Material: {fileID: 0}
   m_Shader: {fileID: 4800000, guid: a884b698409ebfd41af0f6df151ca78c, type: 3}
-  sharpenAmount: 1.85
+  sharpenAmount: 1
   maximumSharpness: 0.25
   sharpenRadius: 1
   sharpenType: 0
