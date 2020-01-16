@@ -311,35 +311,40 @@ public class Game : MonoBehaviour
 
         Directory.SetCurrentDirectory(Path.GetDirectoryName(gamePath));
         {
+            // If we have a waitForExe specified game, then we want 3DFM to launch the game here using
+            // SteamAppID approach.  That will get the game running, and Katanga will then just waitForExe
+            // to inject.  This helps bypass problematic launchers and double-launched steam games.
+            // Treat input Steam launch as straight exe launch, because they ruin it by forcing Katanga 
+            // to exit so they can do their dumb game theater.
+            // Probably will break some double-launch games that need SteamAPI, but fixes always launching
+            // SteamGameTheater. I'm not sure this is the right path, but people are already getting
+            // confused by the DGT.
+
+            if (string.IsNullOrEmpty(waitForExe) && launchType == LaunchType.Steam)
+                launchType = LaunchType.Exe;
+
+
             print("Launch type: " + launchType);
 
-            // If we are waitForExe, 3DFM already launched the game.
-            if (String.IsNullOrEmpty(waitForExe))
-                switch (launchType)
-                {
-                    case LaunchType.DX9:
-                        StartGameBySpyMgr(gamePath, out continueevent);
-                        break;
-                    case LaunchType.DirectMode:
-                        StartGameBySpyMgr(gamePath, out continueevent);
-                        break;
+            switch (launchType)
+            {
+                case LaunchType.DX9:
+                    StartGameBySpyMgr(gamePath, out continueevent);
+                    break;
+                case LaunchType.DirectMode:
+                    StartGameBySpyMgr(gamePath, out continueevent);
+                    break;
 
-                    // Treat Steam launch as straight exe launch, because they ruin it by
-                    // forcing Katanga to exit so they can do their dumb game theater.
-                    // Probably will break some double-launch games that need SteamAPI,
-                    // but fixes always launching SteamGameTheater.
-                    // I'm not sure this is the right path, but people are already getting
-                    // confused by the DGT.
+                case LaunchType.Steam:
+                    StartGameBySteamAppID(steamPath, steamAppID, launchArguments);
+                    break;
 
-                    case LaunchType.Steam:
-                        //StartGameBySteamAppID(steamPath, steamAppID, launchArguments);
-                        //break;
-                    case LaunchType.DX9Ex:
-                    case LaunchType.Exe:
-                    default:
-                        StartGameByExeFile(gamePath, launchArguments);
-                        break;
-                }
+                case LaunchType.DX9Ex:
+                case LaunchType.Exe:
+                default:
+                    StartGameByExeFile(gamePath, launchArguments);
+                    break;
+            }
 
             // For any launch, let's wait and watch for game exe to launch.
             // This works a lot better than launching it here and hooking
