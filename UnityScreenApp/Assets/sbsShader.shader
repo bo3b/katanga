@@ -8,6 +8,11 @@ Shader "Unlit/sbsShader"
 	Properties
 	{
 		_MainTex ("_bothEyes Texture", 2D) = "grey" {}
+
+		_BendAmount("Bend Amount", Vector) = (0,-1,0,0)
+		_BendOrigin("Bend Origin", Vector) = (0,0,0,0)
+		_BendFallOff("Bend Falloff", float) = 1.0
+		_BendFallOffStr("Falloff strength", Range(0.00001,1.0)) = 1.0
 	}
 	SubShader
 	{
@@ -37,6 +42,24 @@ Shader "Unlit/sbsShader"
 			sampler2D _MainTex;
 			float4 _MainTex_ST;
 			
+			float3 _BendAmount;
+			float3 _BendOrigin;
+			float _BendFallOff;
+			float _BendFallOffStr;
+
+			// Add screen curve as: https://www.bitshiftprogrammer.com/2018/04/curved-surface-shader-unity.html
+
+			float4 curveIt(float4 v)
+			{
+				float4 world = mul(unity_ObjectToWorld, v);
+				float dist = length(world.xyz - _BendOrigin.xyz);
+				dist = max(0, dist - _BendFallOff);
+				
+				dist = pow(dist, _BendFallOffStr);
+				world.xyz += dist * _BendAmount;
+				return mul(unity_WorldToObject, world);
+			}
+
 			v2f vert (appdata v)
 			{
 				v2f o;
@@ -54,7 +77,8 @@ Shader "Unlit/sbsShader"
 				sb.w = 0.0;									// No vertical offset.
 				v.uv = UnityStereoScreenSpaceUVAdjust(v.uv, sb);
 					
-				o.vertex = UnityObjectToClipPos(v.vertex);
+                o.vertex = UnityObjectToClipPos(v.vertex);
+//				o.vertex = UnityObjectToClipPos(curveIt(v.vertex));
 				o.uv = TRANSFORM_TEX(v.uv, _MainTex);
 
 				return o;
