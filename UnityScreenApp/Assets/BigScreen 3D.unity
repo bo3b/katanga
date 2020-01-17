@@ -7549,7 +7549,8 @@ MonoBehaviour:
     button\nRecenter: Right shoulder\nMove screen farther/nearer: Right stick vertical\r\nMove
     screen up/down: Left stick vertical\r\nResize screen smaller/larger: Left stick
     horizontal\r\nCycle environment (snow, sky, floor): Left shoulder\nSharpening
-    on/off: Y\r button\n\nThese mappings can be changed in the Unity \nlaunch dialog."
+    on/off: Y\r button\n\nThese mappings can be changed in the Unity \nlaunch dialog.
+    \ Mirror window must be in front."
 --- !u!222 &748682751
 CanvasRenderer:
   m_ObjectHideFlags: 0
