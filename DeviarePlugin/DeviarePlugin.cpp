@@ -44,6 +44,13 @@ CNktHookLib nktInProc;
 // Required for reverse stereo blit to give us stereo backbuffer.
 StereoHandle gNVAPI = nullptr;
 
+// If we are in 3D Vision Direct Mode, we need to copy the textures from each
+// eye, instead of using the ReverseStereoBlit.  This changes the mode of
+// copying in Present.  Now works in DX9 as well as DX11.
+
+bool gDirectMode = false;
+
+
 // The actual shared Handle to the DX11 or DX9 VR side.  Filled in by an active InProc_*.
 HANDLE gGameSharedHandle = nullptr;
 

@@ -287,17 +287,38 @@ HRESULT __stdcall Hooked_Present(IDirect3DDevice9* This,
 	hr = This->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &backBuffer);
 	if (SUCCEEDED(hr) && gGameSurface != nullptr)
 	{
-		hr = NvAPI_Stereo_ReverseStereoBlitControl(gNVAPI, true);
+		if (gDirectMode)
 		{
-			hr = This->StretchRect(backBuffer, nullptr, gGameSurface, nullptr, D3DTEXF_NONE);
-			if (FAILED(hr))
-				LogInfo(L"Bad StretchRect to Texture.\n");
+			D3DSURFACE_DESC pDesc;
+			RECT destRect = { 0, 0, 0, 0 };
+
+			backBuffer->GetDesc(&pDesc);
+			destRect.bottom = pDesc.Height;
+
+			hr = NvAPI_Stereo_SetActiveEye(gNVAPI, NVAPI_STEREO_EYE_RIGHT);
+			destRect.right = pDesc.Width;
+			hr = This->StretchRect(backBuffer, nullptr, gGameSurface, &destRect, D3DTEXF_NONE);
+
+			hr = NvAPI_Stereo_SetActiveEye(gNVAPI, NVAPI_STEREO_EYE_LEFT);
+			destRect.left = pDesc.Width;
+			destRect.right = pDesc.Width * 2;
+			hr = This->StretchRect(backBuffer, nullptr, gGameSurface, &destRect, D3DTEXF_NONE);
+
 			hr = This->StretchRect(gGameSurface, nullptr, gSharedTarget, nullptr, D3DTEXF_NONE);
-
-//			SetEvent(gFreshBits);		// Signal other thread to start StretchRect
 		}
-		hr = NvAPI_Stereo_ReverseStereoBlitControl(gNVAPI, false);
+		else
+		{
+			hr = NvAPI_Stereo_ReverseStereoBlitControl(gNVAPI, true);
+			{
+				hr = This->StretchRect(backBuffer, nullptr, gGameSurface, nullptr, D3DTEXF_NONE);
+				if (FAILED(hr))
+					LogInfo(L"Bad StretchRect to Texture.\n");
+				hr = This->StretchRect(gGameSurface, nullptr, gSharedTarget, nullptr, D3DTEXF_NONE);
 
+				//			SetEvent(gFreshBits);		// Signal other thread to start StretchRect
+			}
+			hr = NvAPI_Stereo_ReverseStereoBlitControl(gNVAPI, false);
+		}
 #ifdef _DEBUG
 		DrawStereoOnGame(This, gSharedTarget, backBuffer);
 #endif

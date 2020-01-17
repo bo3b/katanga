@@ -11,23 +11,27 @@ using System.Diagnostics;
 using System.Collections;
 
 
-// Game object to handle launching and connection duties to the game itself.
-// Primarily handles all Deviare hooking and communication.
-//
-// Also handles the four variants of launching.
+// Also handles the variants of launching.
 //  DX9: Needs a first instruction hook, so we can replace DX9 with DX9Ex
-//  DX11 Direct-mode: Direct mode games currently need first instruction to catch DirectMode call.
-//  DX11: Non-Steam exe.  Will launch exe directly.
-//  DX11: Steam version preferred use will launch using Steam.exe -applaunch
+//  DX9Ex: Rare. Can do late binding, but specifies to look for CreateDX9Ex
+//  DirectModeDX11: Direct mode games currently need first instruction to catch DirectMode call.
+//  DirectModeDX9: Direct mode, but DX9 API.  Used for OpenGL wrapper
+//  Steam: Steam version preferred use will launch using Steam.exe -applaunch
+//  Exe: Non-Steam exe.  Will launch exe directly.
 
+    // Duplicated in 3DFM startGameWithKatanga.  Must be kept in sync.
 enum LaunchType
 {
-    DX9,        // Requires SpyMgr launch
-    DX9Ex,      // Late binding, straight exe launch.
-    DirectMode, // Implies DX11, but requires SpyMgr launch
-    Steam,      // Steam.exe is available, use -applaunch to avoid relaunchers.
-    Exe         // Implies DX11 direct Exe launch, but only for non-Steam games.
+    DX9,                // Requires SpyMgr launch
+    DX9Ex,              // For games that require DX9Ex. Late-binding injection via waitForExe.
+    DirectModeDX11,     // Requires SpyMgr launch to watch for DirectMode
+    DirectModeDX9Ex,    // Requires SpyMgr launch, used for OpenGL wrapper games
+    Steam,              // Steam.exe is available, use -applaunch to avoid relaunchers.
+    Exe                 // Implies DX11 direct Exe launch, but only for non-Steam games.
 }
+
+// Game object to handle launching and connection duties to the game itself.
+// Primarily handles all Deviare hooking and communication.
 
 public class Game : MonoBehaviour
 {
@@ -171,7 +175,8 @@ public class Game : MonoBehaviour
 
         //gamePath = @"W:\Games\SOMA\soma.exe";
         //displayName = "soma";
-        //launchType = LaunchType.DirectMode;
+        //launchType = LaunchType.DirectModeDX9Ex;
+        //waitForExe = "soma.exe";
 
         //gamePath = @"W:\SteamLibrary\steamapps\common\Life Is Strange\Binaries\Win32\lifeisstrange.exe";
         //launchType = LaunchType.Steam;
@@ -191,7 +196,7 @@ public class Game : MonoBehaviour
 
         //gamePath = @"W:\SteamLibrary\steamapps\common\Tomb Raider\tombraider.exe";
         //displayName = "Tomb Raider";
-        //launchType = LaunchType.DirectMode;
+        //launchType = LaunchType.DirectModeDX11;
         //steamPath = @"C:\Program Files (x86)\Steam";
         //steamAppID = "203160";
 
@@ -329,9 +334,8 @@ public class Game : MonoBehaviour
             switch (launchType)
             {
                 case LaunchType.DX9:
-                    StartGameBySpyMgr(gamePath, out continueevent);
-                    break;
-                case LaunchType.DirectMode:
+                case LaunchType.DirectModeDX9Ex:
+                case LaunchType.DirectModeDX11:
                     StartGameBySpyMgr(gamePath, out continueevent);
                     break;
 
@@ -425,10 +429,14 @@ public class Game : MonoBehaviour
                     _spyMgr.ResumeProcess(gameProc, continueevent);
                     break;
                 case LaunchType.DX9Ex:
-                    HookDX9(_nativeDLLName, gameProc);
+                    HookDX9Ex(_nativeDLLName, gameProc);
                     break;
-                case LaunchType.DirectMode:
+                case LaunchType.DirectModeDX11:
                     HookDX11(_nativeDLLName, gameProc);
+                    _spyMgr.ResumeProcess(gameProc, continueevent);
+                    break;
+                case LaunchType.DirectModeDX9Ex:
+                    HookDX9Ex(_nativeDLLName, gameProc);
                     _spyMgr.ResumeProcess(gameProc, continueevent);
                     break;
                 case LaunchType.Steam:
@@ -490,26 +498,27 @@ public class Game : MonoBehaviour
     {
         // We set this to flgOnlyPreCall, because we are just logging these.
 
-        if (String.IsNullOrEmpty(waitForExe))
-        {
-            print("Hook the D3D9.DLL!Direct3DCreate9...");
-            NktHook create9Hook = _spyMgr.CreateHook("D3D9.DLL!Direct3DCreate9", (int)eNktHookFlags.flgOnlyPreCall);
-            if (create9Hook == null)
-                throw new Exception("Failed to hook D3D9.DLL!Direct3DCreate9");
-            create9Hook.AddCustomHandler(katangaDLL, 0, "");
-            create9Hook.Attach(gameProc, true);
-            create9Hook.Hook(true);
-        }
-        else
-        {
-            print("Hook the D3D9.DLL!Direct3DCreate9Ex...");
-            NktHook create9HookEx = _spyMgr.CreateHook("D3D9.DLL!Direct3DCreate9Ex", (int)eNktHookFlags.flgOnlyPreCall);
-            if (create9HookEx == null)
-                throw new Exception("Failed to hook D3D9.DLL!Direct3DCreate9Ex");
-            create9HookEx.AddCustomHandler(katangaDLL, 0, "");
-            create9HookEx.Attach(gameProc, true);
-            create9HookEx.Hook(true);
-        }
+        print("Hook the D3D9.DLL!Direct3DCreate9...");
+        NktHook create9Hook = _spyMgr.CreateHook("D3D9.DLL!Direct3DCreate9", (int)eNktHookFlags.flgOnlyPreCall);
+        if (create9Hook == null)
+            throw new Exception("Failed to hook D3D9.DLL!Direct3DCreate9");
+        create9Hook.AddCustomHandler(katangaDLL, 0, "");
+        create9Hook.Attach(gameProc, true);
+        create9Hook.Hook(true);
+    }
+
+    // Same as DX9, but targeting DX9Ex API, which makes it simpler because we can just
+    // do Kiero style find the Present call, and not need to tweak texture calls.
+
+    private void HookDX9Ex(string katangaDLL, NktProcess gameProc)
+    {
+        print("Hook the D3D9.DLL!Direct3DCreate9Ex...");
+        NktHook create9HookEx = _spyMgr.CreateHook("D3D9.DLL!Direct3DCreate9Ex", (int)eNktHookFlags.flgOnlyPreCall);
+        if (create9HookEx == null)
+            throw new Exception("Failed to hook D3D9.DLL!Direct3DCreate9Ex");
+        create9HookEx.AddCustomHandler(katangaDLL, 0, "");
+        create9HookEx.Attach(gameProc, true);
+        create9HookEx.Hook(true);
     }
 
     // -----------------------------------------------------------------------------

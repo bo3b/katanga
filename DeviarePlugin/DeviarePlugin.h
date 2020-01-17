@@ -49,6 +49,7 @@
 void FatalExit(LPCWSTR errorString);
 
 extern FILE* LogFile;
+extern bool gDirectMode;
 
 #define LogInfo(fmt, ...) \
 	do { if (LogFile) { fwprintf(LogFile, fmt, __VA_ARGS__); fflush(LogFile);} } while (0)

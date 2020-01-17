@@ -37,12 +37,6 @@
 
 ID3D11Texture2D* gGameTexture = nullptr;
 
-// If we are in 3D Vision Direct Mode, we need to copy the textures from each
-// eye, instead of using the ReverseStereoBlit.  This changes the mode of
-// copying in Present.
-
-bool gDirectMode = false;
-
 // --------------------------------------------------------------------------------------------------
 
 // Custom routines for this DeviarePlugin.dll, that the master app can call,
