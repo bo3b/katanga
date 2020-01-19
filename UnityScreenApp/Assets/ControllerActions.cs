@@ -61,9 +61,15 @@ public class ControllerActions : MonoBehaviour {
         float sizeY = PlayerPrefs.GetFloat("size-y", -4.5f);
         screen.localScale = new Vector3(sizeX, sizeY, 1);
 
+        // If the key is missing, let's set one in registry.
+        float sharpness = PlayerPrefs.GetFloat("sharpness", 0.0f);
+        if (sharpness == 0.0f)
+            PlayerPrefs.SetFloat("sharpness", 1.5f);
+
         UpdateFloor();
         UpdateSharpening();
         UpdateBillboard();
+
 
         // Let's also clip the floor to whatever the size of the user's boundary.
         // If it's not yet fully tracking, that's OK, we'll just leave as is.  This seems better
@@ -543,16 +549,19 @@ public class ControllerActions : MonoBehaviour {
 
     private void UpdateSharpening()
     {
-        int state = PlayerPrefs.GetInt("sharpening", 1);
-
         PrismSharpen sharpener = vrCamera.GetComponent<PrismSharpen>();
 
+        int state = PlayerPrefs.GetInt("sharpening", 1);
         if (state == 1)
             sharpener.enabled = true;
         else
             sharpener.enabled = false;
 
-        print("Sharpening state: " + state);
+        float sharpness = PlayerPrefs.GetFloat("sharpness", 0.0f);
+        if (sharpness != 0.0f)
+            sharpener.sharpenAmount = sharpness;
+
+        print("Sharpening state: " + state + " sharpness: " + sharpness);
     }
 
     // -----------------------------------------------------------------------------
