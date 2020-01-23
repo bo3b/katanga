@@ -11,7 +11,8 @@ using Valve.VR.InteractionSystem;
 // On the Left trackpad, up/down on the trackpad will change the screen vertical location.
 // On the Left trackpad, left/right on the trackpad will change the screen size.
 
-public class ControllerActions : MonoBehaviour {
+public class ControllerActions : MonoBehaviour
+{
 
     public SteamVR_Action_Boolean fartherAction;
     public SteamVR_Action_Boolean nearerAction;
@@ -23,6 +24,8 @@ public class ControllerActions : MonoBehaviour {
     public SteamVR_Action_Boolean hideFloorAction;
     public SteamVR_Action_Boolean recenterAction;
     public SteamVR_Action_Boolean toggleSharpening;
+    public SteamVR_Action_Boolean resetAll;
+
     public GameObject billboard;
 
     // This script is attached to the main Screen object, as the most logical place
@@ -104,6 +107,8 @@ public class ControllerActions : MonoBehaviour {
         recenterAction.AddOnChangeListener(OnRecenterAction, SteamVR_Input_Sources.RightHand);
         hideFloorAction.AddOnStateDownListener(OnHideFloorAction, SteamVR_Input_Sources.LeftHand);
         toggleSharpening.AddOnStateDownListener(OnToggleSharpeningAction, SteamVR_Input_Sources.LeftHand);
+
+        resetAll.AddOnStateDownListener(OnResetAllAction, SteamVR_Input_Sources.Any);
     }
 
     private void OnDisable()
@@ -128,6 +133,9 @@ public class ControllerActions : MonoBehaviour {
             hideFloorAction.RemoveOnStateDownListener(OnHideFloorAction, SteamVR_Input_Sources.LeftHand);
         if (toggleSharpening != null)
             toggleSharpening.RemoveOnStateDownListener(OnToggleSharpeningAction, SteamVR_Input_Sources.LeftHand);
+
+        if (resetAll != null)
+            resetAll.RemoveOnStateDownListener(OnResetAllAction, SteamVR_Input_Sources.Any);
     }
 
     //-------------------------------------------------
@@ -145,6 +153,7 @@ public class ControllerActions : MonoBehaviour {
         CycleEnvironment();
         SharpeningToggle();
         BillboardToggle();
+        CheckResetAll();
     }
 
 
@@ -600,5 +609,31 @@ public class ControllerActions : MonoBehaviour {
         print("Hint state: " + state);
     }
 
+
+    // -----------------------------------------------------------------------------
+
+    // Sometimes the screen can fly wildly off screen, and we need a way to clear all the saved
+    // PlayerPrefs Defaults.  Has been requested on forum.
+
+    private void OnResetAllAction(SteamVR_Action_Boolean fromAction, SteamVR_Input_Sources fromSource)
+    {
+        PlayerPrefs.DeleteAll();
+        print("*** Deleted all prefs, back to defaults.");
+
+        // Reset the environment like at launch.
+        Start();
+    }
+
+    private void CheckResetAll()
+    {
+        if (Input.GetButton("Recenter") && Input.GetButton("Cycle Environment"))
+        {
+            PlayerPrefs.DeleteAll();
+            print("*** Deleted all prefs, back to defaults.");
+
+            // Reset the environment like at launch.
+            Start();
+        }
+    }
 
 }

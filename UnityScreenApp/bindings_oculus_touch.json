@@ -11,7 +11,15 @@
          "sources" : []
       },
       "/actions/default" : {
-         "chords" : [],
+         "chords" : [
+            {
+               "inputs" : [
+                  [ "/user/hand/left/input/trigger", "click" ],
+                  [ "/user/hand/right/input/trigger", "click" ]
+               ],
+               "output" : "/actions/default/in/resetallaction"
+            }
+         ],
          "haptics" : [],
          "poses" : [
             {

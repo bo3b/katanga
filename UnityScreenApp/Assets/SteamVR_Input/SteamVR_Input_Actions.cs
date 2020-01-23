@@ -49,6 +49,8 @@ namespace Valve.VR
         
         private static SteamVR_Action_Boolean p_default_ToggleSharpeningAction;
         
+        private static SteamVR_Action_Boolean p_default_ResetAllAction;
+        
         private static SteamVR_Action_Vibration p_default_Haptic;
         
         public static SteamVR_Action_Pose default_Pose
@@ -179,6 +181,14 @@ namespace Valve.VR
             }
         }
         
+        public static SteamVR_Action_Boolean default_ResetAllAction
+        {
+            get
+            {
+                return SteamVR_Actions.p_default_ResetAllAction.GetCopy <SteamVR_Action_Boolean>();
+            }
+        }
+        
         public static SteamVR_Action_Vibration default_Haptic
         {
             get
@@ -207,6 +217,7 @@ namespace Valve.VR
                     SteamVR_Actions.default_GrabPinch,
                     SteamVR_Actions.default_GrabGrip,
                     SteamVR_Actions.default_ToggleSharpeningAction,
+                    SteamVR_Actions.default_ResetAllAction,
                     SteamVR_Actions.default_Haptic};
             Valve.VR.SteamVR_Input.actionsIn = new Valve.VR.ISteamVR_Action_In[]
             {
@@ -225,7 +236,8 @@ namespace Valve.VR
                     SteamVR_Actions.default_HideFloorAction,
                     SteamVR_Actions.default_GrabPinch,
                     SteamVR_Actions.default_GrabGrip,
-                    SteamVR_Actions.default_ToggleSharpeningAction};
+                    SteamVR_Actions.default_ToggleSharpeningAction,
+                    SteamVR_Actions.default_ResetAllAction};
             Valve.VR.SteamVR_Input.actionsOut = new Valve.VR.ISteamVR_Action_Out[]
             {
                     SteamVR_Actions.default_Haptic};
@@ -249,7 +261,8 @@ namespace Valve.VR
                     SteamVR_Actions.default_HideFloorAction,
                     SteamVR_Actions.default_GrabPinch,
                     SteamVR_Actions.default_GrabGrip,
-                    SteamVR_Actions.default_ToggleSharpeningAction};
+                    SteamVR_Actions.default_ToggleSharpeningAction,
+                    SteamVR_Actions.default_ResetAllAction};
             Valve.VR.SteamVR_Input.actionsSingle = new Valve.VR.SteamVR_Action_Single[0];
             Valve.VR.SteamVR_Input.actionsVector2 = new Valve.VR.SteamVR_Action_Vector2[0];
             Valve.VR.SteamVR_Input.actionsVector3 = new Valve.VR.SteamVR_Action_Vector3[0];
@@ -271,7 +284,8 @@ namespace Valve.VR
                     SteamVR_Actions.default_HideFloorAction,
                     SteamVR_Actions.default_GrabPinch,
                     SteamVR_Actions.default_GrabGrip,
-                    SteamVR_Actions.default_ToggleSharpeningAction};
+                    SteamVR_Actions.default_ToggleSharpeningAction,
+                    SteamVR_Actions.default_ResetAllAction};
         }
         
         private static void PreInitActions()
@@ -292,6 +306,7 @@ namespace Valve.VR
             SteamVR_Actions.p_default_GrabPinch = ((SteamVR_Action_Boolean)(SteamVR_Action.Create <SteamVR_Action_Boolean>("/actions/default/in/GrabPinch")));
             SteamVR_Actions.p_default_GrabGrip = ((SteamVR_Action_Boolean)(SteamVR_Action.Create <SteamVR_Action_Boolean>("/actions/default/in/GrabGrip")));
             SteamVR_Actions.p_default_ToggleSharpeningAction = ((SteamVR_Action_Boolean)(SteamVR_Action.Create <SteamVR_Action_Boolean>("/actions/default/in/ToggleSharpeningAction")));
+            SteamVR_Actions.p_default_ResetAllAction = ((SteamVR_Action_Boolean)(SteamVR_Action.Create <SteamVR_Action_Boolean>("/actions/default/in/ResetAllAction")));
             SteamVR_Actions.p_default_Haptic = ((SteamVR_Action_Vibration)(SteamVR_Action.Create <SteamVR_Action_Vibration>("/actions/default/out/Haptic")));
         }
     }

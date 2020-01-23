@@ -7309,6 +7309,9 @@ MonoBehaviour:
   toggleSharpening:
     actionPath: /actions/default/in/ToggleSharpeningAction
     needsReinit: 0
+  resetAll:
+    actionPath: /actions/default/in/ResetAllAction
+    needsReinit: 0
   billboard: {fileID: 1875059234}
   screen: {fileID: 488365435}
   globalScreen: {fileID: 1309692785}
