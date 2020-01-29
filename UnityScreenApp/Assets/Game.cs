@@ -316,18 +316,14 @@ public class Game : MonoBehaviour
 
         Directory.SetCurrentDirectory(Path.GetDirectoryName(gamePath));
         {
-            // If we have a waitForExe specified game, then we want 3DFM to launch the game here using
-            // SteamAppID approach.  That will get the game running, and Katanga will then just waitForExe
-            // to inject.  This helps bypass problematic launchers and double-launched steam games.
             // Treat input Steam launch as straight exe launch, because they ruin it by forcing Katanga 
             // to exit so they can do their dumb game theater.
             // Probably will break some double-launch games that need SteamAPI, but fixes always launching
             // SteamGameTheater. I'm not sure this is the right path, but people are already getting
             // confused by the DGT.
 
-            if (string.IsNullOrEmpty(waitForExe) && launchType == LaunchType.Steam)
+            if (launchType == LaunchType.Steam)
                 launchType = LaunchType.Exe;
-
 
             print("Launch type: " + launchType);
 
