@@ -316,6 +316,21 @@ public class Game : MonoBehaviour
 
         Directory.SetCurrentDirectory(Path.GetDirectoryName(gamePath));
         {
+            // For any exe launch, let's wait and watch for game exe to launch.
+            // This works a lot better than launching it here and hooking
+            // first instructions, because we can wait past launchers or 
+            // Steam launch itself, or different sub processes being launched.
+            // In scenarios where we are using the SpyMgr launch, this check
+            // will still succeed.  Putting this here allows us to return the
+            // IEnumerator so that this can be asynchronous from the VR UI,
+            // and thus not hang the VR environment while launching.
+
+            string gameExe;
+            if (String.IsNullOrEmpty(waitForExe))
+                gameExe = gamePath.Substring(gamePath.LastIndexOf('\\') + 1);
+            else
+                gameExe = waitForExe;
+
             // Treat input Steam launch as straight exe launch, because they ruin it by forcing Katanga 
             // to exit so they can do their dumb game theater.
             // Probably will break some double-launch games that need SteamAPI, but fixes always launching
@@ -332,7 +347,8 @@ public class Game : MonoBehaviour
                 case LaunchType.DX9:
                 case LaunchType.DirectModeDX9Ex:
                 case LaunchType.DirectModeDX11:
-                    StartGameBySpyMgr(gamePath, out continueevent);
+                    gamePath += " " + launchArguments;
+                    gameProc = StartGameBySpyMgr(gamePath, out continueevent);     // Launches suspended game.
                     break;
 
                 case LaunchType.Steam:
@@ -346,21 +362,6 @@ public class Game : MonoBehaviour
                     break;
             }
 
-            // For any launch, let's wait and watch for game exe to launch.
-            // This works a lot better than launching it here and hooking
-            // first instructions, because we can wait past launchers or 
-            // Steam launch itself, or different sub processes being launched.
-            // In scenarios where we are using the SpyMgr launch, this check
-            // will still succeed.  Putting this here allows us to return the
-            // IEnumerator so that this can be asynchronous from the VR UI,
-            // and thus not hang their VR environment while launching.
-
-            string gameExe;
-            if (String.IsNullOrEmpty(waitForExe))
-                gameExe = gamePath.Substring(gamePath.LastIndexOf('\\') + 1);
-            else
-                gameExe = waitForExe;
-
             // We finally answered the question for whether we want a startup delay or
             // not, and the answer is yes.  Battlefield3 in particular has a retarded
             // browser based launcher, which runs after we launch bf3.exe.  If we 
@@ -372,7 +373,8 @@ public class Game : MonoBehaviour
 
             print("Waiting for process: " + gamePath);
 
-            yield return new WaitForSecondsRealtime(8.0f);
+            if (gameProc == null)
+                yield return new WaitForSecondsRealtime(8.0f);      // Only wait for exe style launch
 
             int procid = 0;
             do
@@ -526,7 +528,7 @@ public class Game : MonoBehaviour
 
     private NktProcess StartGameBySpyMgr(string game, out object continueevent)
     {
-        print("Launching: " + game + "...");
+        print("...Launching: " + game);
 
         NktProcess gameProc = _spyMgr.CreateProcess(game, true, out continueevent);
         if (gameProc == null)
