@@ -46,7 +46,7 @@
 // Checking all errors from function calls, using this to handle the
 // 'should never happen' scenarios.
 
-void FatalExit(LPCWSTR errorString);
+void FatalExit(LPCWSTR errorString, HRESULT code);
 
 extern FILE* LogFile;
 extern bool gDirectMode;

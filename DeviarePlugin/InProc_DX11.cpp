@@ -148,16 +148,16 @@ ID3D11Device* CreateSharedTexture(IDXGISwapChain* pSwapChain)
 		// DXGIDevice, which is not usable here.
 
 		hr = pSwapChain->GetDevice(__uuidof(ID3D11Device), (void**)&pDevice);
-		if (FAILED(hr)) FatalExit(L"Failed to GetDevice");
+		if (FAILED(hr)) FatalExit(L"Failed to GetDevice", hr);
 
 		// Using the D3D11Device we fetched above, we also want to initialize nvidia
 		// stereo so that we can fetch the stereo backbuffer during Present.
 
 		NvAPI_Status res = NvAPI_Initialize();
-		if (res != NVAPI_OK) FatalExit(L"NVidia driver not available.\n\nFailed to NvAPI_Initialize\n");
+		if (res != NVAPI_OK) FatalExit(L"NVidia driver not available.\n\nFailed to NvAPI_Initialize\n", res);
 
 		res = NvAPI_Stereo_CreateHandleFromIUnknown(pDevice, &gNVAPI);
-		if (res != NVAPI_OK) FatalExit(L"3D Vision is not enabled.\n\nFailed to NvAPI_Stereo_CreateHandleFromIUnknown\n");
+		if (res != NVAPI_OK) FatalExit(L"3D Vision is not enabled.\n\nFailed to NvAPI_Stereo_CreateHandleFromIUnknown\n", res);
 
 
 		// Now that we have a proper SwapChain from the game, let's also make a 
@@ -167,7 +167,7 @@ ID3D11Device* CreateSharedTexture(IDXGISwapChain* pSwapChain)
 		// using ReverseStereoBlit will work.
 
 		hr = pSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&backBuffer);
-		if (FAILED(hr)) FatalExit(L"Fail to get backbuffer");
+		if (FAILED(hr)) FatalExit(L"Fail to get backbuffer", hr);
 
 		backBuffer->GetDesc(&desc);
 		backBuffer->Release();
@@ -195,7 +195,7 @@ ID3D11Device* CreateSharedTexture(IDXGISwapChain* pSwapChain)
 		LogInfo(L"  Width: %d, Height: %d, Format: %d\n", desc.Width, desc.Height, desc.Format);
 
 		hr = pDevice->CreateTexture2D(&desc, NULL, &gGameTexture);
-		if (FAILED(hr)) FatalExit(L"Fail to create shared stereo Texture");
+		if (FAILED(hr)) FatalExit(L"Fail to create shared stereo Texture", hr);
 
 		// Now create the HANDLE which is used to share surfaces.  This follows the model from:
 		// https://docs.microsoft.com/en-us/windows/desktop/api/d3d11/nf-d3d11-id3d11device-opensharedresource
@@ -203,10 +203,10 @@ ID3D11Device* CreateSharedTexture(IDXGISwapChain* pSwapChain)
 		IDXGIResource* pDXGIResource = NULL;
 
 		hr = gGameTexture->QueryInterface(__uuidof(IDXGIResource), (LPVOID*)&pDXGIResource);
-		if (FAILED(hr))	FatalExit(L"Fail to QueryInterface on shared surface");
+		if (FAILED(hr))	FatalExit(L"Fail to QueryInterface on shared surface", hr);
 
 		hr = pDXGIResource->GetSharedHandle(&gGameSharedHandle);
-		if (FAILED(hr) || gGameSharedHandle == nullptr)	FatalExit(L"Fail to pDXGIResource->GetSharedHandle");
+		if (FAILED(hr) || gGameSharedHandle == nullptr)	FatalExit(L"Fail to pDXGIResource->GetSharedHandle", hr);
 
 		pDXGIResource->Release();
 
@@ -410,7 +410,7 @@ HRESULT __stdcall Hooked_ResizeBuffers(IDXGISwapChain* This,
 		// Run original call game is expecting.
 
 		hr = pOrigResizeBuffers(This, BufferCount, Width, Height, NewFormat, SwapChainFlags);
-		if (FAILED(hr)) FatalExit(L"Failed to IDXGISwapChain->ResizeBuffers");
+		if (FAILED(hr)) FatalExit(L"Failed to IDXGISwapChain->ResizeBuffers", hr);
 
 		// For this code path, don't wait for Present to rebuild shared surface. Since VR side
 		// is locked out, go ahead and create surface here.
@@ -459,7 +459,7 @@ HRESULT __stdcall Hooked_CreateSwapChainForHwnd(IDXGIFactory2 * This,
 	// Run original call game is expecting.
 
 	hr = pOrigCreateSwapChainForHwnd(This, pDevice, hWnd, pDesc, pFullscreenDesc, pRestrictToOutput, ppSwapChain);
-	if (FAILED(hr)) FatalExit(L"Failed to create CreateSwapChainForHwnd");
+	if (FAILED(hr)) FatalExit(L"Failed to create CreateSwapChainForHwnd", hr);
 
 
 	// Using that fresh IDXGISwapChain, we can now hook the Present call, which 
@@ -501,7 +501,7 @@ HRESULT __stdcall Hooked_CreateSwapChain(IDXGIFactory1 * This,
 	// Run original call game is expecting.
 
 	hr = pOrigCreateSwapChain(This, pDevice, pDesc, ppSwapChain);
-	if (FAILED(hr)) FatalExit(L"Failed to create CreateSwapChain");
+	if (FAILED(hr)) FatalExit(L"Failed to create CreateSwapChain", hr);
 
 
 	// Using that fresh IDXGISwapChain, we can now hook the Present call, which 
@@ -549,7 +549,7 @@ void HookCreateSwapChain(IDXGIFactory* dDXGIFactory)
 		DWORD dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigCreateSwapChain,
 			lpvtbl_CreateSwapChain(dDXGIFactory), Hooked_CreateSwapChain, 0);
 
-		if (dwOsErr != S_OK) FatalExit(L"Failed to hook IDXGIFactory1::CreateSwapChain");
+		if (dwOsErr != S_OK) FatalExit(L"Failed to hook IDXGIFactory1::CreateSwapChain", dwOsErr);
 	}
 }
 
@@ -579,7 +579,7 @@ void HookCreateSwapChainForHwnd(IDXGIFactory2* dDXGIFactory)
 		DWORD dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigCreateSwapChainForHwnd,
 			lpvtbl_CreateSwapChainForHwnd(dDXGIFactory), Hooked_CreateSwapChainForHwnd, 0);
 
-		if (dwOsErr != S_OK) FatalExit(L"Failed to hook IDXGIFactory1::CreateSwapChainForHwnd");
+		if (dwOsErr != S_OK) FatalExit(L"Failed to hook IDXGIFactory1::CreateSwapChainForHwnd", dwOsErr);
 	}
 }
 
@@ -705,10 +705,10 @@ void HookNvapiSetDriverMode()
 #endif
 
 	HMODULE hNvapi = LoadLibrary(REAL_NVAPI_DLL);
-	if (hNvapi == NULL) FatalExit(L"Failed to LoadLibrary for nvapi.dll");
+	if (hNvapi == NULL) FatalExit(L"Failed to LoadLibrary for nvapi.dll", GetLastError());
 
 	FARPROC pQueryInterface = GetProcAddress(hNvapi, "nvapi_QueryInterface");
-	if (pQueryInterface == NULL) FatalExit(L"Failed to GetProcAddress for nvapi_QueryInterface");
+	if (pQueryInterface == NULL) FatalExit(L"Failed to GetProcAddress for nvapi_QueryInterface", GetLastError());
 
 	// This could be called multiple times by a game, so let's be sure to
 	// only hook once.
@@ -728,7 +728,7 @@ void HookNvapiSetDriverMode()
 		DWORD dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigNvAPI_Stereo_SetDriverMode,
 			pSetDriverMode, Hooked_NvAPI_Stereo_SetDriverMode, 0);
 
-		if (FAILED(dwOsErr)) FatalExit(L"Failed to hook NVAPI.DLL NvAPI_Stereo_SetDriverMode");
+		if (FAILED(dwOsErr)) FatalExit(L"Failed to hook NVAPI.DLL NvAPI_Stereo_SetDriverMode", dwOsErr);
 	}
 }
 

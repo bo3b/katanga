@@ -91,7 +91,7 @@ void CaptureSetupMutex()
 	LogInfo(L"-> CaptureSetupMutex mutex:%p\n", gSetupMutex);
 
 	if (gSetupMutex == NULL)
-		FatalExit(L"CaptureSetupMutex: mutex does not exist.");
+		FatalExit(L"CaptureSetupMutex: mutex does not exist.", GetLastError());
 
 	waitResult = WaitForSingleObject(gSetupMutex, 1000);
 	LogInfo(L"  WaitForSingleObject mutex:%p, result:0x%x\n", gSetupMutex, waitResult);
@@ -101,7 +101,7 @@ void CaptureSetupMutex()
 		DWORD hr = GetLastError();
 		swprintf_s(info, _countof(info), L"CaptureSetupMutex: WaitForSingleObject failed.\nwaitResult: 0x%x, err: 0x%x\n", waitResult, hr);
 		LogInfo(info);
-		FatalExit(info);
+		FatalExit(info, hr);
 	}
 }
 
@@ -117,7 +117,7 @@ void ReleaseSetupMutex()
 	LogInfo(L"<- ReleaseSetupMutex mutex:%p\n", gSetupMutex);
 
 	if (gSetupMutex == NULL)
-		FatalExit(L"ReleaseSetupMutex: mutex does not exist.");
+		FatalExit(L"ReleaseSetupMutex: mutex does not exist.", GetLastError());
 
 	bool ok = ReleaseMutex(gSetupMutex);
 	LogInfo(L"  ReleaseSetupMutex mutex:%p, result:%s\n", gSetupMutex, ok? L"OK" : L"FAIL");
@@ -183,7 +183,7 @@ HRESULT WINAPI OnLoad()
 	gSetupMutex = OpenMutex(SYNCHRONIZE, false, L"KatangaSetupMutex");
 	LogInfo(L"GamePlugin: OpenMutex called: %p\n", gSetupMutex);
 	if (gSetupMutex == NULL)
-		FatalExit(L"OnLoad: could not find KatangaSetupMutex");
+		FatalExit(L"OnLoad: could not find KatangaSetupMutex", GetLastError());
 
 
 	// This is running inside the game itself, so make sure we can use
@@ -237,7 +237,7 @@ HRESULT WINAPI OnHookAdded(__in INktHookInfo *lpHookInfo, __in DWORD dwChainInde
 
 	HRESULT hr = lpHookInfo->get_FunctionName(&name);
 	if (FAILED(hr))
-		FatalExit(L"Failed GetFunctionName");
+		FatalExit(L"Failed GetFunctionName", hr);
 	lpHookInfo->get_Address(&address);
 	
 	LogInfo(L"GamePlugin::OnHookAdded called [Hook: %ls @ 0x%IX / Chain:%lu]\n",
@@ -245,10 +245,10 @@ HRESULT WINAPI OnHookAdded(__in INktHookInfo *lpHookInfo, __in DWORD dwChainInde
 
 	hr = lpHookInfo->CurrentProcess(&pProc);
 	if (FAILED(hr))
-		FatalExit(L"Failed CurrentProcess");
+		FatalExit(L"Failed CurrentProcess", hr);
 	hr = pProc->get_Id(&gGamePID);
 	if (FAILED(hr))
-		FatalExit(L"Failed get_Id");
+		FatalExit(L"Failed get_Id", hr);
 
 	// Only hook the API the game is using.
 
@@ -270,7 +270,7 @@ VOID WINAPI OnHookRemoved(__in INktHookInfo *lpHookInfo, __in DWORD dwChainIndex
 
 	HRESULT hr = lpHookInfo->get_FunctionName(&name);
 	if (FAILED(hr))
-		FatalExit(L"Failed GetFunctionName");
+		FatalExit(L"Failed GetFunctionName", hr);
 	lpHookInfo->get_Address(&address);
 
 	LogInfo(L"GamePlugin::OnHookRemoved called [Hook: %ls @ 0x%IX / Chain:%lu]\n",
@@ -315,7 +315,7 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 
 	hr = lpHookInfo->get_FunctionName(&name);
 	if (FAILED(hr))
-		FatalExit(L"GamePlugin::OnFunctionCall Failed GetFunctionName");
+		FatalExit(L"GamePlugin::OnFunctionCall Failed GetFunctionName", hr);
 
 	my_ssize_t address;
 
@@ -340,8 +340,13 @@ HRESULT WINAPI OnFunctionCall(__in INktHookInfo *lpHookInfo, __in DWORD dwChainI
 // least the user gets immediate notification and does not have to sift around
 // to find log files.  
 
-void FatalExit(LPCWSTR errorString)
+void FatalExit(LPCWSTR errorString, HRESULT code)
 {
-	MessageBox(NULL, errorString, L"GamePlugin: Fatal Error", MB_OK);
+	wchar_t info[512];
+
+	swprintf_s(info, _countof(info), L" Fatal Error: %s  (0x%x)\n", errorString, code);
+	LogInfo(info);
+
+	MessageBox(NULL, info, L"GamePlugin: Fatal Error", MB_OK);
 	exit(1);
 }

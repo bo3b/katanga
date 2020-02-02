@@ -42,9 +42,14 @@ static void LogDebug(wchar_t* text)
 // least the user gets immediate notification and does not have to sift around
 // to find log files.  
 
-void FatalExit(LPCWSTR errorString)
+void FatalExit(LPCWSTR errorString, HRESULT code)
 {
-	MessageBox(NULL, errorString, L"Katanga:Plugin Fatal Error", MB_OK);
+	wchar_t info[512];
+
+	swprintf_s(info, _countof(info), L" Fatal Error: %s  (0x%x)\n", errorString, code);
+	Log(info);
+
+	MessageBox(NULL, info, L"Katanga:Plugin Fatal Error", MB_OK);
 	exit(1);
 }
 
@@ -339,7 +344,7 @@ void RenderAPI_D3D11::OpenLogFile(char* logFilePath)
 {
 	gLogFile = _fsopen(logFilePath, "a", _SH_DENYNO);
 	if (gLogFile == NULL)
-		FatalExit(L"Katanga:OpenLogFile unable to open log for writing.");
+		FatalExit(L"Katanga:OpenLogFile unable to open log for writing.", GetLastError());
 	
 	setvbuf(gLogFile, NULL, _IONBF, 0);
 
@@ -366,7 +371,7 @@ void RenderAPI_D3D11::CreateSetupMutex()
 	Log(L"\n..Katanga:CreateSetupMutex--> ");
 
 	if (gSetupMutex != NULL)
-		FatalExit(L"Katanga:CreateSetupMutex called, but already created.");
+		FatalExit(L"Katanga:CreateSetupMutex called, but already created.", GetLastError());
 
 	gSetupMutex = CreateMutex(NULL, false, L"KatangaSetupMutex");
 	if (gSetupMutex == NULL)
@@ -375,8 +380,7 @@ void RenderAPI_D3D11::CreateSetupMutex()
 		wchar_t info[512];
 		swprintf_s(info, _countof(info),
 			L"Katanga:CreateSetupMutex failed. err: 0x%x\n", hr);
-	//	Log(info);
-		FatalExit(info);
+		FatalExit(info, hr);
 	}
 
 	Log(L"%p\n", gSetupMutex);
@@ -387,7 +391,7 @@ bool RenderAPI_D3D11::GrabSetupMutex()
 	LogDebug(L"..>Katanga:GrabSetupMutex\n");
 
 	if (gSetupMutex == NULL)
-		FatalExit(L"Katanga:GrabSetupMutex called, but mutex does not exist.");
+		FatalExit(L"Katanga:GrabSetupMutex called, but mutex does not exist.", GetLastError());
 
 	// See if we can grab the mutex immediately.  Using 0 wait time, because
 	// we don't want to stall the drawing in the VR environment, we'll just
@@ -413,7 +417,7 @@ bool RenderAPI_D3D11::ReleaseSetupMutex()
 	LogDebug(L"..<Katanga:ReleaseSetupMutex\n");
 
 	if (gSetupMutex == NULL)
-		FatalExit(L"Katanga:ReleaseSetupMutex: Mutex released before initialized.");
+		FatalExit(L"Katanga:ReleaseSetupMutex: Mutex released before initialized.", GetLastError());
 
 	bool ok = ReleaseMutex(gSetupMutex);
 	if (!ok)
@@ -445,7 +449,7 @@ void RenderAPI_D3D11::DestroySetupMutex()
 	Log(L"\n..Katanga:DestroySetupMutex<-- %p\n\n", gSetupMutex);
 
 	if (gSetupMutex == NULL)
-		FatalExit(L"Katanga:DestroySetupMutex: Mutex does not exist.");
+		FatalExit(L"Katanga:DestroySetupMutex: Mutex does not exist.", GetLastError());
 
 	ReleaseMutex(gSetupMutex);
 	CloseHandle(gSetupMutex);
@@ -480,19 +484,19 @@ ID3D11ShaderResourceView* RenderAPI_D3D11::CreateSharedSurface(HANDLE shared)
 
 	Log(L"..Katanga:CreateSharedSurface called. shared:%p\n", shared);
 
-	if (shared == NULL) FatalExit(L"CreateSharedSurface called with NULL handle.\n");
+	if (shared == NULL) FatalExit(L"CreateSharedSurface called with NULL handle.\n", GetLastError());
 
 	hr = m_Device->OpenSharedResource(shared, __uuidof(ID3D11Resource), (void**)(&resource));
 	Log(L"....OpenSharedResource on shared: %p, result: %d, resource: %p\n", shared, hr, resource);
 	{
-		if (FAILED(hr)) FatalExit(L"Failed to open shared.");
-		if (resource == nullptr) FatalExit(L"Failed to return shared.\n");
+		if (FAILED(hr)) FatalExit(L"Failed to open shared.", hr);
+		if (resource == nullptr) FatalExit(L"Failed to return shared.\n", hr);
 
 		// Even though the input shared surface is a RenderTarget Surface, this
 		// Query for Texture still works.  Not sure if it is good or bad.
 		hr = resource->QueryInterface(__uuidof(ID3D11Texture2D), (void**)(&texture));
 		Log(L"....QueryInterface on shared resource %p, result: %d\n", resource, hr);
-		if (FAILED(hr)) FatalExit(L"Failed to QueryInterface of ID3D11Texture2D.");
+		if (FAILED(hr)) FatalExit(L"Failed to QueryInterface of ID3D11Texture2D.", hr);
 
 		// By capturing the Width/Height/Format here, we can let Unity side
 		// know what buffer to build to match.
@@ -518,7 +522,7 @@ ID3D11ShaderResourceView* RenderAPI_D3D11::CreateSharedSurface(HANDLE shared)
 
 	hr = m_Device->CreateShaderResourceView(texture, NULL, &pSRView);
 	Log(L"....CreateShaderResourceView on texture: %p, result: %d, SRView: %p\n", texture, hr, pSRView); 
-	if (FAILED(hr))	FatalExit(L"Failed to CreateShaderResourceView.");
+	if (FAILED(hr))	FatalExit(L"Failed to CreateShaderResourceView.", hr);
 
 	return pSRView;
 }
