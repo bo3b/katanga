@@ -315,6 +315,7 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Assets\Editor\CreatePlane.cs" />
     <Compile Include="Assets\Editor\ReleaseBuild.cs" />
   </ItemGroup>
   <ItemGroup>
