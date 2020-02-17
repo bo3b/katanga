@@ -9,7 +9,7 @@ Shader "Unlit/sbsShader"
 	{
 		_MainTex ("_bothEyes Texture", 2D) = "grey" {}
 
-		_Radius("Screen Radius", Range(1.0,10.0)) = 5.0
+		_Radius("Screen Radius", Range(1.0,150.0)) = 5.0
 	}
 	SubShader
 	{
@@ -46,12 +46,13 @@ Shader "Unlit/sbsShader"
 			// That uses an exponential, and we want a simple circular curve, so formula has changed to quadratic.
 			// y = sqrt(r^2 - x^2) In this case, y is Z, as the depth toward the screen. 
 			// The radius will be from player to center of screen. We only change Z parameter.
+			// We want to add only the delta that the curve provides, so that at x=0 it doesn't move.
 
 			float4 curveIt(float4 v)
 			{
 				float4 world = mul(unity_ObjectToWorld, v);
 				
-				world.z = sqrt(_Radius*_Radius - world.x*world.x);
+				world.z += sqrt(_Radius*_Radius - world.x*world.x) - _Radius;
 
 				return mul(unity_WorldToObject, world);
 			}
