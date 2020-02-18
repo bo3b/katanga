@@ -439,7 +439,7 @@ bool RenderAPI_D3D11::ReleaseSetupMutex()
 
 	ok = ReleaseMutex(gSetupMutex);
 	if (ok)
-		Log(L"..Katanga:ReleaseSetupMutex: Double lock detected.\n");
+		Log(L"..Katanga:ReleaseSetupMutex: Non fatal, double lock detected.\n");
 
 	return ok;
 }
