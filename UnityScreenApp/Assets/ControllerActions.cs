@@ -55,10 +55,9 @@ public class ControllerActions : MonoBehaviour
         // For the actual screen size and location, these are the local values for the screen 
         // itself, not the screen container.
 
-        float screenX = PlayerPrefs.GetFloat("screen-x", 0);  // not presently changed.
-        float screenY = PlayerPrefs.GetFloat("screen-y", 2);
-        float screenZ = PlayerPrefs.GetFloat("screen-z", 5);
-        screen.localPosition = new Vector3(screenX, screenY, screenZ);
+        float screenY = PlayerPrefs.GetFloat("screen-y", 2.25f);
+        float screenZ = PlayerPrefs.GetFloat("screen-z", 5f);
+        screen.localPosition = new Vector3(0.0f, screenY, screenZ);
 
         float sizeX = PlayerPrefs.GetFloat("size-x", 8.0f);
         float sizeY = PlayerPrefs.GetFloat("size-y", -4.5f);
