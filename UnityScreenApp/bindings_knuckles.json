@@ -1,115 +1,129 @@
 {
-  "app_key": "application.generated.unity.katanga.exe",
-  "bindings": {
-    "/actions/default": {
-      "chords": [
-        {
-          "output": "/actions/default/in/resetallaction",
-          "inputs": [
-            [
-              "/user/hand/right/input/trigger",
-              "click"
-            ],
-            [
-              "/user/hand/left/input/trigger",
-              "click"
-            ]
-          ]
-        }
-      ],
-      "poses": [
-        {
-          "output": "/actions/default/in/pose",
-          "path": "/user/hand/left/pose/raw"
-        },
-        {
-          "output": "/actions/default/in/pose",
-          "path": "/user/hand/right/pose/raw"
-        }
-      ],
-      "haptics": [],
-      "sources": [
-        {
-          "path": "/user/hand/right/input/thumbstick",
-          "mode": "dpad",
-          "parameters": {
-            "sub_mode": "touch"
-          },
-          "inputs": {
-            "north": {
-              "output": "/actions/default/in/screenfartheraction"
+   "action_manifest_version" : 0,
+   "alias_info" : {},
+   "app_key" : "application.generated.unity.katanga.exe",
+   "bindings" : {
+      "/actions/default" : {
+         "chords" : [
+            {
+               "inputs" : [
+                  [ "/user/hand/right/input/trigger", "click" ],
+                  [ "/user/hand/left/input/trigger", "click" ]
+               ],
+               "output" : "/actions/default/in/resetallaction"
+            }
+         ],
+         "poses" : [
+            {
+               "output" : "/actions/default/in/pose",
+               "path" : "/user/hand/left/pose/raw"
             },
-            "south": {
-              "output": "/actions/default/in/screenneareraction"
+            {
+               "output" : "/actions/default/in/pose",
+               "path" : "/user/hand/right/pose/raw"
             }
-          }
-        },
-        {
-          "path": "/user/hand/right/input/a",
-          "mode": "toggle_button",
-          "parameters": {},
-          "inputs": {
-            "click": {
-              "output": "/actions/default/in/togglehintaction"
+         ],
+         "skeleton" : [
+            {
+               "output" : "none",
+               "path" : "/user/hand/right/input/skeleton/right"
             }
-          }
-        },
-        {
-          "path": "/user/hand/left/input/thumbstick",
-          "mode": "dpad",
-          "parameters": {
-            "sub_mode": "touch"
-          },
-          "inputs": {
-            "east": {
-              "output": "/actions/default/in/screenbiggeraction"
+         ],
+         "sources" : [
+            {
+               "inputs" : {
+                  "north" : {
+                     "output" : "/actions/default/in/screenfartheraction"
+                  },
+                  "south" : {
+                     "output" : "/actions/default/in/screenneareraction"
+                  }
+               },
+               "mode" : "dpad",
+               "parameters" : {
+                  "sub_mode" : "touch"
+               },
+               "path" : "/user/hand/right/input/thumbstick"
             },
-            "north": {
-              "output": "/actions/default/in/screenhigheraction"
+            {
+               "inputs" : {
+                  "click" : {
+                     "output" : "/actions/default/in/togglehintaction"
+                  }
+               },
+               "mode" : "toggle_button",
+               "path" : "/user/hand/right/input/a"
             },
-            "south": {
-              "output": "/actions/default/in/screenloweraction"
+            {
+               "inputs" : {
+                  "east" : {
+                     "output" : "/actions/default/in/screenbiggeraction"
+                  },
+                  "north" : {
+                     "output" : "/actions/default/in/screenhigheraction"
+                  },
+                  "south" : {
+                     "output" : "/actions/default/in/screenloweraction"
+                  },
+                  "west" : {
+                     "output" : "/actions/default/in/screensmalleraction"
+                  }
+               },
+               "mode" : "dpad",
+               "parameters" : {
+                  "sub_mode" : "touch"
+               },
+               "path" : "/user/hand/left/input/thumbstick"
             },
-            "west": {
-              "output": "/actions/default/in/screensmalleraction"
+            {
+               "inputs" : {
+                  "click" : {
+                     "output" : "/actions/default/in/recenteraction"
+                  }
+               },
+               "mode" : "button",
+               "path" : "/user/hand/right/input/trigger"
+            },
+            {
+               "inputs" : {
+                  "click" : {
+                     "output" : "/actions/default/in/hideflooraction"
+                  }
+               },
+               "mode" : "button",
+               "path" : "/user/hand/left/input/trigger"
+            },
+            {
+               "inputs" : {
+                  "click" : {
+                     "output" : "/actions/default/in/togglesharpeningaction"
+                  }
+               },
+               "mode" : "button",
+               "path" : "/user/hand/left/input/a"
+            },
+            {
+               "inputs" : {
+                  "north" : {
+                     "output" : "/actions/default/in/flattenscreen"
+                  },
+                  "south" : {
+                     "output" : "/actions/default/in/curvescreen"
+                  }
+               },
+               "mode" : "dpad",
+               "parameters" : {
+                  "sub_mode" : "click"
+               },
+               "path" : "/user/hand/right/input/trackpad"
             }
-          }
-        },
-        {
-          "path": "/user/hand/right/input/trigger",
-          "mode": "button",
-          "parameters": {},
-          "inputs": {
-            "click": {
-              "output": "/actions/default/in/recenteraction"
-            }
-          }
-        },
-        {
-          "path": "/user/hand/left/input/trigger",
-          "mode": "button",
-          "parameters": {},
-          "inputs": {
-            "click": {
-              "output": "/actions/default/in/hideflooraction"
-            }
-          }
-        },
-        {
-          "path": "/user/hand/left/input/a",
-          "mode": "button",
-          "parameters": {},
-          "inputs": {
-            "click": {
-              "output": "/actions/default/in/togglesharpeningaction"
-            }
-          }
-        }
-      ],
-      "skeleton": []
-    }
-  },
-  "controller_type": "knuckles",
-  "description": "",
-  "name": "My Katanga [Testing] configuration for Index Controller"
+         ]
+      }
+   },
+   "category" : "steamvr_input",
+   "controller_type" : "knuckles",
+   "description" : "",
+   "name" : "My Katanga [Testing] configuration for Index Controller",
+   "options" : {},
+   "simulated_actions" : []
 }

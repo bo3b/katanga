@@ -72,6 +72,14 @@
       "type": "boolean"
     },
     {
+      "name": "/actions/default/in/CurveScreen",
+      "type": "boolean"
+    },
+    {
+      "name": "/actions/default/in/FlattenScreen",
+      "type": "boolean"
+    },
+    {
       "name": "/actions/default/out/Haptic",
       "type": "vibration"
     }
@@ -144,7 +152,9 @@
       "/actions/default/in/GrabGrip": "GrabGrip",
       "/actions/default/out/Haptic": "Haptic",
       "/actions/default/in/ToggleSharpeningAction": "Toggle Sharpening",
-      "/actions/default/in/ResetAllAction": "Reset All Settings"
+      "/actions/default/in/ResetAllAction": "Reset All Settings",
+      "/actions/default/in/CurveScreen": "Curve Screen",
+      "/actions/default/in/FlattenScreen": "Flatten Screen"
     }
   ]
 }

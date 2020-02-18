@@ -44,11 +44,17 @@
          "sources" : [
             {
                "inputs" : {
+                  "east" : {
+                     "output" : "/actions/default/in/flattenscreen"
+                  },
                   "north" : {
                      "output" : "/actions/default/in/screenfartheraction"
                   },
                   "south" : {
                      "output" : "/actions/default/in/screenneareraction"
+                  },
+                  "west" : {
+                     "output" : "/actions/default/in/curvescreen"
                   }
                },
                "mode" : "dpad",
