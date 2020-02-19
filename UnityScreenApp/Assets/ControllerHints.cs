@@ -120,6 +120,9 @@ namespace Valve.VR.InteractionSystem.Sample
                     case "ScreenFartherAction":
                         ControllerButtonHints.ShowTextHint(rightHand, action, "Up: Screen Farther\nDown: Screen Nearer");
                         break;
+                    case "CurveScreenAction":
+                        ControllerButtonHints.ShowTextHint(rightHand, action, "Up/Left: Flatten Screen\nDown/Right: Curve Screen");
+                        break;
 
                     // For LeftHand actions, we'll look for the single action and build the
                     // large text help for all 5 dpad actions.

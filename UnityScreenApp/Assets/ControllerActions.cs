@@ -20,6 +20,8 @@ public class ControllerActions : MonoBehaviour
     public SteamVR_Action_Boolean smallerAction;
     public SteamVR_Action_Boolean higherAction;
     public SteamVR_Action_Boolean lowerAction;
+    public SteamVR_Action_Boolean curveAction;
+    public SteamVR_Action_Boolean flattenAction;
 
     public SteamVR_Action_Boolean hideFloorAction;
     public SteamVR_Action_Boolean recenterAction;
@@ -30,7 +32,7 @@ public class ControllerActions : MonoBehaviour
 
     // This script is attached to the main Screen object, as the most logical place
     // to put all the screen sizing and location code.
-    public Transform screen;
+    public GameObject stereoScreen;
     public Transform globalScreen;  // container for screen, centered around zero.
     public Transform player;        // Where user is looking and head position.
     public Transform vrCamera;      // Unity camera for drawing scene.  Parent is player.
@@ -38,6 +40,9 @@ public class ControllerActions : MonoBehaviour
 
     private readonly float wait = 0.020f;  // 20 ms
     private readonly float distance = 0.010f; // 10 cm
+
+    private Material sbsMaterial;
+    private Vector3[] vertices;
 
     //-------------------------------------------------
 
@@ -57,17 +62,23 @@ public class ControllerActions : MonoBehaviour
 
         float screenY = PlayerPrefs.GetFloat("screen-y", 2.25f);
         float screenZ = PlayerPrefs.GetFloat("screen-z", 5f);
-        screen.localPosition = new Vector3(0.0f, screenY, screenZ);
+        stereoScreen.transform.localPosition = new Vector3(0.0f, screenY, screenZ);
 
         float sizeX = PlayerPrefs.GetFloat("size-x", 8.0f);
         float sizeY = PlayerPrefs.GetFloat("size-y", -4.5f);
-        screen.localScale = new Vector3(sizeX, sizeY, 1);
+        stereoScreen.transform.localScale = new Vector3(sizeX, sizeY, 1);
 
         // If the key is missing, let's set one in registry.
         float sharpness = PlayerPrefs.GetFloat("sharpness", 0.0f);
         if (sharpness == 0.0f)
             PlayerPrefs.SetFloat("sharpness", 1.5f);
 
+        // Save the starting vertices from StereoScreen32x18W1L1VC mesh itself,
+        // so that we can reset to default, and modify on the fly.
+        Mesh screenMesh = stereoScreen.GetComponent<MeshFilter>().mesh;
+        vertices = screenMesh.vertices;
+
+        UpdateCurve();
         UpdateFloor();
         UpdateSharpening();
         UpdateBillboard();
@@ -103,6 +114,9 @@ public class ControllerActions : MonoBehaviour
         higherAction.AddOnChangeListener(OnHigherAction, SteamVR_Input_Sources.LeftHand);
         lowerAction.AddOnChangeListener(OnLowerAction, SteamVR_Input_Sources.LeftHand);
 
+        curveAction.AddOnChangeListener(OnCurveAction, SteamVR_Input_Sources.RightHand);
+        flattenAction.AddOnChangeListener(OnCurveAction, SteamVR_Input_Sources.RightHand);
+
         recenterAction.AddOnChangeListener(OnRecenterAction, SteamVR_Input_Sources.RightHand);
         hideFloorAction.AddOnStateDownListener(OnHideFloorAction, SteamVR_Input_Sources.LeftHand);
         toggleSharpening.AddOnStateDownListener(OnToggleSharpeningAction, SteamVR_Input_Sources.LeftHand);
@@ -126,6 +140,11 @@ public class ControllerActions : MonoBehaviour
         if (lowerAction != null)
             lowerAction.RemoveOnChangeListener(OnLowerAction, SteamVR_Input_Sources.LeftHand);
 
+        if (curveAction != null)
+            curveAction.RemoveOnChangeListener(OnCurveAction, SteamVR_Input_Sources.RightHand);
+        if (flattenAction != null)
+            flattenAction.RemoveOnChangeListener(OnCurveAction, SteamVR_Input_Sources.RightHand);
+
         if (recenterAction != null)
             recenterAction.RemoveOnChangeListener(OnRecenterAction, SteamVR_Input_Sources.RightHand);
         if (hideFloorAction != null)
@@ -140,13 +159,14 @@ public class ControllerActions : MonoBehaviour
     //-------------------------------------------------
 
     // Called during update loop, to watch for user input on the keyboard or on a connected
-    // controller.  
+    // xbox controller.  
 
     void Update()
     {
         ScreenZoom();
         ScreenBiggerSmaller();
         ScreenHigherLower();
+        ScreenCurve();
 
         Recenter();
         CycleEnvironment();
@@ -204,9 +224,9 @@ public class ControllerActions : MonoBehaviour
     {
         while (true)
         {
-            screen.Translate(new Vector3(0, 0, delta));
+            stereoScreen.transform.Translate(new Vector3(0, 0, delta));
 
-            PlayerPrefs.SetFloat("screen-z", screen.localPosition.z);
+            PlayerPrefs.SetFloat("screen-z", stereoScreen.transform.localPosition.z);
 
             yield return new WaitForSeconds(wait);
         }
@@ -214,6 +234,8 @@ public class ControllerActions : MonoBehaviour
 
     //-------------------------------------------------
 
+    // Grow Screen:
+    //
     // For left/right clicks on Left trackpad, we want to loop on growing or shrinking
     // the main Screen rectangle.  Each tick of the Coroutine is worth 10cm of screen height.
     //
@@ -274,14 +296,123 @@ public class ControllerActions : MonoBehaviour
             // layout, and Y is inverted.
             float dX = delta;
             float dY = -(delta * 9f / 16f);
-            PlayerPrefs.SetFloat("size-x", screen.localScale.x);
-            PlayerPrefs.SetFloat("size-y", screen.localScale.y);
+            PlayerPrefs.SetFloat("size-x", stereoScreen.transform.localScale.x);
+            PlayerPrefs.SetFloat("size-y", stereoScreen.transform.localScale.y);
 
             dX = -dY * LaunchAndPlay.gameAspectRatio;
-            screen.localScale += new Vector3(dX, dY);
+            stereoScreen.transform.localScale += new Vector3(dX, dY);
 
             yield return new WaitForSeconds(wait);
         }
+    }
+
+    //-------------------------------------------------
+
+    // Curve Screen:
+    //
+    // We want to modify the Z parameters of every vertex in the screen mesh, to support curving
+    // the screen upon this action. We want to specifically move only the local coordinate, not
+    // global, because the global is used to rotate and translate the entire view, and we need 
+    // this to work even if moved around.
+    //
+    // BTW, this is a better spot for this than the original idea, which was to do this work in
+    // the sbsShader itself, as some examples showed.  The coordinates there are already global
+    // and thus cannot be work there.
+    //
+    // Whenever we get left/right clicks on Right controller trackpad, we want to loop on curving the
+    // screen either in or out. Each tick of the Coroutine is worth 10cm in 3D space.
+    // 
+    // Joystick left or dpad up on VR controllers increases curve, right flattens.  This
+    // uses the SteamVR InputActions, and is bound through the Unity SteamVR Input menu.
+    //
+    // Keyboard home/end and Xbox controller dpad U/D also work using Unity InputManager.
+    // These can only be used when Katanga is frontmost, so they won't interfere with the game.
+
+    Coroutine unityCurving = null;
+
+    private void ScreenCurve()
+    {
+        //float movement = Input.GetAxis("ZoomScreen") + Input.GetAxis("Controller ZoomScreen");
+
+        //if ((unityCurving == null) && (movement != 0.0f))
+        //{
+        //    float delta = (movement > 0) ? distance : -distance;
+        //    unityCurving = StartCoroutine(CurvingScreen(delta));
+        //}
+        //if ((unityCurving != null) && (movement == 0.0f))
+        //{
+        //    StopCoroutine(unityCurving);
+        //    unityCurving = null;
+        //}
+    }
+
+    Coroutine vrCurving = null;
+
+    private void OnCurveAction(SteamVR_Action_Boolean fromAction, SteamVR_Input_Sources fromSource, bool active)
+    {
+        float delta = (fromAction == curveAction) ? distance : -distance;
+
+        if (active)
+            vrCurving = StartCoroutine(CurvingScreen(delta));
+        else
+        {
+            StopCoroutine(vrCurving);
+            vrCurving = null;
+        }
+    }
+
+    IEnumerator CurvingScreen(float delta)
+    {
+        while (true)
+        {
+            float curve = PlayerPrefs.GetFloat("curve", 5.0f);
+            curve += delta;
+            PlayerPrefs.SetFloat("curve", curve);
+
+            UpdateCurve();
+
+            yield return new WaitForSeconds(wait);
+        }
+    }
+
+    // We want a simple circular curve, so formula is normal circle x^2 + y^2 = r^2
+    // We traverse across X, default -4 to +4, and calculate resulting Z depth.
+    // y = sqrt(r^2 - x^2) In this case, y is Z, as the depth toward the screen.
+    //
+    // The radius will be from player to center of screen. We only change Z parameter.
+    // We want to add only the delta that the curve provides, so that at x=0 it doesn't move.
+    //
+    // The exp conversion of coeefficent to radius is to make the manual curve setting feel more 
+    // linear.  The 200 is scaling to make it flat at coefficent=0, and the 4 is half screen width,
+    // which is the minimum the radius can be without clipping.
+
+    Vector3[] activeVertices;
+
+    private void UpdateCurve()
+    {
+        float curve = PlayerPrefs.GetFloat("curve", 5.0f);
+        double radius = Math.Exp(-curve) * 200 + 4;
+
+        // Modify every vertice in the array to move it to match new curve.
+        // The screenMesh vertices are all in non-scaled form though, which is why
+        // we need to tranform the point to world first.  This 'world' is only the
+        // local transform for the StereoScreen though, and does not include the
+        // container transform rotations.
+
+        activeVertices = (Vector3[]) vertices.Clone();
+
+        for (int i = 0; i < activeVertices.Length; i++)
+        {
+            activeVertices[i] = stereoScreen.transform.TransformPoint(activeVertices[i]);
+            activeVertices[i].z += (float)(Math.Sqrt(radius * radius - activeVertices[i].x * activeVertices[i].x) - radius);
+            activeVertices[i] = stereoScreen.transform.InverseTransformPoint(activeVertices[i]);
+        }
+
+        Mesh screenMesh = stereoScreen.GetComponent<MeshFilter>().mesh;
+        screenMesh.vertices= activeVertices;
+        screenMesh.RecalculateNormals();
+
+        print("UpdateCurve state: " + curve);
     }
 
     //-------------------------------------------------
@@ -334,9 +465,9 @@ public class ControllerActions : MonoBehaviour
     {
         while (true)
         {
-            screen.Translate(new Vector3(0, delta));
+            stereoScreen.transform.Translate(new Vector3(0, delta));
 
-            PlayerPrefs.SetFloat("screen-y", screen.localPosition.y);
+            PlayerPrefs.SetFloat("screen-y", stereoScreen.transform.localPosition.y);
 
             yield return new WaitForSeconds(wait);
         }
