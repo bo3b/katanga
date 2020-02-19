@@ -7,13 +7,11 @@ Shader "Unlit/sbsShader"
 {
 	Properties
 	{
-		_MainTex ("_bothEyes Texture", 2D) = "grey" {}
-
-		_Coefficient("Screen Curve", Range(0.0,10.0)) = 5.0
+		[NoScaleOffset] _MainTex ("_bothEyes Texture", 2D) = "grey" {}
 	}
 	SubShader
 	{
-		Tags { "RenderType"="Opaque" }
+		Tags { "RenderType" = "Opaque" }
 		LOD 100
 
 		Pass
@@ -39,29 +37,6 @@ Shader "Unlit/sbsShader"
 			sampler2D _MainTex;			
 			float4 _MainTex_ST;
 
-			float _Coefficient;
-
-			// Add screen curve as: https://www.bitshiftprogrammer.com/2018/04/curved-surface-shader-unity.html
-			//
-			// That uses an exponential, and we want a simple circular curve, so formula has changed to quadratic.
-			// y = sqrt(r^2 - x^2) In this case, y is Z, as the depth toward the screen. 
-			// The radius will be from player to center of screen. We only change Z parameter.
-			//
-			// We want to add only the delta that the curve provides, so that at x=0 it doesn't move.
-			// The exp conversion of coeefficent to radius is to make the manual curve setting feel more 
-			// linear.  The 200 is scaling to make it flat at coefficent=0, and the 4 is half screen width,
-			// which is the minimum the radius can be without clipping.
-
-			float4 curveIt(float4 v)
-			{
-				float4 world = mul(unity_ObjectToWorld, v);
-				
-				float radius = exp(-_Coefficient) * 200 + 4;
-				world.z += sqrt(radius*radius - world.x*world.x) - radius;
-
-				return mul(unity_WorldToObject, world);
-			}
-
 			v2f vert (appdata v)
 			{
 				v2f o;
@@ -79,8 +54,7 @@ Shader "Unlit/sbsShader"
 				sb.w = 0.0;									// No vertical offset.
 				v.uv = UnityStereoScreenSpaceUVAdjust(v.uv, sb);
 					
-                //o.vertex = UnityObjectToClipPos(v.vertex);
-				o.vertex = UnityObjectToClipPos(curveIt(v.vertex));
+                o.vertex = UnityObjectToClipPos(v.vertex);
 				o.uv = TRANSFORM_TEX(v.uv, _MainTex);
 
 				return o;
