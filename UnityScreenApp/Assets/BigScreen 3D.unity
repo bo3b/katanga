@@ -3699,6 +3699,12 @@ MonoBehaviour:
   lowerAction:
     actionPath: /actions/default/in/ScreenLowerAction
     needsReinit: 0
+  curveAction:
+    actionPath: /actions/default/in/CurveScreenAction
+    needsReinit: 0
+  flattenAction:
+    actionPath: /actions/default/in/FlattenScreenAction
+    needsReinit: 0
   hideFloorAction:
     actionPath: /actions/default/in/HideFloorAction
     needsReinit: 0

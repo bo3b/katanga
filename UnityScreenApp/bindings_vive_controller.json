@@ -53,11 +53,17 @@
             },
             {
                "inputs" : {
+                  "east" : {
+                     "output" : "/actions/default/in/flattenscreenaction"
+                  },
                   "north" : {
                      "output" : "/actions/default/in/screenfartheraction"
                   },
                   "south" : {
                      "output" : "/actions/default/in/screenneareraction"
+                  },
+                  "west" : {
+                     "output" : "/actions/default/in/curvescreenaction"
                   }
                },
                "mode" : "dpad",

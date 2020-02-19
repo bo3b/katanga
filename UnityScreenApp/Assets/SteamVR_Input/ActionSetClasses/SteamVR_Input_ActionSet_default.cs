@@ -153,19 +153,19 @@ namespace Valve.VR
             }
         }
         
-        public virtual SteamVR_Action_Boolean CurveScreen
+        public virtual SteamVR_Action_Boolean CurveScreenAction
         {
             get
             {
-                return SteamVR_Actions.default_CurveScreen;
+                return SteamVR_Actions.default_CurveScreenAction;
             }
         }
         
-        public virtual SteamVR_Action_Boolean FlattenScreen
+        public virtual SteamVR_Action_Boolean FlattenScreenAction
         {
             get
             {
-                return SteamVR_Actions.default_FlattenScreen;
+                return SteamVR_Actions.default_FlattenScreenAction;
             }
         }
         

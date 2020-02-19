@@ -105,10 +105,10 @@
             {
                "inputs" : {
                   "north" : {
-                     "output" : "/actions/default/in/flattenscreen"
+                     "output" : "/actions/default/in/flattenscreenaction"
                   },
                   "south" : {
-                     "output" : "/actions/default/in/curvescreen"
+                     "output" : "/actions/default/in/curvescreenaction"
                   }
                },
                "mode" : "dpad",
