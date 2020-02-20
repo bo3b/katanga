@@ -42,7 +42,7 @@ public class ControllerActions : MonoBehaviour
     private readonly float distance = 0.010f; // 10 cm
 
     private Material sbsMaterial;
-    private Vector3[] vertices;
+    private Vector3[] vertices = null;  
 
     //-------------------------------------------------
 
@@ -75,8 +75,8 @@ public class ControllerActions : MonoBehaviour
 
         // Save the starting vertices from StereoScreen32x18W1L1VC mesh itself,
         // so that we can reset to default, and modify on the fly.
-        Mesh screenMesh = stereoScreen.GetComponent<MeshFilter>().mesh;
-        vertices = screenMesh.vertices;
+        if (vertices == null)
+            vertices = stereoScreen.GetComponent<MeshFilter>().mesh.vertices;
 
         UpdateCurve();
         UpdateFloor();
@@ -394,18 +394,20 @@ public class ControllerActions : MonoBehaviour
         double radius = Math.Exp(-curve) * 200 + 4;
 
         // Modify every vertice in the array to move it to match new curve.
-        // The screenMesh vertices are all in non-scaled form though, which is why
-        // we need to tranform the point to world first.  This 'world' is only the
-        // local transform for the StereoScreen though, and does not include the
-        // container transform rotations.
+        // The screenMesh vertices are all in non-scaled unity form though, which is why
+        // we need to tranform the point to local transform first.  We need to avoid the
+        // container parent GlobalScreen rotations though, as that skews the z axis.  
+        // Our local transform for StereoScreen will never be rotated, so we'll just do the
+        // scaling manually to get a local Z to modify.
+        //
 
         activeVertices = (Vector3[]) vertices.Clone();
 
         for (int i = 0; i < activeVertices.Length; i++)
         {
-            activeVertices[i] = stereoScreen.transform.TransformPoint(activeVertices[i]);
+            activeVertices[i].x *= stereoScreen.transform.localScale.x;
             activeVertices[i].z += (float)(Math.Sqrt(radius * radius - activeVertices[i].x * activeVertices[i].x) - radius);
-            activeVertices[i] = stereoScreen.transform.InverseTransformPoint(activeVertices[i]);
+            activeVertices[i].x /= stereoScreen.transform.localScale.x;
         }
 
         Mesh screenMesh = stereoScreen.GetComponent<MeshFilter>().mesh;
