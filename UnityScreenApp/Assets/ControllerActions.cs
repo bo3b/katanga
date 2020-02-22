@@ -385,33 +385,56 @@ public class ControllerActions : MonoBehaviour
     // The exp conversion of coeefficent to radius is to make the manual curve setting feel more 
     // linear.  The 200 is scaling to make it flat at coefficent=0, and the 4 is half screen width,
     // which is the minimum the radius can be without clipping.
+    //
+    // Modify every vertice in the array to move it to match new curve.
+    // The screenMesh vertices are all in non-scaled unity form though, which is why
+    // we need to tranform the point to local transform first.  We need to avoid the
+    // container parent GlobalScreen rotations though, as that skews the z axis.  
+    // Our local transform for StereoScreen will never be rotated, so we'll just do the
+    // scaling manually to get a local Z to modify.
+    //
+    // It doesn't really make sense to stretch the triangles, that just gives a stretched
+    // curve on the edges, and it doesn't seem like anyone would want that.  To avoid this
+    // stretching as the geometry changes, we'll calculate the circumference of the upcoming
+    // circle, and make the X values distribute evenly across that distance.  That will keep
+    // every triangle the same size as the curve deepens. Maxmimum curve is 180°, which will
+    // be when radius=halfScreenWidth. Any lesser curve is only part of the curve, in a ratio
+    // of radius to the maximum, which gives us our screen width mapped onto the circumference
+    // in use.  
 
     Vector3[] activeVertices;
 
     private void UpdateCurve()
     {
         float curve = PlayerPrefs.GetFloat("curve", 5.0f);
-        double radius = Math.Exp(-curve) * 200 + 4;
+        double halfScreenWidth = stereoScreen.transform.localScale.x / 2;
+        double radius = stereoScreen.transform.localScale.x / Math.PI;//CalculateRadius(curve);
+        double maxCircumference = Math.PI * halfScreenWidth;  // full circumference is 2*PI*R
+        double partialCurve = Math.PI * halfScreenWidth / radius;
+        float triWidth = -(vertices[0].x - vertices[1].x) * stereoScreen.transform.localScale.x;
+        int horVerts = 33;
+        int segments = 32;
 
-        // Modify every vertice in the array to move it to match new curve.
-        // The screenMesh vertices are all in non-scaled unity form though, which is why
-        // we need to tranform the point to local transform first.  We need to avoid the
-        // container parent GlobalScreen rotations though, as that skews the z axis.  
-        // Our local transform for StereoScreen will never be rotated, so we'll just do the
-        // scaling manually to get a local Z to modify.
-        //
+        // How many subsections there are for 180 degree screen. 32 segments across.
+        double stepAngle = Math.PI / segments;
 
-        activeVertices = (Vector3[]) vertices.Clone();
+        activeVertices = (Vector3[])vertices.Clone();
 
         for (int i = 0; i < activeVertices.Length; i++)
         {
-            activeVertices[i].x *= stereoScreen.transform.localScale.x;
-            activeVertices[i].z += (float)(Math.Sqrt(radius * radius - activeVertices[i].x * activeVertices[i].x) - radius);
-            activeVertices[i].x /= stereoScreen.transform.localScale.x;
+            Vector3 point = activeVertices[i];
+
+            double angle = (i % horVerts) * stepAngle;
+            point.x *= stereoScreen.transform.localScale.x;
+            point.x = -(float)(Math.Cos(angle) * radius);
+            point.x /= stereoScreen.transform.localScale.x;
+            point.z = (float)(Math.Sin(angle) * radius - radius);
+
+            activeVertices[i] = point;
         }
 
         Mesh screenMesh = stereoScreen.GetComponent<MeshFilter>().mesh;
-        screenMesh.vertices= activeVertices;
+        screenMesh.vertices = activeVertices;
         screenMesh.RecalculateNormals();
 
         print("UpdateCurve state: " + curve);
