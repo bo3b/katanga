@@ -27,6 +27,7 @@ enum LaunchType
     DirectModeDX11,     // Requires SpyMgr launch to watch for DirectMode
     DirectModeDX9Ex,    // Requires SpyMgr launch, used for OpenGL wrapper games
     Steam,              // Steam.exe is available, use -applaunch to avoid relaunchers.
+    Epic,               // EpicGameStore launcher, requires protocol style Process.Start
     Exe                 // Implies DX11 direct Exe launch, but only for non-Steam games.
 }
 
@@ -58,6 +59,8 @@ public class Game : MonoBehaviour
     // ToDo: Non-functional Steam launch because DesktopGameTheater intercepts.
     string steamPath;
     string steamAppID;
+
+    string epicAppID;
 
 
     static NktSpyMgr _spyMgr;
@@ -108,6 +111,7 @@ public class Game : MonoBehaviour
     // Exe name to spinwait for   --waitfor-exe:
     // Full path to Steam.exe     --steam-path:
     // Game SteamAppID            --steam-appid:
+    // Epic Game Store AppID      --epic-appid:
 
     public void ParseGameArgs(string[] args)
     {
@@ -142,6 +146,11 @@ public class Game : MonoBehaviour
             {
                 i++;
                 steamAppID = args[i];
+            }
+            else if (args[i] == "--epic-appid")
+            {
+                i++;
+                epicAppID = args[i];
             }
             else
             {
@@ -351,6 +360,10 @@ public class Game : MonoBehaviour
                     gameProc = StartGameBySpyMgr(gamePath, out continueevent);     // Launches suspended game.
                     break;
 
+                case LaunchType.Epic:
+                    StartGameByEpicProtocol(epicAppID, launchArguments);
+                    break;
+
                 case LaunchType.Steam:
                     StartGameBySteamAppID(steamPath, steamAppID, launchArguments);
                     break;
@@ -438,9 +451,9 @@ public class Game : MonoBehaviour
                     _spyMgr.ResumeProcess(gameProc, continueevent);
                     break;
                 case LaunchType.Steam:
-                    HookDX11(_nativeDLLName, gameProc);
-                    break;
+                case LaunchType.Epic:
                 case LaunchType.Exe:
+                default:
                     HookDX11(_nativeDLLName, gameProc);
                     break;
             }
@@ -608,6 +621,23 @@ public class Game : MonoBehaviour
 
         return proc;
     }
+
+    // -----------------------------------------------------------------------------
+
+    // Launching via the EpicGameStore can require that we use their protocol handler.
+    // This happens for Kingdom Come: Deliverance.
+    // The launch here will just be a straight process start using the handler, and
+    // the connection is expected to be found via waitForExe.
+
+    private Process StartGameByEpicProtocol(string appId, string arguments)
+    {
+        string launchString = "com.epicgames.launcher://apps/" + appId + "?action=launch " + launchArguments;
+
+        print("Starting EGS game by calling protocol: " + launchString);
+
+        return Process.Start(launchString);
+    }
+
 
     // -----------------------------------------------------------------------------
 
