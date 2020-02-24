@@ -406,17 +406,21 @@ public class ControllerActions : MonoBehaviour
 
     private void UpdateCurve()
     {
+        return;
+
         float curve = PlayerPrefs.GetFloat("curve", 5.0f);
-        double halfScreenWidth = stereoScreen.transform.localScale.x / 2;
-        double radius = stereoScreen.transform.localScale.x / Math.PI;//CalculateRadius(curve);
-        double maxCircumference = Math.PI * halfScreenWidth;  // full circumference is 2*PI*R
-        double partialCurve = Math.PI * halfScreenWidth / radius;
-        float triWidth = -(vertices[0].x - vertices[1].x) * stereoScreen.transform.localScale.x;
+        //double halfScreenWidth = stereoScreen.transform.localScale.x / 2;
+        //double maxCircumference = Math.PI * halfScreenWidth;  // full circumference is 2*PI*R
+        //double partialCurve = Math.PI * halfScreenWidth / radius;
+        //float triWidth = -(vertices[0].x - vertices[1].x) * stereoScreen.transform.localScale.x;
+
         int horVerts = 33;
         int segments = 32;
 
         // How many subsections there are for 180 degree screen. 32 segments across.
-        double stepAngle = Math.PI / segments;
+        double viewAngle = Math.PI / 2; // 90 degrees
+        double stepAngle = viewAngle / segments;
+        double radius = stereoScreen.transform.localScale.x / viewAngle;
 
         activeVertices = (Vector3[])vertices.Clone();
 
