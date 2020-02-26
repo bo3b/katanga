@@ -53,7 +53,9 @@ public class Game : MonoBehaviour
 
     // We can improve launch behavior if we know specific exe to wait for, because we skip 
     // launchers.  If it's DX9 launchType+ waitForExe, that lets us know it's a DX9Ex game.
+    // How long to wait is now profile selectable as well, it helps in some rare cases. 8 sec default.
     string waitForExe = "";
+    float waitTime = 8.0f;
 
     // If it's a Steam launch, these will be non-null.
     // ToDo: Non-functional Steam launch because DesktopGameTheater intercepts.
@@ -97,7 +99,7 @@ public class Game : MonoBehaviour
 
     // -----------------------------------------------------------------------------
 
-    public static T ParseLaunchType<T>(string value)
+    public static T Parse<T>(string value)
     {
         return (T)Enum.Parse(typeof(T), value, true);
     }
@@ -109,6 +111,7 @@ public class Game : MonoBehaviour
     // Cleaned title to display.  --game-title:
     // Launch type as Enum        --launch-type:
     // Exe name to spinwait for   --waitfor-exe:
+    // Seconds to spinwait for    --wait-time:
     // Full path to Steam.exe     --steam-path:
     // Game SteamAppID            --steam-appid:
     // Epic Game Store AppID      --epic-appid:
@@ -130,12 +133,17 @@ public class Game : MonoBehaviour
             else if (args[i] == "--launch-type")
             {
                 i++;
-                launchType = ParseLaunchType<LaunchType>(args[i]);
+                launchType = Parse<LaunchType>(args[i]);
             }
             else if (args[i] == "--waitfor-exe")
             {
                 i++;
                 waitForExe = args[i];
+            }
+            else if (args[i] == "--wait-time")
+            {
+                i++;
+                waitTime = Single.Parse(args[i]);
             }
             else if (args[i] == "--steam-path")
             {
@@ -384,10 +392,12 @@ public class Game : MonoBehaviour
             // anyway.  Waiting for 3 seconds would still fail, 5 seconds was OK,
             // but this is on a super fast machine.
 
-            print("Waiting for process: " + gamePath);
-
             if (gameProc == null)
-                yield return new WaitForSecondsRealtime(8.0f);      // Only wait for exe style launch
+            {
+                print("Waiting " + waitTime +  "s for process: " + gamePath);
+
+                yield return new WaitForSecondsRealtime(waitTime);      // Only wait for exe style launch
+            }
 
             int procid = 0;
             do
@@ -438,6 +448,7 @@ public class Game : MonoBehaviour
                 case LaunchType.DX9:
                     HookDX9(_nativeDLLName, gameProc);
                     _spyMgr.ResumeProcess(gameProc, continueevent);
+                    print("Resume game launch: DX9");
                     break;
                 case LaunchType.DX9Ex:
                     HookDX9Ex(_nativeDLLName, gameProc);
@@ -445,10 +456,12 @@ public class Game : MonoBehaviour
                 case LaunchType.DirectModeDX11:
                     HookDX11(_nativeDLLName, gameProc);
                     _spyMgr.ResumeProcess(gameProc, continueevent);
+                    print("Resume game launch: DX11DirectMode");
                     break;
                 case LaunchType.DirectModeDX9Ex:
                     HookDX9Ex(_nativeDLLName, gameProc);
                     _spyMgr.ResumeProcess(gameProc, continueevent);
+                    print("Resume game launch: DX9Ex");
                     break;
                 case LaunchType.Steam:
                 case LaunchType.Epic:
@@ -541,7 +554,7 @@ public class Game : MonoBehaviour
 
     private NktProcess StartGameBySpyMgr(string game, out object continueevent)
     {
-        print("...Launching: " + game);
+        print("...Launching suspended: " + game);
 
         NktProcess gameProc = _spyMgr.CreateProcess(game, true, out continueevent);
         if (gameProc == null)
