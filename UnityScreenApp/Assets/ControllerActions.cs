@@ -327,6 +327,9 @@ public class ControllerActions : MonoBehaviour
     //
     // Keyboard home/end and Xbox controller dpad U/D also work using Unity InputManager.
     // These can only be used when Katanga is frontmost, so they won't interfere with the game.
+    //
+    // The saved PlayerPref of 'curve' is a percentage, ranging from 0, flat-screen, to 100, 
+    // a full 180 curve.  0.05 is arbitary based on how fast it feels like it should curve.
 
     Coroutine unityCurving = null;
 
@@ -350,7 +353,7 @@ public class ControllerActions : MonoBehaviour
 
     private void OnCurveAction(SteamVR_Action_Boolean fromAction, SteamVR_Input_Sources fromSource, bool active)
     {
-        float delta = (fromAction == curveAction) ? distance : -distance;
+        float delta = (fromAction == curveAction) ? 0.05f : -0.05f;
 
         if (active)
             vrCurving = StartCoroutine(CurvingScreen(delta));
@@ -361,20 +364,43 @@ public class ControllerActions : MonoBehaviour
         }
     }
 
+    private static double CalculateRadius(float curve)
+    {
+        return Math.Exp(-curve) * 200 + 4;
+    }
+
+    // Default of 50% is arbitrary, looks good, and is sort of good marketing as it immediately shows.
+
+    private static float GetPreferredCurve()
+    {
+        return PlayerPrefs.GetFloat("curve", 5.0f);
+    }
+
+    // When doing the auto-curve while they hold down the control, we want to stop curving when
+    // it goes past making any sense.  Once it gets flat enough we don't want to drive the curve
+    // coefficient negative and bend backwards.  We'll let them overcurve if they want, greater 
+    // than 180, because it doesn't blow up.
+
     IEnumerator CurvingScreen(float delta)
     {
         while (true)
         {
-            float curve = PlayerPrefs.GetFloat("curve", 5.0f);
+            float curve = GetPreferredCurve();
             curve += delta;
-            PlayerPrefs.SetFloat("curve", curve);
 
-            UpdateCurve();
+            if (curve > 0.1)
+            {
+                PlayerPrefs.SetFloat("curve", curve);
+                UpdateCurve();
+            }
 
             yield return new WaitForSeconds(wait);
         }
     }
 
+
+    // https://www.mathsisfun.com/algebra/circle-equations.html
+    // 
     // We want a simple circular curve, so formula is normal circle x^2 + y^2 = r^2
     // We traverse across X, default -4 to +4, and calculate resulting Z depth.
     // y = sqrt(r^2 - x^2) In this case, y is Z, as the depth toward the screen.
@@ -410,7 +436,7 @@ public class ControllerActions : MonoBehaviour
 
     private void UpdateCurve()
     {
-        float viewPercent = PlayerPrefs.GetFloat("curve", 5.0f) / 10.0f;
+        float viewPercent = GetPreferredCurve() / 10.0f;
 
         // How many subsections there are for 180 degree screen. 32 segments/triangles across
         // for the current mesh. Seems adequate for smooth curve.
@@ -442,7 +468,7 @@ public class ControllerActions : MonoBehaviour
         screenMesh.vertices = activeVertices;
         screenMesh.RecalculateNormals();
 
-        print("UpdateCurve state: " + curve);
+        print("UpdateCurve state: " + viewPercent);
     }
 
     //-------------------------------------------------
