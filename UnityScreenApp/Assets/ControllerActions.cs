@@ -401,25 +401,26 @@ public class ControllerActions : MonoBehaviour
     // be when radius=halfScreenWidth. Any lesser curve is only part of the curve, in a ratio
     // of radius to the maximum, which gives us our screen width mapped onto the circumference
     // in use.  
+    //
+    // The x = -Cos(angle)*radius is actually just the triangle equation for opposite over
+    // adjacent, and the radius is the hypothenuse of the triangle. Same for z using Sin.
+    // Getting the code right for this whole sequence was really challenging.
 
     Vector3[] activeVertices;
 
     private void UpdateCurve()
     {
-        return;
+        float viewPercent = PlayerPrefs.GetFloat("curve", 5.0f) / 10.0f;
 
-        float curve = PlayerPrefs.GetFloat("curve", 5.0f);
-        //double halfScreenWidth = stereoScreen.transform.localScale.x / 2;
-        //double maxCircumference = Math.PI * halfScreenWidth;  // full circumference is 2*PI*R
-        //double partialCurve = Math.PI * halfScreenWidth / radius;
-        //float triWidth = -(vertices[0].x - vertices[1].x) * stereoScreen.transform.localScale.x;
-
+        // How many subsections there are for 180 degree screen. 32 segments/triangles across
+        // for the current mesh. Seems adequate for smooth curve.
         int horVerts = 33;
         int segments = 32;
 
-        // How many subsections there are for 180 degree screen. 32 segments across.
-        double viewAngle = Math.PI / 2; // 90 degrees
-        double stepAngle = viewAngle / segments;
+        
+        double viewAngle = Math.PI * viewPercent;       // What % of max
+        double stepAngle = viewAngle / segments;        // each triangle width in degrees
+        double startAngle = (Math.PI - viewAngle) / 2;  // offset to first vertice on left.
         double radius = stereoScreen.transform.localScale.x / viewAngle;
 
         activeVertices = (Vector3[])vertices.Clone();
@@ -428,7 +429,7 @@ public class ControllerActions : MonoBehaviour
         {
             Vector3 point = activeVertices[i];
 
-            double angle = (i % horVerts) * stepAngle;
+            double angle = (i % horVerts) * stepAngle + startAngle;
             point.x *= stereoScreen.transform.localScale.x;
             point.x = -(float)(Math.Cos(angle) * radius);
             point.x /= stereoScreen.transform.localScale.x;
