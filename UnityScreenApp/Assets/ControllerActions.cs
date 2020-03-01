@@ -332,28 +332,29 @@ public class ControllerActions : MonoBehaviour
     // a full 180 curve.  0.05 is arbitary based on how fast it feels like it should curve.
 
     Coroutine unityCurving = null;
+    float curveDelta = 0.05f;
 
     private void ScreenCurve()
     {
-        //float movement = Input.GetAxis("ZoomScreen") + Input.GetAxis("Controller ZoomScreen");
+        float movement = Input.GetAxis("CurveScreen") + Input.GetAxis("Controller CurveScreen");
 
-        //if ((unityCurving == null) && (movement != 0.0f))
-        //{
-        //    float delta = (movement > 0) ? distance : -distance;
-        //    unityCurving = StartCoroutine(CurvingScreen(delta));
-        //}
-        //if ((unityCurving != null) && (movement == 0.0f))
-        //{
-        //    StopCoroutine(unityCurving);
-        //    unityCurving = null;
-        //}
+        if ((unityCurving == null) && (movement != 0.0f))
+        {
+            float delta = (movement > 0) ? curveDelta : -curveDelta;
+            unityCurving = StartCoroutine(CurvingScreen(delta));
+        }
+        if ((unityCurving != null) && (movement == 0.0f))
+        {
+            StopCoroutine(unityCurving);
+            unityCurving = null;
+        }
     }
 
     Coroutine vrCurving = null;
 
     private void OnCurveAction(SteamVR_Action_Boolean fromAction, SteamVR_Input_Sources fromSource, bool active)
     {
-        float delta = (fromAction == curveAction) ? 0.05f : -0.05f;
+        float delta = (fromAction == curveAction) ? curveDelta : -curveDelta;
 
         if (active)
             vrCurving = StartCoroutine(CurvingScreen(delta));
