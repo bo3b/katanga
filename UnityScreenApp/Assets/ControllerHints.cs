@@ -96,6 +96,24 @@ namespace Valve.VR.InteractionSystem.Sample
             Hand rightHand = (hand.handType == SteamVR_Input_Sources.RightHand) ? hand : hand.otherHand;
             Hand leftHand = (hand.handType == SteamVR_Input_Sources.LeftHand) ? hand : hand.otherHand;
 
+            // Look through the actions registered, and see if we can determine which controller is active.
+            // We want to tweak the help text slightly for different controllers, because otherwise it's a
+            // real visual mess.  We showLeftRight only for Vive and Oculus, because they need to overload
+            // the right dpad or joystick.
+            bool showLeftRight = true;
+
+            Debug.Log("List of active controllers:");
+            foreach (SteamVR_Action_Boolean action in SteamVR_Input.actionsBoolean)
+            {
+                string type = SteamVR_Input.GetLocalizedName(action.activeOrigin, EVRInputStringBits.VRInputString_ControllerType);
+                Debug.Log(" " + type);
+                if (string.Equals(type, "holographic_controller") || string.Equals(type, "Index Controller"))
+                {
+                    showLeftRight = false;
+                    break;
+                }
+            }
+
             // We only have boolean actions, so sift through the array of these to put
             // proper names on them.  There is no API to fetch the LocalizedString from the actions.
 
@@ -118,10 +136,14 @@ namespace Valve.VR.InteractionSystem.Sample
                         ControllerButtonHints.ShowTextHint(rightHand, action, "Recenter Screen");
                         break;
                     case "ScreenFartherAction":
-                        ControllerButtonHints.ShowTextHint(rightHand, action, "Up: Screen Farther\nDown: Screen Nearer");
+                        if (showLeftRight)
+                            ControllerButtonHints.ShowTextHint(rightHand, action, "Up: Screen Farther\nDown: Screen Nearer\nLeft: Flatten Screen\nRight: Curve Screen");
+                        else
+                            ControllerButtonHints.ShowTextHint(rightHand, action, "Up: Screen Farther\nDown: Screen Nearer");
                         break;
                     case "CurveScreenAction":
-                        ControllerButtonHints.ShowTextHint(rightHand, action, "Up/Left: Flatten Screen\nDown/Right: Curve Screen");
+                        if (!showLeftRight)
+                            ControllerButtonHints.ShowTextHint(rightHand, action, "Up: Flatten Screen\nDown: Curve Screen");
                         break;
 
                     // For LeftHand actions, we'll look for the single action and build the
