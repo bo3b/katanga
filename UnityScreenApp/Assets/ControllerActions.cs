@@ -459,8 +459,12 @@ public class ControllerActions : MonoBehaviour
             double angle = (i % horVerts) * stepAngle + startAngle;
             point.x *= stereoScreen.transform.localScale.x;
             point.x = -(float)(Math.Cos(angle) * radius);
-            point.x /= stereoScreen.transform.localScale.x;
             point.z = (float)(Math.Sin(angle) * radius - radius);
+            point.x /= stereoScreen.transform.localScale.x;
+
+            // Try to add barrel distortion
+            point = Distort(point);
+
 
             activeVertices[i] = point;
         }
@@ -471,6 +475,63 @@ public class ControllerActions : MonoBehaviour
 
         print("UpdateCurve state: " + viewPercent);
     }
+
+
+    [Range(0.0f, 1.0f)]
+    public double alphay = 0.2;
+    double alphax = 0.0;
+    Vector3 Distort(Vector3 p)
+    {
+        double w = 1;
+        double h = 1;
+
+        // Normalize the u,v coordinates in the range [-1;+1]
+        // Starting mesh is -0.5..0.5
+        double x = 2.0 * p.x; // (2.0 * p.x - w) / w;
+        double y = 2.0 * p.y; // (2.0 * p.y - h) / h;
+
+        // Calculate l2 norm
+        double r = x*x + y*y;
+
+        // Pincushion:
+        // Calculate the deflated or inflated new coordinate (reverse transform)
+        //double x3 = x / (1.0 - alphax * r);
+        //double y3 = y / (1.0 - alphay * r);
+        //double x2 = x / (1.0 - alphax * (x3 * x3 + y3 * y3));
+        //double y2 = y / (1.0 - alphay * (x3 * x3 + y3 * y3));
+
+        // Barrel:
+        // Forward transform
+        double x2 = x * (1.0 - alphax * r);
+        double y2 = y * (1.0 - alphay * r);
+
+        // De-normalize to the original range
+        double i2 = x2 / 2; // (x2 + 1.0) * w / 2.0;
+        double j2 = y2 / 2; // (y2 + 1.0) * h / 2.0;
+
+        return new Vector3(p.x, (float)j2, p.z);
+    }
+
+
+    //double BarrelPower = -1.2;
+
+    //Vector3 Distort(Vector3 p)
+    //{
+    //    // Convert to polar coords:
+    //    double radius = p.magnitude;
+    //    if (radius > 0)
+    //    {
+    //        double theta = Math.Atan2(p.z, p.x);
+
+    //        // Distort:
+    //        radius = Math.Pow(radius, BarrelPower);
+
+    //        // Convert back to Cartesian:
+    //        p.x = (float)( radius * Math.Cos(theta) );
+    //        p.z = (float)( radius * Math.Sin(theta) );
+    //    }
+    //    return p;
+    //}
 
     //-------------------------------------------------
 
