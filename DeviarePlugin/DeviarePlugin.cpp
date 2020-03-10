@@ -146,6 +146,8 @@ void OpenLogFile()
 	LPCWSTR logFilePath = w_logFilePath.c_str();
 
 	LogFile = _wfsopen(logFilePath, L"a", _SH_DENYNO);
+	if (LogFile == NULL)
+		FatalExit(L"GamePlugin:OpenLogFile unable to open log for writing.", GetLastError());
 	setvbuf(LogFile, NULL, _IONBF, 0);
 
 	LogInfo(L"\nGamePlugin C++ logging enabled.\n\n");

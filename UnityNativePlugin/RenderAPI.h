@@ -37,7 +37,7 @@ public:
 	// End modifying texture data.
 	virtual void EndModifyTexture(void* textureHandle, int textureWidth, int textureHeight, int rowPitch, void* dataPtr) = 0;
 
-	virtual void OpenLogFile(char* logFile) = 0;
+	virtual void OpenLogFile() = 0;
 	virtual void CloseLogFile() = 0;
 
 	// These are generic APIs, not DX specific.

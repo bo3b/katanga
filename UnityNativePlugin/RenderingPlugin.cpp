@@ -110,9 +110,9 @@ static void UNITY_INTERFACE_API OnGraphicsDeviceEvent(UnityGfxDeviceEventType ev
 
 // --------------------------------------------------------------------------
 
-extern "C" UNITY_INTERFACE_EXPORT void UNITY_INTERFACE_API OpenLogFile(char* logFile)
+extern "C" UNITY_INTERFACE_EXPORT void UNITY_INTERFACE_API OpenLogFile()
 {
-	return s_CurrentAPI->OpenLogFile(logFile);
+	return s_CurrentAPI->OpenLogFile();
 }
 extern "C" UNITY_INTERFACE_EXPORT void UNITY_INTERFACE_API CloseLogFile()
 {

@@ -367,6 +367,8 @@ public class LaunchAndPlay : MonoBehaviour
 
     // Create a duplicate log file in the LocalLow directory, right next to the Unity
     // Output.log.  We can write to this from both C++ plugins.
+    // This part will just write a time stamp header and close the path.  Not used
+    // from this high level code.
 
     [DllImport("shell32.dll")]
     static extern int SHGetKnownFolderPath(
@@ -378,7 +380,7 @@ public class LaunchAndPlay : MonoBehaviour
     public static readonly Guid LocalAppDataLow = new Guid("A520A1A4-1780-4FF6-BD18-167343C5AF16");
 
     [DllImport("UnityNativePlugin64", CallingConvention = CallingConvention.Cdecl)]
-    private static extern void OpenLogFile(string logFile);
+    private static extern void OpenLogFile();
 
     static void CreateKatangaLog()
     {
@@ -397,7 +399,7 @@ public class LaunchAndPlay : MonoBehaviour
         m_FileStream.Close();
 
         // Send this path to the Unity native plugin side, so it can log to same file.
-        OpenLogFile(katanga_log);
+        OpenLogFile();
     }
 
     // For every message sent through Debug.Log/print, we want to also duplicate them

@@ -4,9 +4,12 @@
 // Direct3D 11 implementation of RenderAPI.
 
 #if SUPPORT_D3D11
+#include <stdlib.h>
+#include <string>
 
 #include <assert.h>
 #include <exception>
+#include <shlobj_core.h>
 #include <d3d11_1.h>
 #include "Unity/IUnityGraphicsD3D11.h"
 
@@ -68,7 +71,7 @@ public:
 	virtual void* BeginModifyTexture(void* textureHandle, int textureWidth, int textureHeight, int* outRowPitch);
 	virtual void EndModifyTexture(void* textureHandle, int textureWidth, int textureHeight, int rowPitch, void* dataPtr);
 
-	virtual void OpenLogFile(char* logFile);
+	virtual void OpenLogFile();
 	virtual void CloseLogFile();
 
 	virtual ID3D11ShaderResourceView* CreateSharedSurface(HANDLE shared);
@@ -340,12 +343,19 @@ void RenderAPI_D3D11::EndModifyTexture(void* textureHandle, int textureWidth, in
 // and the C++ game plugin.  This captures the full path for the log file, so
 // that we can write to it here.
 
-void RenderAPI_D3D11::OpenLogFile(char* logFilePath)
-{
-	gLogFile = _fsopen(logFilePath, "a", _SH_DENYNO);
+void RenderAPI_D3D11::OpenLogFile()
+{	
+	// Fetch App Data LocalLow folder path where Unity log is stored.
+	wchar_t* localLowAppData = 0;
+	SHGetKnownFolderPath(FOLDERID_LocalAppDataLow, 0, NULL, &localLowAppData);
+
+	std::wstring localLowPath(localLowAppData);
+	std::wstring w_logFilePath = localLowPath + L"\\Katanga\\Katanga\\katanga.log";
+	LPCWSTR logFilePath = w_logFilePath.c_str();
+
+	gLogFile = _wfsopen(logFilePath, L"a", _SH_DENYNO);
 	if (gLogFile == NULL)
 		FatalExit(L"Katanga:OpenLogFile unable to open log for writing.", GetLastError());
-	
 	setvbuf(gLogFile, NULL, _IONBF, 0);
 
 	Log(L"\n..Unity Native C++ logging enabled.\n");
