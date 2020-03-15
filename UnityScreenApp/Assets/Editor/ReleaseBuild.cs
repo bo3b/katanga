@@ -1,5 +1,6 @@
 ﻿
 
+using System.IO;
 using UnityEditor;
 using UnityEngine;
 
@@ -25,7 +26,12 @@ public class ReleaseBuild : MonoBehaviour
         FileUtil.CopyFileOrDirectory("Assets/Dependencies/deviare32.db", releaseFolder + "katanga_data/Plugins/deviare32.db");
         FileUtil.CopyFileOrDirectory("Assets/Dependencies/deviare64.db", releaseFolder + "katanga_data/Plugins/deviare64.db");
 
-        //FileUtil.CopyFileOrDirectory("Assets/Dependencies/katanga.exe.manifest", releaseFolder + "katanga_data/Plugins/katanga.exe.manifest");
+        if (Directory.Exists(@"C:\Users\bo3b\Documents\Code\3d_fix_manager\WpfApplication3\bin\VR\Tools"))
+        {
+            FileUtil.DeleteFileOrDirectory(@"C:\Users\bo3b\Documents\Code\3d_fix_manager\WpfApplication3\bin\VR\Tools\katanga");
+            FileUtil.CopyFileOrDirectory(releaseFolder, @"C:\Users\bo3b\Documents\Code\3d_fix_manager\WpfApplication3\bin\VR\Tools\katanga");
+        }
+        //FileUtil.CopyFileOrDirectory("Assets /Dependencies/katanga.exe.manifest", releaseFolder + "katanga_data/Plugins/katanga.exe.manifest");
     }
 
     [MenuItem("Build/Debug Build")]
