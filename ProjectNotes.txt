@@ -829,3 +829,10 @@ It would be possible to move the texture down to the native c++ layer, and then 
 seems worth the effort for this.  
 
 Going to a different sync approach to try to avoid the hangs at ResizeBuffer.
+
+
+Interesting idea:  Run 3D as alternating eyes for performance, but instead of requiring highest speed,
+ allow the lower speed, but interpolate the frame for second eye, like they interpolate for VR.
+ 
+This could be the 2nd non-dominant eye being the one interpolated, which would only have errors during
+the fast pan times. And the errors are filled in with fuzz, so it's like a cross between fake 3D and real.
