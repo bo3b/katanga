@@ -3,6 +3,7 @@ using System.Collections;
 using System.IO;
 using System.Runtime.InteropServices;
 using UnityEngine;
+using Valve.VR;
 
 // This is a subclass of the Game object.  Game object is setup to inject into and run
 // a given game specified by the input arguments.  
@@ -13,7 +14,12 @@ using UnityEngine;
 
 public class SlideShow : Game
 {
+    public SteamVR_Action_Boolean pauseAction;
+    public SteamVR_Action_Boolean skipAction;
+
     public Renderer screen;
+    bool playing = true;
+    bool skip = false;
 
 
     [DllImport("shell32.dll")]
@@ -37,12 +43,25 @@ public class SlideShow : Game
 
         string[] stereoFiles = Directory.GetFiles(nvidiaScreenShotFolder, "*.jps");
 
+        float spinTime = 0;
+
         while (true)
         {
             foreach (string file in stereoFiles)
             {
-                LoadJPS(file);
-                yield return new WaitForSecondsRealtime(5);
+                if (playing)
+                {
+                    yield return new WaitForSecondsRealtime(0.2f);
+                    spinTime += 0.2f;
+
+                    if ((spinTime > 5.0f) || skip)
+                    {
+                        LoadJPS(file);
+
+                        skip = false;
+                        spinTime = 0.0f;
+                    }
+                }
             }
         }
     }
@@ -63,6 +82,35 @@ public class SlideShow : Game
         LaunchAndPlay.gGameSharedHandle = -1;
         return -1;
     }
+
+
+    // -----------------------------------------------------------------------------
+
+    // We want to be able to control the slideshow as well, pausing on great shots, and
+    // skipping quickly if not interesting.  
+
+    private void Update()
+    {
+        PauseToggle();
+        NextSlide();
+    }
+
+    private void PauseToggle()
+    {
+        float movement = Input.GetAxis("Pause SlideShow");
+
+        if (movement != 0.0f)
+            playing = !playing;
+    }
+
+    private void NextSlide()
+    {
+        float movement = Input.GetAxis("Next Slide");
+
+        if (movement != 0.0f)
+            skip = true;
+    }
+
 
     // -----------------------------------------------------------------------------
 
