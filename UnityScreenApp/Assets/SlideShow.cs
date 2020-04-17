@@ -20,7 +20,21 @@ public class SlideShow : Game
     public Renderer screen;
     bool playing = true;
     bool skip = false;
+    float deltaT = 0.4f;    // minimal time to show a slide.
+    string[] stereoFiles;
 
+    // -----------------------------------------------------------------------------
+
+    // We want to be able to control the slideshow as well, pausing on great shots, and
+    // skipping quickly if not interesting.  
+
+    private void Update()
+    {
+        PauseToggle();
+        NextSlide();
+    }
+
+    // -----------------------------------------------------------------------------
 
     [DllImport("shell32.dll")]
     private static extern int SHGetKnownFolderPath(
@@ -41,28 +55,26 @@ public class SlideShow : Game
         string nvidiaScreenShotFolder = Marshal.PtrToStringUni(documentsPathName);
         nvidiaScreenShotFolder += @"\NVStereoscopic3D.IMG";
 
-        string[] stereoFiles = Directory.GetFiles(nvidiaScreenShotFolder, "*.jps");
+        stereoFiles = Directory.GetFiles(nvidiaScreenShotFolder, "*.jps");
 
         float spinTime = 0;
 
         while (true)
         {
-            foreach (string file in stereoFiles)
+            if (playing)
             {
-                if (playing)
+                spinTime += deltaT;
+
+                if ((spinTime > 5.0f) || skip)
                 {
-                    yield return new WaitForSecondsRealtime(0.2f);
-                    spinTime += 0.2f;
+                    LoadNextJPS();
 
-                    if ((spinTime > 5.0f) || skip)
-                    {
-                        LoadJPS(file);
-
-                        skip = false;
-                        spinTime = 0.0f;
-                    }
+                    skip = false;
+                    spinTime = 0.0f;
                 }
             }
+
+            yield return new WaitForSecondsRealtime(deltaT);
         }
     }
 
@@ -86,15 +98,6 @@ public class SlideShow : Game
 
     // -----------------------------------------------------------------------------
 
-    // We want to be able to control the slideshow as well, pausing on great shots, and
-    // skipping quickly if not interesting.  
-
-    private void Update()
-    {
-        PauseToggle();
-        NextSlide();
-    }
-
     private void PauseToggle()
     {
         float movement = Input.GetAxis("Pause SlideShow");
@@ -114,10 +117,13 @@ public class SlideShow : Game
 
     // -----------------------------------------------------------------------------
 
-    public void LoadJPS(string filePath)
+    int index = 0;
+
+    public void LoadNextJPS()
     {
         Texture2D stereoTex = null;
         byte[] fileData;
+        string filePath = stereoFiles[index];
 
         if (File.Exists(filePath))
         {
@@ -136,5 +142,9 @@ public class SlideShow : Game
         // there we also invert the infoText.
 
         screenMaterial.SetTextureScale("_MainTex", new Vector2(1, -1));
+
+        // Circular loop of stereo file name array
+        index += 1;
+        index %= stereoFiles.Length;
     }
 }
