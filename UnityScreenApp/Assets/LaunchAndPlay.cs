@@ -14,23 +14,26 @@ public class LaunchAndPlay : MonoBehaviour
     private static FileStream m_FileStream;
 
     // Game object that handles launching and communicating with the running game.
+    // If launched with no arguments, will be SlideShow.
     Game game;
 
     // Primary Texture received from game as shared ID3D11ShaderResourceView
     // It automatically updates as the injected DLL copies the bits into the
     // shared resource.
     Texture2D _bothEyes = null;
-    System.Int32 gGameSharedHandle = 0;
+    public static System.Int32 gGameSharedHandle = 0;
     bool ownMutex = false;
 
     // Filled in once the game is live.  
     public static float gameAspectRatio = 16f/9f;
 
+    // Attached reference from Unity editor to main screen object
+    public Renderer screenRenderer;
+
     // Original grey texture for the screen at launch, used again for resolution changes.
-    public Renderer screen;
-    Material screenMaterial;
     Texture greyTexture;
 
+    // On screen status text.
     public Text infoText;
 
     // -----------------------------------------------------------------------------
@@ -66,12 +69,21 @@ public class LaunchAndPlay : MonoBehaviour
     {
         print("Start: Command line arguments: " + System.Environment.CommandLine);
 
-        game = GetComponent<Game>();
-        game.ParseGameArgs(System.Environment.GetCommandLineArgs());
+        // If empty arg list (only single arg of unity.exe), we want to run slideshow demo.  
+        string[] args = System.Environment.GetCommandLineArgs();
+        bool demoMode = args.Length == 1;   
 
-        // Store the current Texture2D on the Quad as the original grey
-        screenMaterial = screen.material;
-        greyTexture = screenMaterial.mainTexture;
+        if (demoMode)
+            game = GetComponent<SlideShow>();
+        else
+            game = GetComponent<Game>();
+
+        game.ParseGameArgs(args);
+
+      
+        // Store the current Texture2D on the Quad as the original grey. We use this
+        // as the default when images stop arriving, or we lose the original.
+        greyTexture = screenRenderer.material.mainTexture;
 
         // With the game properly selected, add name to the big screen as info on launch.
         infoText.text = "Launching...\n\n" + game.DisplayName();
@@ -132,7 +144,7 @@ public class LaunchAndPlay : MonoBehaviour
 
         if (pollHandle == 0)
         {
-            screenMaterial.mainTexture = greyTexture;
+            screenRenderer.material.mainTexture = greyTexture;
             return;
         }
 
@@ -166,9 +178,9 @@ public class LaunchAndPlay : MonoBehaviour
             // by ControllerActions. 
             // gameWidth is ephemeral, the ControllerActions PlayerPrefs(size-x) is the default.
 
-            Vector3 scale = screen.transform.localScale;
+            Vector3 scale = screenRenderer.transform.localScale;
             scale.x = -scale.y * (gameAspectRatio);
-            screen.transform.localScale = scale;
+            screenRenderer.transform.localScale = scale;
 
             // Really not sure how this color format works.  The DX9 values are completely different,
             // and typically the games are ARGB format there, but still look fine here once we
@@ -213,7 +225,7 @@ public class LaunchAndPlay : MonoBehaviour
             // game bits.  The custom sbsShader.shader for the material takes care of 
             // showing the correct half for each eye.
 
-            screenMaterial.mainTexture = _bothEyes;
+            screenRenderer.material.mainTexture = _bothEyes;
 
 
             // These are test Quads, and will be removed.  One for each eye. Might be deactivated.
@@ -263,7 +275,7 @@ public class LaunchAndPlay : MonoBehaviour
 
         ownMutex = GrabSetupMutex();
         if (!ownMutex)
-            screenMaterial.mainTexture = greyTexture;
+            screenRenderer.material.mainTexture = greyTexture;
 
         debugprint("-> GrabSetupMutex, ownMutex=" + ownMutex);
 
