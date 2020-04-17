@@ -226,7 +226,7 @@ public class Game : MonoBehaviour
 
         // If they didn't pass a --game-path argument, then bring up the GetOpenFileName
         // dialog to let them choose. More for testing, not a usual path.
-        if (String.IsNullOrEmpty(gamePath) && String.IsNullOrEmpty(waitForExe))
+        if (String.IsNullOrEmpty(gamePath) && String.IsNullOrEmpty(waitForExe) && Input.GetKey(KeyCode.LeftAlt))
         {
             // Ask user to select the game to run in virtual 3D.  
             // We are doing this super early because there are scenarios where Unity
@@ -243,14 +243,11 @@ public class Game : MonoBehaviour
                 launchType = LaunchType.Exe;
             }
         }
-
-        if (String.IsNullOrEmpty(gamePath))
-            throw new Exception("No game specified to launch.");
     }
 
     // -----------------------------------------------------------------------------
 
-    public string DisplayName()
+    public virtual string DisplayName()
     {
         return displayName;
     }
@@ -281,7 +278,7 @@ public class Game : MonoBehaviour
 
     // -----------------------------------------------------------------------------
 
-    public System.Int32 GetSharedHandle()
+    public virtual System.Int32 GetSharedHandle()
     {
         if (_gameProcess == null)
             return 0;
@@ -305,7 +302,7 @@ public class Game : MonoBehaviour
     // except Present. 
     // In either case, we do the hooking in the OnLoad call in the deviare plugin.
 
-    public IEnumerator Launch()
+    public virtual IEnumerator Launch()
     {
         int hresult;
         object continueevent = null;
@@ -570,7 +567,7 @@ public class Game : MonoBehaviour
     // more reliably hook the games.  But, we can't use Steam, so let's just launch the
     // exe directly.  
 
-    public Process StartGameByExeFile(string exePath, string arguments)
+    private Process StartGameByExeFile(string exePath, string arguments)
     {
         Process proc;
 
@@ -667,7 +664,7 @@ public class Game : MonoBehaviour
     [DllImport("DeviareCOM64.dll")]
     static extern int GetLastErrorCode();
 
-    int GetLastDeviareError()
+    private int GetLastDeviareError()
     {
         // We set back to the katanga_directory here, in case we throw
         // an error.  This keeps the editor from crashing.

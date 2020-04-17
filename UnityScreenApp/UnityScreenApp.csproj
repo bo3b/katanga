@@ -269,6 +269,7 @@
     <Compile Include="Assets\LaunchAndPlay.cs" />
     <Compile Include="Assets\LowLevelKeyboardListener.cs" />
     <Compile Include="Assets\PRISM.Sharpen\PrismSharpen.cs" />
+    <Compile Include="Assets\SlideShow.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Assets\PRISM.Sharpen\Shaders\PrismSharpen.cginc" />
