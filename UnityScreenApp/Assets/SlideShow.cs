@@ -18,15 +18,30 @@ public class SlideShow : Game
     public SteamVR_Action_Boolean skipAction;
 
     public Renderer screen;
-    bool playing = true;
-    bool skip = false;
-    float deltaT = 0.4f;    // minimal time to show a slide.
-    string[] stereoFiles;
+
+    private bool playing = true;
+    private bool skip = false;
+    private readonly float deltaT = 0.4f;    // minimal time to show a slide.
+    private string[] stereoFiles;
 
     // -----------------------------------------------------------------------------
 
     // We want to be able to control the slideshow as well, pausing on great shots, and
     // skipping quickly if not interesting.  
+
+    private void OnEnable()
+    {
+        pauseAction.AddOnChangeListener(OnPauseAction, SteamVR_Input_Sources.RightHand);
+        skipAction.AddOnChangeListener(OnSkipAction, SteamVR_Input_Sources.LeftHand);
+    }
+
+    private void OnDisable()
+    {
+        if (pauseAction != null)
+            pauseAction.RemoveOnChangeListener(OnPauseAction, SteamVR_Input_Sources.RightHand);
+        if (skipAction != null)
+            skipAction.RemoveOnChangeListener(OnSkipAction, SteamVR_Input_Sources.LeftHand);
+    }
 
     private void Update()
     {
@@ -98,6 +113,18 @@ public class SlideShow : Game
 
     // -----------------------------------------------------------------------------
 
+    private void OnPauseAction(SteamVR_Action_Boolean fromAction, SteamVR_Input_Sources fromSource, bool active)
+    {
+        if (active)
+            playing = !playing;
+    }
+
+    private void OnSkipAction(SteamVR_Action_Boolean fromAction, SteamVR_Input_Sources fromSource, bool active)
+    {
+        if (active)
+            skip = true;
+    }
+
     private void PauseToggle()
     {
         float movement = Input.GetAxis("Pause SlideShow");
@@ -117,7 +144,7 @@ public class SlideShow : Game
 
     // -----------------------------------------------------------------------------
 
-    int index = 0;
+    private int index = 0;
 
     public void LoadNextJPS()
     {

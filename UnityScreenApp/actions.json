@@ -80,6 +80,14 @@
       "type": "boolean"
     },
     {
+      "name": "/actions/default/in/PauseAction",
+      "type": "boolean"
+    },
+    {
+      "name": "/actions/default/in/SkipAction",
+      "type": "boolean"
+    },
+    {
       "name": "/actions/default/out/Haptic",
       "type": "vibration"
     }
@@ -154,7 +162,9 @@
       "/actions/default/in/ToggleSharpeningAction": "Toggle Sharpening",
       "/actions/default/in/ResetAllAction": "Reset All Settings",
       "/actions/default/in/CurveScreenAction": "Curve Screen",
-      "/actions/default/in/FlattenScreenAction": "Flatten Screen"
+      "/actions/default/in/FlattenScreenAction": "Flatten Screen",
+      "/actions/default/in/PauseAction": "Pause SlideShow",
+      "/actions/default/in/SkipAction": "Next Slide"
     }
   ]
 }

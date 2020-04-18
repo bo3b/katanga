@@ -54,7 +54,7 @@
             {
                "inputs" : {
                   "east" : {
-                     "output" : "/actions/default/in/flattenscreenaction"
+                     "output" : "/actions/default/in/curvescreenaction"
                   },
                   "north" : {
                      "output" : "/actions/default/in/screenfartheraction"
@@ -63,7 +63,7 @@
                      "output" : "/actions/default/in/screenneareraction"
                   },
                   "west" : {
-                     "output" : "/actions/default/in/curvescreenaction"
+                     "output" : "/actions/default/in/flattenscreenaction"
                   }
                },
                "mode" : "dpad",
@@ -119,6 +119,24 @@
                },
                "mode" : "button",
                "path" : "/user/hand/left/input/application_menu"
+            },
+            {
+               "inputs" : {
+                  "click" : {
+                     "output" : "/actions/default/in/pauseaction"
+                  }
+               },
+               "mode" : "toggle_button",
+               "path" : "/user/hand/right/input/grip"
+            },
+            {
+               "inputs" : {
+                  "click" : {
+                     "output" : "/actions/default/in/skipaction"
+                  }
+               },
+               "mode" : "button",
+               "path" : "/user/hand/left/input/grip"
             }
          ]
       },

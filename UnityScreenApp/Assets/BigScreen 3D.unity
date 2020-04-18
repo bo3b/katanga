@@ -8017,7 +8017,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   screenRenderer: {fileID: 265114122}
-  player: {fileID: 1751585946}
   infoText: {fileID: 2070569918}
 --- !u!114 &1751585948
 MonoBehaviour:
@@ -8030,6 +8029,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5dc63d6956d3c2547a75dbc9a9f4c30d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  pauseAction:
+    actionPath: /actions/default/in/PauseAction
+    needsReinit: 0
+  skipAction:
+    actionPath: /actions/default/in/SkipAction
+    needsReinit: 0
   screen: {fileID: 265114122}
 --- !u!4 &1751585949 stripped
 Transform:
