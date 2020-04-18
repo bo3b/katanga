@@ -3,6 +3,7 @@ using System.Collections;
 using System.IO;
 using System.Runtime.InteropServices;
 using UnityEngine;
+using UnityEngine.UI;
 using Valve.VR;
 
 // This is a subclass of the Game object.  Game object is setup to inject into and run
@@ -18,6 +19,7 @@ public class SlideShow : Game
     public SteamVR_Action_Boolean skipAction;
 
     public Renderer screen;
+    public Text infoText;
 
     private bool playing = true;
     private bool skip = false;
@@ -65,6 +67,8 @@ public class SlideShow : Game
 
     public override IEnumerator Launch()
     {
+        infoText.gameObject.SetActive(false);
+
         IntPtr documentsPathName;
         SHGetKnownFolderPath(Documents, 0, IntPtr.Zero, out documentsPathName);
         string nvidiaScreenShotFolder = Marshal.PtrToStringUni(documentsPathName);
