@@ -53,30 +53,23 @@ public class SlideShow : Game
 
     // -----------------------------------------------------------------------------
 
-    [DllImport("shell32.dll")]
-    private static extern int SHGetKnownFolderPath(
-     [MarshalAs(UnmanagedType.LPStruct)] Guid rfid,
-     uint dwFlags,
-     IntPtr hToken,
-     out IntPtr pszPath  // API uses CoTaskMemAlloc
-     );
-    public static readonly Guid Documents = new Guid("FDD39AD0-238F-46AF-ADB4-6C85480369C7");
-
     // We will use the IENumerator as the asynchronous loop for showing the next slides
     // in the slideshow.  This loop will never exit until quit, but it can be paused.
 
     public override IEnumerator Launch()
     {
-        infoText.gameObject.SetActive(false);
+        // Folder storing all the photos to be shown will be a subfolder of the katanga
+        // unity app. Any jps image in that folder will be part of the slide show.
+        // We will ship a default set of good examples, but people can add any they like.
+        string screenShotFolder = Environment.CurrentDirectory + @"\Stereo Pictures";
+        stereoFiles = Directory.GetFiles(screenShotFolder, "*.jps");
 
-        IntPtr documentsPathName;
-        SHGetKnownFolderPath(Documents, 0, IntPtr.Zero, out documentsPathName);
-        string nvidiaScreenShotFolder = Marshal.PtrToStringUni(documentsPathName);
-        nvidiaScreenShotFolder += @"\NVStereoscopic3D.IMG";
-
-        stereoFiles = Directory.GetFiles(nvidiaScreenShotFolder, "*.jps");
-
+        // Start with first one.
         float spinTime = 0;
+        LoadNextJPS();
+
+        // Disable "Launching..." as we start showing slides.
+        infoText.gameObject.SetActive(false);
 
         while (true)
         {

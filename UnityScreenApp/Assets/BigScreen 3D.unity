@@ -8036,6 +8036,7 @@ MonoBehaviour:
     actionPath: /actions/default/in/SkipAction
     needsReinit: 0
   screen: {fileID: 265114122}
+  infoText: {fileID: 2070569918}
 --- !u!4 &1751585949 stripped
 Transform:
   m_PrefabParentObject: {fileID: 447954, guid: dc06161b6d97feb419f45f03b62e14b9, type: 2}

@@ -26,6 +26,8 @@ public class ReleaseBuild : MonoBehaviour
         FileUtil.CopyFileOrDirectory("Assets/Dependencies/deviare32.db", releaseFolder + "katanga_data/Plugins/deviare32.db");
         FileUtil.CopyFileOrDirectory("Assets/Dependencies/deviare64.db", releaseFolder + "katanga_data/Plugins/deviare64.db");
 
+        FileUtil.CopyFileOrDirectory("Stereo Pictures", releaseFolder + "Stereo Pictures");
+
         if (Directory.Exists(@"C:\Users\bo3b\Documents\Code\3d_fix_manager\WpfApplication3\bin\VR\Tools"))
         {
             FileUtil.DeleteFileOrDirectory(@"C:\Users\bo3b\Documents\Code\3d_fix_manager\WpfApplication3\bin\VR\Tools\katanga");
@@ -55,5 +57,26 @@ public class ReleaseBuild : MonoBehaviour
         FileUtil.CopyFileOrDirectory("Assets/Dependencies/deviare64.db", releaseFolder + "katanga_data/Plugins/deviare64.db");
 
         //FileUtil.CopyFileOrDirectory("Assets/Dependencies/katanga.exe.manifest", releaseFolder + "katanga_data/Plugins/katanga.exe.manifest");
+    }
+
+
+    // Demo build, which will remove all game functionality except being able to show stereo photos on the big screen.
+
+    [MenuItem("Build/Demo Build")]
+    public static void DemoBuild()
+    {
+        string demoFolder = "../Demo/";
+
+        // Always clean build, delete the prior build completely.
+        FileUtil.DeleteFileOrDirectory(demoFolder);
+
+        BuildPlayerOptions buildPlayerOptions = new BuildPlayerOptions();
+        buildPlayerOptions.scenes = new[] { "Assets/BigScreen 3D.unity" };
+        buildPlayerOptions.locationPathName = demoFolder + "katanga.exe";
+        buildPlayerOptions.target = BuildTarget.StandaloneWindows64;
+        buildPlayerOptions.options = BuildOptions.Development | BuildOptions.ShowBuiltPlayer;
+        BuildPipeline.BuildPlayer(buildPlayerOptions);
+
+        PlayerSettings.SetScriptingDefineSymbolsForGroup(BuildTargetGroup.Standalone, "DEMO");
     }
 }
