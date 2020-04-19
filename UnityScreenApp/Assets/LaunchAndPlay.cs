@@ -71,7 +71,7 @@ public class LaunchAndPlay : MonoBehaviour
 
         // If empty arg list (only single arg of unity.exe), we want to run slideshow demo.  
         string[] args = System.Environment.GetCommandLineArgs();
-        bool demoMode = args.Length == 1;   
+        bool demoMode = (args.Length == 1);   
 
         if (demoMode)
             game = GetComponent<SlideShow>();
