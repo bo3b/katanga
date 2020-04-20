@@ -13,6 +13,8 @@ public class LaunchAndPlay : MonoBehaviour
     // For multipoint logging, including native C++ plugins/
     private static FileStream m_FileStream;
 
+    public static bool demoMode = false;
+
     // Game object that handles launching and communicating with the running game.
     // If launched with no arguments, will be SlideShow.
     Game game;
@@ -71,7 +73,7 @@ public class LaunchAndPlay : MonoBehaviour
 
         // If empty arg list (only single arg of unity.exe), we want to run slideshow demo.  
         string[] args = System.Environment.GetCommandLineArgs();
-        bool demoMode = (args.Length == 1);   
+        demoMode = (args.Length == 1);   
 
         if (demoMode)
             game = GetComponent<SlideShow>();

@@ -147,13 +147,22 @@ namespace Valve.VR.InteractionSystem.Sample
                         break;
 
                     // For LeftHand actions, we'll look for the single action and build the
-                    // large text help for all 5 dpad actions.
+                    // large text help for all 4 dpad actions.
                     case "HideFloorAction":
                         ControllerButtonHints.ShowTextHint(leftHand, action, "Cycle environment");
                         break;
                     case "ScreenBiggerAction":
-                        string help = "Up: Screen Up\nDown: Screen Down\nLeft: Screen Smaller\nRight: Screen Bigger";
-                        ControllerButtonHints.ShowTextHint(leftHand, action, help);
+                        ControllerButtonHints.ShowTextHint(leftHand, action, "Up: Screen Up\nDown: Screen Down\nLeft: Screen Smaller\nRight: Screen Bigger");
+                        break;
+
+                    // If we are demo/slideshow mode, we want to add the help for pause/skip.
+                    case "PauseAction":
+                        if (LaunchAndPlay.demoMode)
+                            ControllerButtonHints.ShowTextHint(rightHand, action, "Pause Slideshow");
+                        break;
+                    case "SkipAction":
+                        if (LaunchAndPlay.demoMode)
+                            ControllerButtonHints.ShowTextHint(leftHand, action, "Next Slide");
                         break;
 
                     default:
