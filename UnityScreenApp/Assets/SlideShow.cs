@@ -73,11 +73,18 @@ public class SlideShow : Game
 
         while (true)
         {
-            if (playing)
+            if (skip)
+            {
+                LoadNextJPS();
+
+                skip = false;
+                spinTime = 0.0f;
+            }
+            else if (playing)
             {
                 spinTime += deltaT;
 
-                if ((spinTime > 5.0f) || skip)
+                if (spinTime > 5.0f)
                 {
                     LoadNextJPS();
 
@@ -124,17 +131,13 @@ public class SlideShow : Game
 
     private void PauseToggle()
     {
-        float movement = Input.GetAxis("Pause SlideShow");
-
-        if (movement != 0.0f)
+        if (Input.GetButtonDown("Pause SlideShow"))
             playing = !playing;
     }
 
     private void NextSlide()
     {
-        float movement = Input.GetAxis("Next Slide");
-
-        if (movement != 0.0f)
+        if (Input.GetButtonDown("Next Slide"))
             skip = true;
     }
 

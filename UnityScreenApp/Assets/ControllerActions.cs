@@ -28,8 +28,8 @@ public class ControllerActions : MonoBehaviour
     public SteamVR_Action_Boolean toggleSharpening;
     public SteamVR_Action_Boolean resetAll;
 
+    // Hint panel to left of user view.
     public GameObject billboard;
-    public GameObject demoHints;
 
     // This script is attached to the main Screen object, as the most logical place
     // to put all the screen sizing and location code.
@@ -791,17 +791,9 @@ public class ControllerActions : MonoBehaviour
         int state = PlayerPrefs.GetInt("keyhints", 1);
 
         if (state == 1)
-        {
             billboard.SetActive(true);
-            if (LaunchAndPlay.demoMode)
-                demoHints.SetActive(true);
-        }
         else
-        {
             billboard.SetActive(false);
-            if (LaunchAndPlay.demoMode)
-                demoHints.SetActive(false);
-        }
 
         print("Hint state: " + state);
     }
