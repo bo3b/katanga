@@ -12,6 +12,7 @@
 **/Assets/Plugins/*
 /Release/*
 /Debug/*
+/Demo/*
 
 # Unity3D Crash Reports
 sysinfo.txt

@@ -14,6 +14,8 @@ public class ReleaseBuild : MonoBehaviour
         // Always clean build, delete the prior build completely.
         FileUtil.DeleteFileOrDirectory(releaseFolder);
 
+        UnityEditor.WindowsStandalone.UserBuildSettings.copyPDBFiles = false;
+
         BuildPlayerOptions buildPlayerOptions = new BuildPlayerOptions();
         buildPlayerOptions.scenes = new[] { "Assets/BigScreen 3D.unity" };
         buildPlayerOptions.locationPathName = releaseFolder + "katanga.exe";
@@ -56,6 +58,8 @@ public class ReleaseBuild : MonoBehaviour
         FileUtil.CopyFileOrDirectory("Assets/Dependencies/deviare32.db", releaseFolder + "katanga_data/Plugins/deviare32.db");
         FileUtil.CopyFileOrDirectory("Assets/Dependencies/deviare64.db", releaseFolder + "katanga_data/Plugins/deviare64.db");
 
+        FileUtil.CopyFileOrDirectory("Stereo Pictures", releaseFolder + "Stereo Pictures");
+
         //FileUtil.CopyFileOrDirectory("Assets/Dependencies/katanga.exe.manifest", releaseFolder + "katanga_data/Plugins/katanga.exe.manifest");
     }
 
@@ -70,13 +74,15 @@ public class ReleaseBuild : MonoBehaviour
         // Always clean build, delete the prior build completely.
         FileUtil.DeleteFileOrDirectory(demoFolder);
 
+        UnityEditor.WindowsStandalone.UserBuildSettings.copyPDBFiles = false;
+
         BuildPlayerOptions buildPlayerOptions = new BuildPlayerOptions();
         buildPlayerOptions.scenes = new[] { "Assets/BigScreen 3D.unity" };
-        buildPlayerOptions.locationPathName = demoFolder + "katanga.exe";
+        buildPlayerOptions.locationPathName = demoFolder + "HelixVision Demo.exe";
         buildPlayerOptions.target = BuildTarget.StandaloneWindows64;
-        buildPlayerOptions.options = BuildOptions.Development | BuildOptions.ShowBuiltPlayer;
+        buildPlayerOptions.options = BuildOptions.ShowBuiltPlayer;
         BuildPipeline.BuildPlayer(buildPlayerOptions);
 
-        PlayerSettings.SetScriptingDefineSymbolsForGroup(BuildTargetGroup.Standalone, "DEMO");
+        FileUtil.CopyFileOrDirectory("Stereo Pictures", demoFolder + "Stereo Pictures");
     }
 }

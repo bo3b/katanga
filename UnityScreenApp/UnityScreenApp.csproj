@@ -241,25 +241,25 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="SteamVR.csproj">
-      <Project>{BD231772-1CCA-A142-B2A7-FFDEBC0B66EE}</Project>
-      <Name>SteamVR</Name>
+    <ProjectReference Include="SteamVR_Actions.csproj">
+      <Project>{5C307B7E-977A-C9FF-456C-B0880147461A}</Project>
+      <Name>SteamVR_Actions</Name>
     </ProjectReference>
     <ProjectReference Include="SteamVR_Input_Editor.csproj">
       <Project>{E6594F2C-2DC5-CB04-5892-01F5D49638B7}</Project>
       <Name>SteamVR_Input_Editor</Name>
     </ProjectReference>
-    <ProjectReference Include="SteamVR_Windows_EditorHelper.csproj">
-      <Project>{58A108A4-18E9-33FA-75FB-B906B95B871B}</Project>
-      <Name>SteamVR_Windows_EditorHelper</Name>
-    </ProjectReference>
     <ProjectReference Include="SteamVR_Editor.csproj">
       <Project>{82811FCA-78A2-ED65-B77C-CE2E64CFF895}</Project>
       <Name>SteamVR_Editor</Name>
     </ProjectReference>
-    <ProjectReference Include="SteamVR_Actions.csproj">
-      <Project>{5C307B7E-977A-C9FF-456C-B0880147461A}</Project>
-      <Name>SteamVR_Actions</Name>
+    <ProjectReference Include="SteamVR.csproj">
+      <Project>{BD231772-1CCA-A142-B2A7-FFDEBC0B66EE}</Project>
+      <Name>SteamVR</Name>
+    </ProjectReference>
+    <ProjectReference Include="SteamVR_Windows_EditorHelper.csproj">
+      <Project>{58A108A4-18E9-33FA-75FB-B906B95B871B}</Project>
+      <Name>SteamVR_Windows_EditorHelper</Name>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
