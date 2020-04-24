@@ -83,6 +83,16 @@ public class ReleaseBuild : MonoBehaviour
         buildPlayerOptions.options = BuildOptions.ShowBuiltPlayer;
         BuildPipeline.BuildPlayer(buildPlayerOptions);
 
+        // Add in our sample stereo pictures. Can be anything in the folder however.
         FileUtil.CopyFileOrDirectory("Stereo Pictures", demoFolder + "Stereo Pictures");
+
+        // Delete junk that is unnecessary for the demo.
+        string plugins = demoFolder + "HelixVision Demo_Data/Plugins/";
+        FileUtil.DeleteFileOrDirectory(plugins + "deviareCOM.dll");
+        FileUtil.DeleteFileOrDirectory(plugins + "deviareCOM64.dll");
+        FileUtil.DeleteFileOrDirectory(plugins + "dvAgent.dll");
+        FileUtil.DeleteFileOrDirectory(plugins + "dvAgent64.dll");
+        FileUtil.DeleteFileOrDirectory(plugins + "gamePlugin.dll");
+        FileUtil.DeleteFileOrDirectory(plugins + "gamePlugin64.dll");
     }
 }
