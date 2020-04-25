@@ -2,16 +2,16 @@
 {
 	"appid"	"1303840"
 	
-	"desc" "Jenkins Demo build 0.9.8" // description for this build
+	"desc" "Jenkins Demo build 0.9."	// description for this build
 	
-	"buildoutput" "demo_output\" // build output folder for .log, .csm & .csd files, relative to location of this file
+	"buildoutput" "..\demo_build_logs\"	// build output folder for .log, .csm & .csd files, relative to location of this file
 	
-	"contentroot" "steam_demo_content\" // root content folder, relative to location of this file
+	"contentroot" "..\Demo\"			// root content folder, relative to location of this file
 	
-	"setlive"	"" // branch to set live after successful build, non if empty
-	"preview" "0" // to enable preview builds
+	"setlive"	""						// branch to set live after successful build, none if empty
+	"preview" "0"						// to enable preview builds
 	
-	"local"	""	// set to flie path of local content server 
+	"local"	""							// set to flie path of local content server 
 	
 	"depots"
 	{

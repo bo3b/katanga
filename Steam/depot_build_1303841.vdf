@@ -1,7 +1,7 @@
 "DepotBuildConfig"
 {
 	// Set your assigned depot ID here
-	// bo3b: Release Depot is 1303841
+	// bo3b: Release Depot for Demo is 1303841
 	"DepotID" "1303841"
 
 	// Set a root for all content.
@@ -9,7 +9,7 @@
 	// will be resolved relative to this root.
 	// If you don't define ContentRoot, then it will be assumed to be
 	// the location of this script file, which probably isn't what you want
-	// bo3b: we'll copy this to HelixVision root, which will be a good ContentRoot
+	// bo3b: we'll copy this to HelixVision Demo root, which will be a good ContentRoot
 	"ContentRoot"	""
 
 	// include all files recursivley
