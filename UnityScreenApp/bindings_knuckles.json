@@ -1,7 +1,7 @@
 {
    "action_manifest_version" : 0,
    "alias_info" : {},
-   "app_key" : "application.generated.unity.katanga.exe",
+   "app_key" : "application.generated.unity.helixvision.exe",
    "bindings" : {
       "/actions/default" : {
          "chords" : [
@@ -13,6 +13,7 @@
                "output" : "/actions/default/in/resetallaction"
             }
          ],
+         "haptics" : [],
          "poses" : [
             {
                "output" : "/actions/default/in/pose",
@@ -23,12 +24,7 @@
                "path" : "/user/hand/right/pose/raw"
             }
          ],
-         "skeleton" : [
-            {
-               "output" : "none",
-               "path" : "/user/hand/right/input/skeleton/right"
-            }
-         ],
+         "skeleton" : [],
          "sources" : [
             {
                "inputs" : {
@@ -141,7 +137,7 @@
    "category" : "steamvr_input",
    "controller_type" : "knuckles",
    "description" : "",
-   "name" : "Katanga",
+   "name" : "HelixVision configuration for Index Controllers",
    "options" : {},
    "simulated_actions" : []
 }

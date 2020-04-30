@@ -2,13 +2,13 @@
   "source": "Unity",
   "applications": [
     {
-      "app_key": "application.generated.unity.katanga.exe",
+      "app_key": "application.generated.unity.helixvision.exe",
       "launch_type": "url",
       "url": "steam://launch/",
       "action_manifest_path": "C:\\Users\\bo3b\\Documents\\Code\\Katanga\\UnityScreenApp\\actions.json",
       "strings": {
         "en_us": {
-          "name": "Katanga [Testing]"
+          "name": "HelixVision [Testing]"
         }
       }
     }

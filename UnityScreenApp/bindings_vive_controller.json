@@ -1,7 +1,7 @@
 {
    "action_manifest_version" : 0,
    "alias_info" : {},
-   "app_key" : "application.generated.unity.katanga.exe",
+   "app_key" : "application.generated.unity.helixvision.exe",
    "bindings" : {
       "/actions/buggy" : {
          "chords" : [],
@@ -151,7 +151,7 @@
    "category" : "steamvr_input",
    "controller_type" : "vive_controller",
    "description" : "",
-   "name" : "My Katanga [Testing] configuration for Vive Controller",
+   "name" : "HelixVision configuration for Vive Controller",
    "options" : {},
    "simulated_actions" : []
 }
