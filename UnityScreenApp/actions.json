@@ -96,10 +96,6 @@
     {
       "name": "/actions/default",
       "usage": "leftright"
-    },
-    {
-      "name": "/actions/NewSet",
-      "usage": "single"
     }
   ],
   "default_bindings": [
