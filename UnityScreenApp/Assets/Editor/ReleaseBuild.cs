@@ -78,7 +78,7 @@ public class ReleaseBuild : MonoBehaviour
 
         BuildPlayerOptions buildPlayerOptions = new BuildPlayerOptions();
         buildPlayerOptions.scenes = new[] { "Assets/BigScreen 3D.unity" };
-        buildPlayerOptions.locationPathName = demoFolder + "HelixVision Demo.exe";
+        buildPlayerOptions.locationPathName = demoFolder + "HelixVisionDemo.exe";
         buildPlayerOptions.target = BuildTarget.StandaloneWindows64;
         buildPlayerOptions.options = BuildOptions.ShowBuiltPlayer;
         BuildPipeline.BuildPlayer(buildPlayerOptions);
@@ -87,7 +87,7 @@ public class ReleaseBuild : MonoBehaviour
         FileUtil.CopyFileOrDirectory("Stereo Pictures", demoFolder + "Stereo Pictures");
 
         // Delete junk that is unnecessary for the demo.
-        string plugins = demoFolder + "HelixVision Demo_data/Plugins/";
+        string plugins = demoFolder + "HelixVisionDemo_data/Plugins/";
         FileUtil.DeleteFileOrDirectory(plugins + "deviareCOM.dll");
         FileUtil.DeleteFileOrDirectory(plugins + "deviareCOM64.dll");
         FileUtil.DeleteFileOrDirectory(plugins + "dvAgent.dll");
