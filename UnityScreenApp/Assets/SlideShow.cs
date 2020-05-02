@@ -117,10 +117,11 @@ public class SlideShow : Game
 
     // -----------------------------------------------------------------------------
 
+    // -- For VR controller actions
+
     private void OnPauseAction(SteamVR_Action_Boolean fromAction, SteamVR_Input_Sources fromSource, bool active)
     {
-        if (active)
-            playing = !playing;
+        playing = !active;
     }
 
     private void OnSkipAction(SteamVR_Action_Boolean fromAction, SteamVR_Input_Sources fromSource, bool active)
@@ -128,6 +129,8 @@ public class SlideShow : Game
         if (active)
             skip = true;
     }
+
+    // -- For keyboard or xbox controllers
 
     private void PauseToggle()
     {
