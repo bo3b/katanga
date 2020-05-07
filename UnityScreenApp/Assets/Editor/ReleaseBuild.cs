@@ -28,7 +28,9 @@ public class ReleaseBuild : MonoBehaviour
         FileUtil.CopyFileOrDirectory("Assets/Dependencies/deviare32.db", releaseFolder + "katanga_data/Plugins/deviare32.db");
         FileUtil.CopyFileOrDirectory("Assets/Dependencies/deviare64.db", releaseFolder + "katanga_data/Plugins/deviare64.db");
 
+        // Setup for Demo, but drop all the BonusShots for ReleaseBuilds, to save space.
         FileUtil.CopyFileOrDirectory("Stereo Pictures", releaseFolder + "Stereo Pictures");
+        FileUtil.DeleteFileOrDirectory(releaseFolder + "Stereo Pictures/BonusShots");
 
         if (Directory.Exists(@"C:\Users\bo3b\Documents\Code\3d_fix_manager\WpfApplication3\bin\VR\Tools"))
         {
