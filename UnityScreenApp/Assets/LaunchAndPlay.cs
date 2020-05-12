@@ -252,10 +252,6 @@ public class LaunchAndPlay : MonoBehaviour
             // With the game fully launched and showing frames, we no longer need InfoText.
             // Setting it Inactive makes it not take any drawing cycles, as opposed to an empty string.
             infoText.gameObject.SetActive(false);
-
-            // Successfully created the game view, so we need to disable our startup debug logging
-            // as it's too excessive for normal play.
-            showDebug = false;
         }
     }
 
@@ -438,11 +434,9 @@ public class LaunchAndPlay : MonoBehaviour
     // But, at startup, we'll log every call as Debug, until we successfully get past
     // the first CreateSharedTexture.
 
-    static bool showDebug = true;
-
     static void debugprint(object message)
     {
-        if (Debug.isDebugBuild || showDebug)
+        if (Debug.isDebugBuild)
             print(message);
     }
 
