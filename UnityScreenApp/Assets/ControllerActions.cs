@@ -625,9 +625,19 @@ public class ControllerActions : MonoBehaviour
     public GameObject leftEmitter;
     public GameObject rightEmitter;
 
+
+    private static int GetFloorState()
+    {
+        // In DemoMode, Snow Less, normal game mode, Snow Off (for performance)
+        int defaultEnvironment = LaunchAndPlay.demoMode ? 1 : 2;
+
+        // Sets default and retrieves user setting if they change it.
+        return PlayerPrefs.GetInt("floor", defaultEnvironment);
+    }
+
     private void OnHideFloorAction(SteamVR_Action_Boolean fromAction, SteamVR_Input_Sources fromSource)
     {
-        int state = PlayerPrefs.GetInt("floor", 1);
+        int state = GetFloorState();
         state++;
         if (state > 4)
             state = 0;
@@ -643,7 +653,7 @@ public class ControllerActions : MonoBehaviour
     {
         if (Input.GetButtonDown("Cycle Environment"))
         {
-            int state = PlayerPrefs.GetInt("floor", 1);
+            int state = GetFloorState();
             state++;
             if (state > 4)
                 state = 0;
@@ -663,7 +673,7 @@ public class ControllerActions : MonoBehaviour
 
     private void UpdateFloor()
     {
-        int state = PlayerPrefs.GetInt("floor", 1);
+        int state = GetFloorState();
         print("Set environment state: " + state);
 
         ParticleSystem.EmissionModule leftSnow = leftEmitter.GetComponent<ParticleSystem>().emission;
