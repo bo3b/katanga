@@ -116,7 +116,7 @@ public class Game : MonoBehaviour
     // Game SteamAppID            --steam-appid:
     // Epic Game Store AppID      --epic-appid:
 
-    public void ParseGameArgs(string[] args)
+    public bool ParseGameArgs(string[] args)
     {
         for (int i = 1; i < args.Length; i++)
         {
@@ -225,8 +225,9 @@ public class Game : MonoBehaviour
 
 
         // If they didn't pass a --game-path argument, then bring up the GetOpenFileName
-        // dialog to let them choose. More for testing, not a usual path.
-        if (String.IsNullOrEmpty(gamePath) && String.IsNullOrEmpty(waitForExe) && Input.GetKey(KeyCode.LeftAlt))
+        // dialog to let them choose. More for testing, not a usual path.  In the C++ SelectGameDialog
+        // it will check if Ctrl key is held down and return null if not.
+        if (String.IsNullOrEmpty(gamePath) && String.IsNullOrEmpty(waitForExe))
         {
             // Ask user to select the game to run in virtual 3D.  
             // We are doing this super early because there are scenarios where Unity
@@ -236,13 +237,16 @@ public class Game : MonoBehaviour
             StringBuilder sb = new StringBuilder("", MAX_PATH);
             SelectGameDialog(sb, sb.Capacity);
 
-            if (sb.Length != 0)
-            {
-                gamePath = sb.ToString();
-                displayName = gamePath.Substring(gamePath.LastIndexOf('\\') + 1);
-                launchType = LaunchType.Exe;
-            }
+            if (sb.Length == 0)
+                return true;   // Demo launch
+
+            gamePath = sb.ToString();
+            displayName = gamePath.Substring(gamePath.LastIndexOf('\\') + 1);
+            launchType = LaunchType.Exe;
+            print("Manual launch of: " + gamePath);
         }
+
+        return false;    // Normal VR launch.
     }
 
     // -----------------------------------------------------------------------------

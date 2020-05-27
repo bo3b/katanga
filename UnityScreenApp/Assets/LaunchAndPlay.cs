@@ -71,17 +71,17 @@ public class LaunchAndPlay : MonoBehaviour
     {
         print("Start: Command line arguments: " + System.Environment.CommandLine);
 
+        game = GetComponent<Game>();
+
         // If empty arg list (only single arg of unity.exe), we want to run slideshow demo.  
         string[] args = System.Environment.GetCommandLineArgs();
-        demoMode = (args.Length == 1);   
+        demoMode = game.ParseGameArgs(args);
 
         if (demoMode)
+        {
             game = GetComponent<SlideShow>();
-        else
-            game = GetComponent<Game>();
-
-        game.ParseGameArgs(args);
-
+            print("** Running as Demo Slideshow **");
+        }
       
         // Store the current Texture2D on the Quad as the original grey. We use this
         // as the default when images stop arriving, or we lose the original.
