@@ -43,9 +43,57 @@ public class ControllerActions : MonoBehaviour
     private readonly float distance = 0.010f; // 10 cm
 
     private Material sbsMaterial;
-    private Vector3[] vertices = null;  
+    private Vector3[] vertices = null;
+
 
     //-------------------------------------------------
+
+    // Series of prefs fetching routines, with the important second parameter
+    // which is the built in default. Any time they are changed by the user
+    // their new saved prefs will be returned.
+    // Having these in one spot, keeps the defaults all here.
+
+    private static float GetSizeX()
+    {
+        return PlayerPrefs.GetFloat("size-x", 5.2f);
+    }
+    private static float GetSizeY()
+    {
+        return PlayerPrefs.GetFloat("size-y", -2.925f); // 16:9 ratio starting default
+    }
+    private static float GetScreenY()
+    {
+        return PlayerPrefs.GetFloat("screen-y", 1.5f);
+    }
+    private static float GetScreenZ()
+    {
+        return PlayerPrefs.GetFloat("screen-z", 3.0f);
+    }
+    private static float GetCurve()                     // divide by 10 for percentage
+    {                                                   // bad original saved values in the field.
+        return PlayerPrefs.GetFloat("curve", 4.0f);     // Default of 40% is arbitrary, looks good, and immediately visible.
+    }
+    private static int GetSharpening()                  // On by default
+    {
+        return PlayerPrefs.GetInt("sharpening", 1);
+    }
+    private static float GetSharpness()
+    {
+        return PlayerPrefs.GetFloat("sharpness", 0.0f);
+    }
+    private static int GetFloor()
+    {
+        // In DemoMode, Snow Less, normal game mode, Snow Off (for performance)
+        int defaultEnvironment = LaunchAndPlay.demoMode ? 1 : 2;
+
+        // Returns default or retrieves user setting if they change it.
+        return PlayerPrefs.GetInt("floor", defaultEnvironment);
+    }
+    private static int GetKeyHints()
+    {
+        return PlayerPrefs.GetInt("keyhints", 1);       // Show billboard info on left by default
+    }
+
 
     private void Start()
     {
@@ -61,17 +109,11 @@ public class ControllerActions : MonoBehaviour
         // For the actual screen size and location, these are the local values for the screen 
         // itself, not the screen container.
 
-        float screenY = PlayerPrefs.GetFloat("screen-y", 2.25f);
-        float screenZ = PlayerPrefs.GetFloat("screen-z", 5f);
-        stereoScreen.transform.localPosition = new Vector3(0.0f, screenY, screenZ);
-
-        float sizeX = PlayerPrefs.GetFloat("size-x", 8.0f);
-        float sizeY = PlayerPrefs.GetFloat("size-y", -4.5f);
-        stereoScreen.transform.localScale = new Vector3(sizeX, sizeY, 1);
+        stereoScreen.transform.localPosition = new Vector3(0.0f, GetScreenY(), GetScreenZ());
+        stereoScreen.transform.localScale = new Vector3(GetSizeX(), GetSizeY(), 1);
 
         // If the key is missing, let's set one in registry.
-        float sharpness = PlayerPrefs.GetFloat("sharpness", 0.0f);
-        if (sharpness == 0.0f)
+        if (GetSharpness() == 0.0f)
             PlayerPrefs.SetFloat("sharpness", 1.5f);
 
         // Save the starting vertices from StereoScreen32x18W1L1VC mesh itself,
@@ -229,6 +271,8 @@ public class ControllerActions : MonoBehaviour
 
             PlayerPrefs.SetFloat("screen-z", stereoScreen.transform.localPosition.z);
 
+            print("Screen zoom: " + stereoScreen.transform.localPosition.z);
+
             yield return new WaitForSeconds(wait);
         }
     }
@@ -299,6 +343,8 @@ public class ControllerActions : MonoBehaviour
             float dY = -(delta * 9f / 16f);
             PlayerPrefs.SetFloat("size-x", stereoScreen.transform.localScale.x);
             PlayerPrefs.SetFloat("size-y", stereoScreen.transform.localScale.y);
+
+            print("Screen size x,y: " + stereoScreen.transform.localScale.x + "," + stereoScreen.transform.localScale.y);
 
             dX = -dY * LaunchAndPlay.gameAspectRatio;
             stereoScreen.transform.localScale += new Vector3(dX, dY);
@@ -371,13 +417,6 @@ public class ControllerActions : MonoBehaviour
         return Math.Exp(-curve) * 200 + 4;
     }
 
-    // Default of 50% is arbitrary, looks good, and is sort of good marketing as it immediately shows.
-
-    private static float GetPreferredCurve()
-    {
-        return PlayerPrefs.GetFloat("curve", 5.0f);
-    }
-
     // When doing the auto-curve while they hold down the control, we want to stop curving when
     // it goes past making any sense.  Once it gets flat enough we don't want to drive the curve
     // coefficient negative and bend backwards.  We'll let them overcurve if they want, greater 
@@ -387,7 +426,7 @@ public class ControllerActions : MonoBehaviour
     {
         while (true)
         {
-            float curve = GetPreferredCurve();
+            float curve = GetCurve();
             curve += delta;
 
             if (curve > 0.1)
@@ -438,7 +477,7 @@ public class ControllerActions : MonoBehaviour
 
     private void UpdateCurve()
     {
-        float viewPercent = GetPreferredCurve() / 10.0f;
+        float viewPercent = GetCurve() / 10.0f;
 
         // How many subsections there are for 180 degree screen. 32 segments/triangles across
         // for the current mesh. Seems adequate for smooth curve.
@@ -527,6 +566,8 @@ public class ControllerActions : MonoBehaviour
             stereoScreen.transform.Translate(new Vector3(0, delta));
 
             PlayerPrefs.SetFloat("screen-y", stereoScreen.transform.localPosition.y);
+
+            print("Screen height: " + stereoScreen.transform.localPosition.y);
 
             yield return new WaitForSeconds(wait);
         }
@@ -625,19 +666,9 @@ public class ControllerActions : MonoBehaviour
     public GameObject leftEmitter;
     public GameObject rightEmitter;
 
-
-    private static int GetFloorState()
-    {
-        // In DemoMode, Snow Less, normal game mode, Snow Off (for performance)
-        int defaultEnvironment = LaunchAndPlay.demoMode ? 1 : 2;
-
-        // Sets default and retrieves user setting if they change it.
-        return PlayerPrefs.GetInt("floor", defaultEnvironment);
-    }
-
     private void OnHideFloorAction(SteamVR_Action_Boolean fromAction, SteamVR_Input_Sources fromSource)
     {
-        int state = GetFloorState();
+        int state = GetFloor();
         state++;
         if (state > 4)
             state = 0;
@@ -653,7 +684,7 @@ public class ControllerActions : MonoBehaviour
     {
         if (Input.GetButtonDown("Cycle Environment"))
         {
-            int state = GetFloorState();
+            int state = GetFloor();
             state++;
             if (state > 4)
                 state = 0;
@@ -673,7 +704,7 @@ public class ControllerActions : MonoBehaviour
 
     private void UpdateFloor()
     {
-        int state = GetFloorState();
+        int state = GetFloor();
         print("Set environment state: " + state);
 
         ParticleSystem.EmissionModule leftSnow = leftEmitter.GetComponent<ParticleSystem>().emission;
@@ -729,7 +760,7 @@ public class ControllerActions : MonoBehaviour
 
     private void OnToggleSharpeningAction(SteamVR_Action_Boolean fromAction, SteamVR_Input_Sources fromSource)
     {
-        int state = PlayerPrefs.GetInt("sharpening", 1);
+        int state = GetSharpening();
         state++;
         if (state > 1)
             state = 0;
@@ -745,7 +776,7 @@ public class ControllerActions : MonoBehaviour
     {
         if (Input.GetButtonDown("Sharpening Toggle"))
         {
-            int state = PlayerPrefs.GetInt("sharpening", 1);
+            int state = GetSharpening();
             state++;
             if (state > 1)
                 state = 0;
@@ -759,13 +790,13 @@ public class ControllerActions : MonoBehaviour
     {
         PrismSharpen sharpener = vrCamera.GetComponent<PrismSharpen>();
 
-        int state = PlayerPrefs.GetInt("sharpening", 1);
+        int state = GetSharpening();
         if (state == 1)
             sharpener.enabled = true;
         else
             sharpener.enabled = false;
 
-        float sharpness = PlayerPrefs.GetFloat("sharpness", 0.0f);
+        float sharpness = GetSharpness();
         if (sharpness != 0.0f)
             sharpener.sharpenAmount = sharpness;
 
@@ -786,7 +817,7 @@ public class ControllerActions : MonoBehaviour
     {
         if (Input.GetButtonDown("Hide Info"))
         {
-            int state = PlayerPrefs.GetInt("keyhints", 1);
+            int state = GetKeyHints();
             state++;
             if (state > 1)
                 state = 0;
@@ -798,7 +829,7 @@ public class ControllerActions : MonoBehaviour
 
     private void UpdateBillboard()
     {
-        int state = PlayerPrefs.GetInt("keyhints", 1);
+        int state = GetKeyHints();
 
         if (state == 1)
             billboard.SetActive(true);
