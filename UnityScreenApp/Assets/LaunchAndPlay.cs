@@ -290,8 +290,6 @@ public class LaunchAndPlay : MonoBehaviour
         if (Time.frameCount % 30 == 0)
             System.GC.Collect();
 
-        if (Input.GetKey("escape"))
-            Quit();
         if (game.Exited())
             Quit();
     }
