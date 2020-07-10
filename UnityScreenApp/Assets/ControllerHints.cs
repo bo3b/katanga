@@ -191,6 +191,16 @@ namespace Valve.VR.InteractionSystem.Sample
             {
                 ControllerButtonHints.HideAllButtonHints(hand);
                 ControllerButtonHints.HideAllTextHints(hand);
+
+                // Always leave ToggleHintAction button lit up, as an easy way to see how to show hints again.
+                foreach (SteamVR_Action_Boolean action in SteamVR_Input.actionsBoolean)
+                {
+                    if (action.GetShortName() == "ToggleHintAction")
+                    {
+                        ControllerButtonHints.ShowButtonHint(hand, action);
+                        break;
+                    }
+                }
             }
         }
 
