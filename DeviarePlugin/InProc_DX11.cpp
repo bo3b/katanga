@@ -135,7 +135,7 @@ ID3D11Device* CreateSharedTexture(IDXGISwapChain* pSwapChain)
 	D3D11_TEXTURE2D_DESC desc;
 	ID3D11Texture2D* oldGameTexture;
 
-	LogInfo(L"GamePlugin:DX11 CreateSharedTexture called. gGameTexture: %p, gGameSharedHandle: %p\n", gGameTexture, gGameSharedHandle);
+	LogInfo(L"GamePlugin:DX11 CreateSharedTexture called. gGameTexture: %p, gGameSharedHandle: %p, gMappedView: %p\n", gGameTexture, gGameSharedHandle, gMappedView);
 
 	CaptureSetupMutex();
 	{
@@ -210,8 +210,14 @@ ID3D11Device* CreateSharedTexture(IDXGISwapChain* pSwapChain)
 
 		pDXGIResource->Release();
 
-		LogInfo(L"  Successfully created new shared texture: %p, new shared handle: %p\n", gGameTexture, gGameSharedHandle);
+		// Move that shared handle into the MappedView to IPC the Handle to Katanga.
+		// The HANDLE is always 32 bit, even for 64 bit processes.
+		// https://docs.microsoft.com/en-us/windows/win32/winprog64/interprocess-communication
 
+		*(PUINT)(gMappedView) = PtrToUint(gGameSharedHandle);
+
+		LogInfo(L"  Successfully created new shared texture: %p, new shared handle: %p, mapped: %p\n", gGameTexture, gGameSharedHandle, gMappedView);
+		
 		// If we already had created one, let the old one go.  We do it after the recreation
 		// here fills in the prior globals, to avoid possible dead structure usage in the
 		// Unity app.

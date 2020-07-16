@@ -155,6 +155,20 @@ extern "C" UNITY_INTERFACE_EXPORT void UNITY_INTERFACE_API DestroySetupMutex()
 	return s_CurrentAPI->DestroySetupMutex();
 }
 
+extern "C" UNITY_INTERFACE_EXPORT void UNITY_INTERFACE_API OpenFileMappedIPC()
+{
+	return s_CurrentAPI->OpenFileMappedIPC();
+}
+extern "C" UNITY_INTERFACE_EXPORT void UNITY_INTERFACE_API CloseFileMappedIPC()
+{
+	return s_CurrentAPI->CloseFileMappedIPC();
+}
+extern "C" UNITY_INTERFACE_EXPORT UINT UNITY_INTERFACE_API GetSharedHandleIPC()
+{
+	return s_CurrentAPI->GetSharedHandleIPC();
+}
+
+
 static void ModifyTexturePixels()
 {
 	void* textureHandle = g_TextureHandle;

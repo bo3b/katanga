@@ -50,6 +50,10 @@ public:
 	virtual bool GrabSetupMutex() = 0;
 	virtual bool ReleaseSetupMutex() = 0;
 	virtual void DestroySetupMutex() = 0;
+
+	virtual void OpenFileMappedIPC() = 0;
+	virtual void CloseFileMappedIPC() = 0;
+	virtual UINT GetSharedHandleIPC() = 0;
 };
 
 
