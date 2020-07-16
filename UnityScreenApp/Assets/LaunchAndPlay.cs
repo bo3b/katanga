@@ -336,11 +336,15 @@ public class LaunchAndPlay : MonoBehaviour
     // -----------------------------------------------------------------------------
 
     [DllImport("UnityNativePlugin64")]
+    private static extern void CloseFileMappedIPC();
+    [DllImport("UnityNativePlugin64")]
     private static extern void DestroySetupMutex();
 
     private void OnApplicationQuit()
     {
         print("OnApplicationQuit");
+
+        CloseFileMappedIPC();
 
         ReleaseSetupMutex();
         print("DestroySetupMutex");
