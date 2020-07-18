@@ -66,23 +66,6 @@ DWORD gMapSize = sizeof(UINT);
 HANDLE gSetupMutex = NULL;
 
 
-// --------------------------------------------------------------------------------------------------
-// Return the current value of the gGameSurfaceShare.  This is the HANDLE
-// that is necessary to share from either DX9Ex or DX11 here, to DX11 in the VR app.
-//
-// This routine is defined here, so that we have only a single implementation of the
-// routine with a declaration in the DeviarePlugin.h file.  This routine is specific
-// to the DeviarePlugin itself, not the InProc sides.
-
-HANDLE WINAPI GetSharedHandle(int* in)
-{
-#ifdef _DEBUG
-	LogInfo(L"GetSharedHandle::%p\n", gGameSharedHandle);
-#endif
-
-	return gGameSharedHandle;
-}
-
 //-----------------------------------------------------------
 
 // Used for both CreateDevice and Reset/Resize functions, where we are setting up the

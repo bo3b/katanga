@@ -33,7 +33,7 @@
 
 // The surface that we copy the current stereo game frame into. It is shared.
 // It starts as a Texture so that it is created stereo, and is shared 
-// via GetSharedHandle.
+// via file mapped IPC.
 
 ID3D11Texture2D* gGameTexture = nullptr;
 

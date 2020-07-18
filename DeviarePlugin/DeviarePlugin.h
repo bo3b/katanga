@@ -132,5 +132,3 @@ extern HANDLE gGameSharedHandle;
 
 extern LPVOID gMappedView;
 extern DWORD gMapSize;
-
-extern "C" HANDLE WINAPI GetSharedHandle(int* in);
