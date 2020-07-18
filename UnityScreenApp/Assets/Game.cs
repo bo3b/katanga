@@ -295,15 +295,6 @@ public class Game : MonoBehaviour
         // for C# start in .Net 4.0 and we are forced onto 2.0 by Unity.
 
         return GetSharedHandleIPC();
-
-
-        // ToDo: To work, we need to pass in a parameter? Could use named pipe instead.
-        // This will call to DeviarePlugin native DLL in the game, to fetch current gGameSurfaceShare HANDLE.
-        //System.Int32 native = 0; // (int)_tex.GetNativeTexturePtr();
-        //object parm = native;
-        //System.Int32 pollHandle = _spyMgr.CallCustomApi(_gameProcess, _nativeDLLName, "GetSharedHandleIPC", ref parm, true);
-
-        //return pollHandle;
     }
 
     // -----------------------------------------------------------------------------
