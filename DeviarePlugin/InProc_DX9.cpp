@@ -225,6 +225,14 @@ void CreateSharedRenderTarget(IDirect3DDevice9* pDevice9)
 		// Everything has been setup, or cleanly re-setup, and we can now enable the
 		// VR side to kick in and use the new surfaces.
 		gGameSharedHandle = tempSharedHandle;
+
+		// Move that shared handle into the MappedView to IPC the Handle to Katanga.
+		// The HANDLE is always 32 bit, even for 64 bit processes.
+		// https://docs.microsoft.com/en-us/windows/win32/winprog64/interprocess-communication
+
+		*(PUINT)(gMappedView) = PtrToUint(gGameSharedHandle);
+
+		LogInfo(L"  Successfully created new shared surface: %p, new shared handle: %p, mapped: %p\n", gGameSurface, gGameSharedHandle, gMappedView);
 	}
 	ReleaseSetupMutex();
 }
