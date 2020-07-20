@@ -141,7 +141,7 @@ void CreateFileMappedIPC()
 	if (gMappedView == NULL)
 		FatalExit(L"OnLoad: could not MapViewOfFile for IPC", GetLastError());
 
-	LogInfo(L"GamePlugin: Mapped file created: %p, val: 0x%llx\n", gMappedView, *(uint64_t*)(gMappedView));
+	LogInfo(L"GamePlugin: Mapped file created: %p, val: 0x%x\n", gMappedView, *(UINT*)(gMappedView));
 }
 
 // --------------------------------------------------------------------------------------------------

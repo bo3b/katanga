@@ -206,7 +206,7 @@ ID3D11Device* CreateSharedTexture(IDXGISwapChain* pSwapChain)
 		if (FAILED(hr))	FatalExit(L"Fail to QueryInterface on shared surface", hr);
 
 		hr = pDXGIResource->GetSharedHandle(&gGameSharedHandle);
-		if (FAILED(hr) || gGameSharedHandle == nullptr)	FatalExit(L"Fail to pDXGIResource->GetSharedHandle", hr);
+		if (FAILED(hr) || gGameSharedHandle == NULL)	FatalExit(L"Fail to pDXGIResource->GetSharedHandle", hr);
 
 		pDXGIResource->Release();
 
@@ -281,7 +281,7 @@ HRESULT __stdcall Hooked_Present(IDXGISwapChain * This,
 
 	// This only happens for first device creation, because we inject into an already
 	// setup game, and thus first thing we'll see is Present.
-	if (gGameSharedHandle == nullptr)
+	if (gGameSharedHandle == NULL)
 		CreateSharedTexture(This);
 
 	hr = This->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&backBuffer);
@@ -408,7 +408,7 @@ HRESULT __stdcall Hooked_ResizeBuffers(IDXGISwapChain* This,
 		// No good way to properly dispose of this shared handle, we cannot CloseHandle
 		// because it's not a real handle.  Microsoft.  Geez.
 
-		gGameSharedHandle = nullptr;
+		gGameSharedHandle = NULL;
 
 
 		LogInfo(L"  Width: %d, Height: %d, Format: %d\n", Width, Height, NewFormat);

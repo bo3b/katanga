@@ -289,7 +289,7 @@ HRESULT __stdcall Hooked_Present(IDirect3DDevice9* This,
 
 	// This only happens for first device creation, because we inject into an already
 	// setup game, and thus first thing we'll see is Present in DX9Ex case.
-	if (gGameSharedHandle == nullptr)
+	if (gGameSharedHandle == NULL)
 		CreateSharedRenderTarget(This);
 
 	hr = This->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &backBuffer);
@@ -387,7 +387,7 @@ HRESULT __stdcall Hooked_Reset(IDirect3DDevice9* This,
 		// No good way to properly dispose of this shared handle, we cannot CloseHandle
 		// because it's not a real handle.  Microsoft.  Geez.
 
-		gGameSharedHandle = nullptr;
+		gGameSharedHandle = NULL;
 
 		// We are also supposed to release any of our rendertargets before calling
 		// Reset, so let's go ahead and release these, now that the null gGameSharedHandle

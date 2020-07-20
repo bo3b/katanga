@@ -479,14 +479,15 @@ void RenderAPI_D3D11::DestroySetupMutex()
 void RenderAPI_D3D11::OpenFileMappedIPC()
 {
 	TCHAR szName[] = TEXT("Local\\KatangaMappedFile");
-	DWORD mapSize = sizeof(uint64_t);
+	DWORD mapSize = sizeof(UINT);
 
 	hMapFile = OpenFileMapping(
 		FILE_MAP_ALL_ACCESS,   // read/write access
 		FALSE,                 // do not inherit the name
 		szName);               // name of mapping object
 	if (hMapFile == NULL)
-		FatalExit(L"Katanga:OpenFileMappedIPC: cannot OpenFileMapping.", GetLastError());
+		return;
+//		FatalExit(L"Katanga:OpenFileMappedIPC: cannot OpenFileMapping.", GetLastError());
 
 	pMappedView = MapViewOfFile(
 		hMapFile,			  // handle to file map object
