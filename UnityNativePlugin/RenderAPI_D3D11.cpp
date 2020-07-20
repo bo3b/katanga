@@ -526,7 +526,12 @@ UINT RenderAPI_D3D11::GetSharedHandleIPC()
 	if (pMappedView == nullptr)
 		OpenFileMappedIPC();
 
-	return *(PUINT)(pMappedView);
+	// pMappedView can still be null, if the game has not yet fired up the pipeline,
+	// and thus Present has yet to be called.
+	if (pMappedView == nullptr)
+		return 0;
+	else
+		return *(PUINT)(pMappedView);
 }
 
 

@@ -417,8 +417,8 @@ public class Game : MonoBehaviour
             // Game has been launched.  Either deferred, or first instruction hook.
             // gameProc will exist, or we forced an exception.  Time for injection.
 
-            print("LoadAgent");
-            _spyMgr.LoadAgent(gameProc);
+       //     print("LoadAgent");
+       //     _spyMgr.LoadAgent(gameProc);
 
             // Load the NativePlugin for the C++ side.  The NativePlugin must be in this app folder.
             // The Agent supports the use of Deviare in the CustomDLL, but does not respond to hooks.
@@ -426,21 +426,21 @@ public class Game : MonoBehaviour
             // The native DeviarePlugin has two versions, one for x32, one for x64, so we can handle
             // either x32 or x64 games.
 
-            print("Load GamePlugin");
-            if (gameProc.PlatformBits == 64)
-                _nativeDLLName = Application.dataPath + "/Plugins/GamePlugin64.dll";
-            else
-                _nativeDLLName = Application.dataPath + "/Plugins/GamePlugin.dll";
+            //print("Load GamePlugin");
+            //if (gameProc.PlatformBits == 64)
+            //    _nativeDLLName = Application.dataPath + "/Plugins/GamePlugin64.dll";
+            //else
+            //    _nativeDLLName = Application.dataPath + "/Plugins/GamePlugin.dll";
 
-            int loadResult = _spyMgr.LoadCustomDll(gameProc, _nativeDLLName, true, true);
-            if (loadResult <= 0)
-            {
-                int lastHR = GetLastDeviareError();
-                string deadbeef = String.Format("Could not load {0}: 0x{1:X}", _nativeDLLName, lastHR);
-                throw new Exception(deadbeef);
-            }
+            //int loadResult = _spyMgr.LoadCustomDll(gameProc, _nativeDLLName, true, true);
+            //if (loadResult <= 0)
+            //{
+            //    int lastHR = GetLastDeviareError();
+            //    string deadbeef = String.Format("Could not load {0}: 0x{1:X}", _nativeDLLName, lastHR);
+            //    throw new Exception(deadbeef);
+            //}
 
-            print(String.Format("Successfully loaded {0}", _nativeDLLName));
+            //print(String.Format("Successfully loaded {0}", _nativeDLLName));
 
 
             // Hook the appropriate calls, based on game launch type.
@@ -469,7 +469,7 @@ public class Game : MonoBehaviour
                 case LaunchType.Epic:
                 case LaunchType.Exe:
                 default:
-                    HookDX11(_nativeDLLName, gameProc);
+         //           HookDX11(_nativeDLLName, gameProc);
                     break;
             }
         }
