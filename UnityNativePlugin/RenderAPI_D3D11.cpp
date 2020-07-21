@@ -481,6 +481,8 @@ void RenderAPI_D3D11::OpenFileMappedIPC()
 	TCHAR szName[] = TEXT("Local\\KatangaMappedFile");
 	DWORD mapSize = sizeof(UINT);
 
+	LogDebug(L"..Katanga:OpenFileMappedIPC\n");
+
 	hMapFile = OpenFileMapping(
 		FILE_MAP_ALL_ACCESS,   // read/write access
 		FALSE,                 // do not inherit the name
@@ -500,6 +502,8 @@ void RenderAPI_D3D11::OpenFileMappedIPC()
 		CloseHandle(hMapFile);
 		FatalExit(L"Katanga:OpenFileMappedIPC: cannot MapViewOfFile.", GetLastError());
 	}
+
+	Log(L"..Katanga:OpenFileMappedIPC Mapped file created: %p, val: 0x%x\n", pMappedView, *(UINT*)(pMappedView));
 }
 
 void RenderAPI_D3D11::CloseFileMappedIPC()
@@ -520,6 +524,8 @@ void RenderAPI_D3D11::CloseFileMappedIPC()
 
 UINT RenderAPI_D3D11::GetSharedHandleIPC()
 {
+	LogDebug(L"..Katanga:GetSharedHandleIPC\n");
+
 	// Using late binding here, because the async nature of the launch startup means
 	// we never have a good idea of when it's ready.  But GetSharedHandleIPC will
 	// never be called before the OnLoad of the game plugin.
@@ -530,8 +536,9 @@ UINT RenderAPI_D3D11::GetSharedHandleIPC()
 	// and thus Present has yet to be called.
 	if (pMappedView == nullptr)
 		return 0;
-	else
-		return *(PUINT)(pMappedView);
+
+	Log(L"..Katanga:GetSharedHandleIPC successful return:%p->0x%x\n", pMappedView, *(UINT*)(pMappedView));
+	return *(PUINT)(pMappedView);
 }
 
 
