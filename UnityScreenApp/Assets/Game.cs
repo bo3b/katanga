@@ -207,7 +207,7 @@ public class Game : MonoBehaviour
 
         //gamePath = @"W:\SteamLibrary\steamapps\common\Headlander\Headlander.exe";
         //displayName = "Headlander";
-        //launchType = LaunchType.Exe;
+        //launchType = LaunchType.Steam;
         //steamPath = @"C:\Program Files (x86)\Steam";
         //steamAppID = "340000";
 
@@ -287,9 +287,6 @@ public class Game : MonoBehaviour
 
     public virtual System.Int32 GetSharedHandle()
     {
-        if (_gameProcess == null)
-            return 0;
-
         // The injection has happened and game started.  That means IPC file is setup,
         // so let's grab it.  This uses the C++ plugin, because the memory map functions
         // for C# start in .Net 4.0 and we are forced onto 2.0 by Unity.
@@ -356,8 +353,8 @@ public class Game : MonoBehaviour
             // SteamGameTheater. I'm not sure this is the right path, but people are already getting
             // confused by the DGT.
 
-            if (launchType == LaunchType.Steam)
-                launchType = LaunchType.Exe;
+            //if (launchType == LaunchType.Steam)
+            //    launchType = LaunchType.Exe;
 
             print("Launch type: " + launchType);
 
@@ -394,25 +391,27 @@ public class Game : MonoBehaviour
             // anyway.  Waiting for 3 seconds would still fail, 5 seconds was OK,
             // but this is on a super fast machine.
 
-            if (gameProc == null)
+            if (launchType != LaunchType.Steam)
             {
-                print("Waiting " + waitTime +  "s for process: " + gamePath);
+                if (gameProc == null)
+                {
+                    print("Waiting " + waitTime + "s for process: " + gamePath);
 
-                yield return new WaitForSecondsRealtime(waitTime);      // Only wait for exe style launch
+                    yield return new WaitForSecondsRealtime(waitTime);      // Only wait for exe style launch
+                }
+
+                int procid = 0;
+                do
+                {
+                    yield return new WaitForSecondsRealtime(0.100f);
+
+                    procid = _spyMgr.FindProcessId(gameExe);
+                } while (procid == 0);
+
+                print("->Found " + gameExe + ":" + procid);
+
+                gameProc = _spyMgr.ProcessFromPID(procid);
             }
-
-            int procid = 0;
-            do
-            {
-                yield return new WaitForSecondsRealtime(0.100f);
-
-                procid = _spyMgr.FindProcessId(gameExe);
-            } while (procid == 0);
-
-            print("->Found " + gameExe + ":" + procid);
-
-            gameProc = _spyMgr.ProcessFromPID(procid);
-
 
             // Game has been launched.  Either deferred, or first instruction hook.
             // gameProc will exist, or we forced an exception.  Time for injection.
@@ -615,10 +614,11 @@ public class Game : MonoBehaviour
         {
             proc = new Process();
 
-            print("Starting game by calling Steam.exe: " + steamDir);
             proc.StartInfo.FileName = Path.Combine(steamDir, "Steam.exe");
             proc.StartInfo.Arguments = "-applaunch " + appID + " " + arguments;
             proc.StartInfo.WorkingDirectory = steamDir;
+
+            print("Starting game by calling Steam.exe: " + steamDir + " " + proc.StartInfo.Arguments);
 
             // ToDo: necessary here?
             //if (fixProfile.RunGameAsAdmin == 1)
