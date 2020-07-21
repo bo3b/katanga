@@ -355,8 +355,9 @@ public class Game : MonoBehaviour
             // SteamGameTheater. I'm not sure this is the right path, but people are already getting
             // confused by the DGT.
 
-            if (launchType == LaunchType.Steam)
-                launchType = LaunchType.Exe;
+            // ToDo: Experimental allow Steam AppId launches when specified.
+            //if (launchType == LaunchType.Steam)
+            //    launchType = LaunchType.Exe;
 
             print("Launch type: " + launchType);
 
@@ -614,10 +615,11 @@ public class Game : MonoBehaviour
         {
             proc = new Process();
 
-            print("Starting game by calling Steam.exe: " + steamDir);
             proc.StartInfo.FileName = Path.Combine(steamDir, "Steam.exe");
             proc.StartInfo.Arguments = "-applaunch " + appID + " " + arguments;
             proc.StartInfo.WorkingDirectory = steamDir;
+
+            print("Starting game by calling Steam.exe: " + steamDir + " " + proc.StartInfo.Arguments);
 
             // ToDo: necessary here?
             //if (fixProfile.RunGameAsAdmin == 1)
