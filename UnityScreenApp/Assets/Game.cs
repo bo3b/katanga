@@ -55,7 +55,7 @@ public class Game : MonoBehaviour
     // launchers.  If it's DX9 launchType+ waitForExe, that lets us know it's a DX9Ex game.
     // How long to wait is now profile selectable as well, it helps in some rare cases. 8 sec default.
     string waitForExe = "";
-    float waitTime = 8.0f;
+    float _waitTime = 8.0f;
 
     // If it's a Steam launch, these will be non-null.
     // ToDo: Non-functional Steam launch because DesktopGameTheater intercepts.
@@ -143,7 +143,7 @@ public class Game : MonoBehaviour
             else if (args[i] == "--wait-time")
             {
                 i++;
-                waitTime = Single.Parse(args[i]);
+                _waitTime = Single.Parse(args[i]);
             }
             else if (args[i] == "--steam-path")
             {
@@ -307,8 +307,8 @@ public class Game : MonoBehaviour
     public virtual IEnumerator Launch()
     {
         int hresult;
+        NktProcess gameProcess = null;
         object continueevent = null;
-        NktProcess gameProc = null;
 
         print("CurrentDirectory: " + katanga_directory);
 
@@ -347,40 +347,7 @@ public class Game : MonoBehaviour
             else
                 gameExe = waitForExe;
 
-            // Treat input Steam launch as straight exe launch, because they ruin it by forcing Katanga 
-            // to exit so they can do their dumb game theater.
-            // Probably will break some double-launch games that need SteamAPI, but fixes always launching
-            // SteamGameTheater. I'm not sure this is the right path, but people are already getting
-            // confused by the DGT.
-
-            //if (launchType == LaunchType.Steam)
-            //    launchType = LaunchType.Exe;
-
             print("Launch type: " + launchType);
-
-            switch (launchType)
-            {
-                case LaunchType.DX9:
-                case LaunchType.DirectModeDX9Ex:
-                case LaunchType.DirectModeDX11:
-                    gamePath += " " + launchArguments;
-                    gameProc = StartGameBySpyMgr(gamePath, out continueevent);     // Launches suspended game.
-                    break;
-
-                case LaunchType.Epic:
-                    StartGameByEpicProtocol(epicAppID, launchArguments);
-                    break;
-
-                case LaunchType.Steam:
-                    StartGameBySteamAppID(steamPath, steamAppID, launchArguments);
-                    break;
-
-                case LaunchType.DX9Ex:
-                case LaunchType.Exe:
-                default:
-                    StartGameByExeFile(gamePath, launchArguments);
-                    break;
-            }
 
             // We finally answered the question for whether we want a startup delay or
             // not, and the answer is yes.  Battlefield3 in particular has a retarded
@@ -390,85 +357,64 @@ public class Game : MonoBehaviour
             // Waiting for 8 seconds is not bad, no game will launch faster than that
             // anyway.  Waiting for 3 seconds would still fail, 5 seconds was OK,
             // but this is on a super fast machine.
-
-            if (launchType != LaunchType.Steam)
-            {
-                if (gameProc == null)
-                {
-                    print("Waiting " + waitTime + "s for process: " + gamePath);
-
-                    yield return new WaitForSecondsRealtime(waitTime);      // Only wait for exe style launch
-                }
-
-                int procid = 0;
-                do
-                {
-                    yield return new WaitForSecondsRealtime(0.100f);
-
-                    procid = _spyMgr.FindProcessId(gameExe);
-                } while (procid == 0);
-
-                print("->Found " + gameExe + ":" + procid);
-
-                gameProc = _spyMgr.ProcessFromPID(procid);
-            }
-
-            // Game has been launched.  Either deferred, or first instruction hook.
-            // gameProc will exist, or we forced an exception.  Time for injection.
-
-       //     print("LoadAgent");
-       //     _spyMgr.LoadAgent(gameProc);
-
-            // Load the NativePlugin for the C++ side.  The NativePlugin must be in this app folder.
-            // The Agent supports the use of Deviare in the CustomDLL, but does not respond to hooks.
-            //
-            // The native DeviarePlugin has two versions, one for x32, one for x64, so we can handle
-            // either x32 or x64 games.
-
-            //print("Load GamePlugin");
-            //if (gameProc.PlatformBits == 64)
-            //    _nativeDLLName = Application.dataPath + "/Plugins/GamePlugin64.dll";
-            //else
-            //    _nativeDLLName = Application.dataPath + "/Plugins/GamePlugin.dll";
-
-            //int loadResult = _spyMgr.LoadCustomDll(gameProc, _nativeDLLName, true, true);
-            //if (loadResult <= 0)
-            //{
-            //    int lastHR = GetLastDeviareError();
-            //    string deadbeef = String.Format("Could not load {0}: 0x{1:X}", _nativeDLLName, lastHR);
-            //    throw new Exception(deadbeef);
-            //}
-
-            //print(String.Format("Successfully loaded {0}", _nativeDLLName));
-
-
-            // Hook the appropriate calls, based on game launch type.
+            // 
+            // Only delay for Exe style launches, because we expect Epic and Steam type
+            // launches to use 3Dmigoto DirectConnection.  3D DirectMode games and DX9
+            // require us to capture first instruction.
 
             switch (launchType)
             {
                 case LaunchType.DX9:
-                    HookDX9(_nativeDLLName, gameProc);
-                    _spyMgr.ResumeProcess(gameProc, continueevent);
+                    gameProcess = StartGameBySpyMgr(out continueevent);
+                    InjectPlugin(gameProcess);
+                    HookDX9(_nativeDLLName, gameProcess);
+                    _spyMgr.ResumeProcess(gameProcess, continueevent);
                     print("Resume game launch: DX9");
                     break;
-                case LaunchType.DX9Ex:
-                    HookDX9Ex(_nativeDLLName, gameProc);
-                    break;
-                case LaunchType.DirectModeDX11:
-                    HookDX11(_nativeDLLName, gameProc);
-                    _spyMgr.ResumeProcess(gameProc, continueevent);
-                    print("Resume game launch: DX11DirectMode");
-                    break;
                 case LaunchType.DirectModeDX9Ex:
-                    HookDX9Ex(_nativeDLLName, gameProc);
-                    _spyMgr.ResumeProcess(gameProc, continueevent);
+                    gameProcess = StartGameBySpyMgr(out continueevent);
+                    InjectPlugin(gameProcess);
+                    HookDX9Ex(_nativeDLLName, gameProcess);
+                    _spyMgr.ResumeProcess(gameProcess, continueevent);
                     print("Resume game launch: DX9Ex");
                     break;
-                case LaunchType.Steam:
+                case LaunchType.DirectModeDX11:
+                    gameProcess = StartGameBySpyMgr(out continueevent);
+                    InjectPlugin(gameProcess);
+                    HookDX11(_nativeDLLName, gameProcess);
+                    _spyMgr.ResumeProcess(gameProcess, continueevent);
+                    print("Resume game launch: DX11DirectMode");
+                    break;
+
+                // No hooks, no deviare, 3Dmigoto DirectConnection
                 case LaunchType.Epic:
+                    StartGameByEpicProtocol(epicAppID, launchArguments);
+                    WaitForGame(gameExe, false);
+                    gameProcess = GetGameProcess(gameExe);
+                    break;
+                case LaunchType.Steam:
+                    // Currently done at 3DFM, before launching Katanga.
+                    //StartGameBySteamAppID(steamPath, steamAppID, launchArguments);
+                    WaitForGame(gameExe, false);
+                    gameProcess = GetGameProcess(gameExe);
+                    break;
+
+                case LaunchType.DX9Ex:
+                    StartGameByExeFile(gamePath, launchArguments);
+                    WaitForGame(gameExe, true);
+                    gameProcess = GetGameProcess(gameExe);
+                    InjectPlugin(gameProcess);
+                    HookDX9Ex(_nativeDLLName, gameProcess);
+                    break;
                 case LaunchType.Exe:
+                    StartGameByExeFile(gamePath, launchArguments);
+                    WaitForGame(gameExe, true);
+                    gameProcess = GetGameProcess(gameExe);
+                    InjectPlugin(gameProcess);
+                    HookDX11(_nativeDLLName, gameProcess);
+                    break;
+
                 default:
-         //           HookDX11(_nativeDLLName, gameProc);
                     break;
             }
         }
@@ -482,7 +428,71 @@ public class Game : MonoBehaviour
         // it as valid.  We can't do this earlier, because it could race condition into
         // a process that was not setup.
 
-        _gameProcess = gameProc;
+        _gameProcess = gameProcess;
+
+        yield return null;
+    }
+
+    // -----------------------------------------------------------------------------
+
+
+    // Load the NativePlugin for the C++ side.  The NativePlugin must be in this app folder.
+    // The Agent supports the use of Deviare in the CustomDLL, but does not respond to hooks.
+
+    private void InjectPlugin(NktProcess gameProc)
+    {
+        print("LoadAgent");
+        _spyMgr.LoadAgent(gameProc);
+
+        // The native DeviarePlugin has two versions, one for x32, one for x64, so we can handle
+        // either x32 or x64 games.
+
+        print("Load GamePlugin");
+        if (gameProc.PlatformBits == 64)
+            _nativeDLLName = Application.dataPath + "/Plugins/GamePlugin64.dll";
+        else
+            _nativeDLLName = Application.dataPath + "/Plugins/GamePlugin.dll";
+
+        int loadResult = _spyMgr.LoadCustomDll(gameProc, _nativeDLLName, true, true);
+        if (loadResult <= 0)
+        {
+            int lastHR = GetLastDeviareError();
+            string deadbeef = String.Format("Could not load {0}: 0x{1:X}", _nativeDLLName, lastHR);
+            throw new Exception(deadbeef);
+        }
+
+        print(String.Format("Successfully loaded {0}", _nativeDLLName));
+    }
+
+
+    // Find the running gameProc, so that we can know when game exits, and then
+    // auto exit Katanga when they exit.  For DirectConnection games, they will 
+    // already be running, and this will exit without waiting, but give us the 
+    // desired _gameProcess.
+
+    private IEnumerator WaitForGame(string exeName, bool delay)
+    {
+        if (delay)
+        {
+            print("Waiting " + _waitTime + "s for process: " + exeName);
+            yield return new WaitForSecondsRealtime(_waitTime);
+        }
+
+        int procid = 0;
+        do
+        {
+            yield return new WaitForSecondsRealtime(0.100f);
+
+            procid = _spyMgr.FindProcessId(exeName);
+        } while (procid == 0);
+
+        print("->Found " + exeName + ":" + procid);
+    }
+
+    private NktProcess GetGameProcess(string exeName)
+    {
+        int procid = _spyMgr.FindProcessId(exeName);
+        return _spyMgr.ProcessFromPID(procid);
     }
 
     // -----------------------------------------------------------------------------
@@ -553,13 +563,15 @@ public class Game : MonoBehaviour
     // at launch, and cannot handle pre-game launchers or things like Origin launches.
     // Should be path of last resort, but required for DX9 and DirectMode games.
 
-    private NktProcess StartGameBySpyMgr(string game, out object continueevent)
+    private NktProcess StartGameBySpyMgr(out object continueevent)
     {
-        print("...Launching suspended: " + game);
+        print("...Launching suspended: " + gamePath);
 
-        NktProcess gameProc = _spyMgr.CreateProcess(game, true, out continueevent);
+        gamePath += " " + launchArguments;
+
+        NktProcess gameProc = _spyMgr.CreateProcess(gamePath, true, out continueevent);
         if (gameProc == null)
-            throw new Exception("CreateProcess game launch failed: " + game);
+            throw new Exception("CreateProcess game launch failed: " + gamePath);
 
         return gameProc;
     }
