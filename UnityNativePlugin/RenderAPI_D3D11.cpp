@@ -537,7 +537,6 @@ UINT RenderAPI_D3D11::GetSharedHandleIPC()
 	if (pMappedView == nullptr)
 		return 0;
 
-	Log(L"..Katanga:GetSharedHandleIPC successful return:%p->0x%x\n", pMappedView, *(UINT*)(pMappedView));
 	return *(PUINT)(pMappedView);
 }
 
