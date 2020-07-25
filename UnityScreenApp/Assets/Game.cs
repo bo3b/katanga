@@ -398,35 +398,23 @@ public class Game : MonoBehaviour
                     print("Resume game launch: DX11DirectMode");
                     break;
 
-                // No hooks, no deviare, 3Dmigoto DirectConnection
-                case LaunchType.Epic:
-                    StartGameByEpicProtocol(epicAppID, launchArguments);
-                    WaitForGame(gameExe, false);
-                    gameProcess = GetGameProcess(gameExe);
-                    break;
-                case LaunchType.Steam:
-                    // Currently done at 3DFM, before launching Katanga.
-                    //StartGameBySteamAppID(steamPath, steamAppID, launchArguments);
-                    WaitForGame(gameExe, false);
-                    gameProcess = GetGameProcess(gameExe);
-                    break;
-
                 case LaunchType.DX9Ex:
                     StartGameByExeFile(gamePath, launchArguments);
-                    WaitForGame(gameExe, true);
+                    print("Waiting " + _waitTime + "s for process: " + gameExe);
+                    yield return new WaitForSecondsRealtime(_waitTime);
+                    yield return WaitForGame(gameExe);
                     gameProcess = GetGameProcess(gameExe);
                     InjectPlugin(gameProcess);
                     HookDX9Ex(_nativeDLLName, gameProcess);
                     break;
-                case LaunchType.Exe:
-                    StartGameByExeFile(gamePath, launchArguments);
-                    WaitForGame(gameExe, true);
-                    gameProcess = GetGameProcess(gameExe);
-                    InjectPlugin(gameProcess);
-                    HookDX11(_nativeDLLName, gameProcess);
-                    break;
 
+                // DX11 only: No hooks, no deviare, 3Dmigoto DirectConnection
+                case LaunchType.Epic:
+                case LaunchType.Steam:
+                case LaunchType.DX11Exe:
                 default:
+                    yield return WaitForGame(gameExe);
+                    gameProcess = GetGameProcess(gameExe);
                     break;
             }
         }
@@ -477,10 +465,10 @@ public class Game : MonoBehaviour
     }
 
 
-    // Find the running gameProc, so that we can know when game exits, and then
-    // auto exit Katanga when they exit.  For DirectConnection games, they will 
-    // already be running, and this will exit without waiting, but give us the 
-    // desired _gameProcess.
+    // Wait for the game to arrive.  For all DX11 games, they are now launched out of
+    // 3DFM, and should already be running. But we cannot guarantee that, because a
+    // launcher or other interference might delay the game start.  
+    // Waiting here while non-blocking VR via the yield return.
 
     private IEnumerator WaitForGame(string exeName)
     {
@@ -496,6 +484,9 @@ public class Game : MonoBehaviour
 
         print("->Found " + exeName + ":" + procid);
     }
+
+    // Find the running gameProc, so that we can know when game exits, and then
+    // auto exit Katanga when they exit. 
 
     private NktProcess GetGameProcess(string exeName)
     {
