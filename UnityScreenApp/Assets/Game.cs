@@ -482,13 +482,9 @@ public class Game : MonoBehaviour
     // already be running, and this will exit without waiting, but give us the 
     // desired _gameProcess.
 
-    private IEnumerator WaitForGame(string exeName, bool delay)
+    private IEnumerator WaitForGame(string exeName)
     {
-        if (delay)
-        {
-            print("Waiting " + _waitTime + "s for process: " + exeName);
-            yield return new WaitForSecondsRealtime(_waitTime);
-        }
+        print("WaitForGame..." + exeName);
 
         int procid = 0;
         do
