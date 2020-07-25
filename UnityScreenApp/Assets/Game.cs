@@ -124,41 +124,49 @@ public class Game : MonoBehaviour
             {
                 i++;
                 gamePath = args[i];
+                print("--game-path: " + gamePath);
             }
             else if (args[i] == "--game-title")
             {
                 i++;
                 displayName = args[i];
+                print("--game-title: " + displayName);
             }
             else if (args[i] == "--launch-type")
             {
                 i++;
                 launchType = Parse<LaunchType>(args[i]);
+                print("--launch-type: " + launchType);
             }
             else if (args[i] == "--waitfor-exe")
             {
                 i++;
                 waitForExe = args[i];
+                print("--waitfor-exe: " + waitForExe);
             }
             else if (args[i] == "--wait-time")
             {
                 i++;
                 _waitTime = Single.Parse(args[i]);
+                print("--wait-time: " + _waitTime);
             }
             else if (args[i] == "--steam-path")
             {
                 i++;
                 steamPath = args[i];
+                print("--steam-path: " + steamPath);
             }
             else if (args[i] == "--steam-appid")
             {
                 i++;
                 steamAppID = args[i];
+                print("--steam-appid: " + steamAppID);
             }
             else if (args[i] == "--epic-appid")
             {
                 i++;
                 epicAppID = args[i];
+                print("--epic-appid: " + epicAppID);
             }
             else
             {
@@ -222,6 +230,10 @@ public class Game : MonoBehaviour
         //waitForExe = "ffxiv_dx11.exe";
         //launchType = LaunchType.Steam;
         //gamePath = @"W:\SteamLibrary\steamapps\common\FINAL FANTASY XIV Online\game\ffxiv_dx11.exe";
+
+        //waitForExe = "rime.exe";
+        //launchType = LaunchType.DX11Exe;
+        //gamePath = @"W:\Games\RiME\RiME\SirenGame\Binaries\Win64\RiME.exe";
 
 
         // If they didn't pass a --game-path argument, then bring up the GetOpenFileName
@@ -347,7 +359,7 @@ public class Game : MonoBehaviour
             else
                 gameExe = waitForExe;
 
-            print("Launch type: " + launchType);
+            print("Launch type: " + launchType + " for Game: " + gameExe);
 
             // We finally answered the question for whether we want a startup delay or
             // not, and the answer is yes.  Battlefield3 in particular has a retarded
@@ -491,6 +503,8 @@ public class Game : MonoBehaviour
 
     private NktProcess GetGameProcess(string exeName)
     {
+        print("GetGameProcess..." + exeName);
+
         int procid = _spyMgr.FindProcessId(exeName);
         return _spyMgr.ProcessFromPID(procid);
     }
