@@ -28,7 +28,7 @@ enum LaunchType
     DirectModeDX9Ex,    // Requires SpyMgr launch, used for OpenGL wrapper games
     Steam,              // Steam.exe is available, use -applaunch to avoid relaunchers.
     Epic,               // EpicGameStore launcher, requires protocol style Process.Start
-    Exe                 // Implies DX11 direct Exe launch, but only for non-Steam games.
+    DX11Exe             // DX11 direct Exe launch, but only for non-Steam games.
 }
 
 // Game object to handle launching and connection duties to the game itself.
@@ -254,7 +254,7 @@ public class Game : MonoBehaviour
 
             gamePath = sb.ToString();
             displayName = gamePath.Substring(gamePath.LastIndexOf('\\') + 1);
-            launchType = LaunchType.Exe;
+            launchType = LaunchType.DX11Exe;
             print("Manual launch of: " + gamePath);
         }
 
