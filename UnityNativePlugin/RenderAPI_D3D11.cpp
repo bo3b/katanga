@@ -84,6 +84,10 @@ public:
 	virtual bool ReleaseSetupMutex();
 	virtual void DestroySetupMutex();
 
+	virtual void OpenFileMappedIPC();
+	virtual void CloseFileMappedIPC();
+	virtual UINT GetSharedHandleIPC();
+
 private:
 	void CreateResources();
 	void ReleaseResources();
@@ -109,6 +113,11 @@ private:
 
 	// Mutex to avoid collisions from VR to game sides.  
 	HANDLE gSetupMutex = NULL;
+
+	// For the file map IPC
+	HANDLE hMapFile = NULL;
+	LPVOID pMappedView = nullptr;
+
 
 	//ID3D11Texture2D* m_SharedSurface;	// Same as DX9Ex surface
 };
@@ -464,6 +473,73 @@ void RenderAPI_D3D11::DestroySetupMutex()
 	ReleaseMutex(gSetupMutex);
 	CloseHandle(gSetupMutex);
 }
+
+// ----------------------------------------------------------------------
+
+void RenderAPI_D3D11::OpenFileMappedIPC()
+{
+	TCHAR szName[] = TEXT("Local\\KatangaMappedFile");
+	DWORD mapSize = sizeof(UINT);
+
+	LogDebug(L"..Katanga:OpenFileMappedIPC\n");
+
+	hMapFile = OpenFileMapping(
+		FILE_MAP_ALL_ACCESS,   // read/write access
+		FALSE,                 // do not inherit the name
+		szName);               // name of mapping object
+	if (hMapFile == NULL)
+		return;
+//		FatalExit(L"Katanga:OpenFileMappedIPC: cannot OpenFileMapping.", GetLastError());
+
+	pMappedView = MapViewOfFile(
+		hMapFile,			  // handle to file map object
+		FILE_MAP_ALL_ACCESS,  // read/write permission
+		0,					  // No offset in file
+		0,
+		mapSize);
+	if (pMappedView == NULL)
+	{
+		CloseHandle(hMapFile);
+		FatalExit(L"Katanga:OpenFileMappedIPC: cannot MapViewOfFile.", GetLastError());
+	}
+
+	Log(L"..Katanga:OpenFileMappedIPC Mapped file created: %p, val: 0x%x\n", pMappedView, *(UINT*)(pMappedView));
+}
+
+void RenderAPI_D3D11::CloseFileMappedIPC()
+{
+	UnmapViewOfFile(pMappedView);
+	CloseHandle(hMapFile);
+}
+
+// This returns the actual shared texture handle as specified by the
+// pDXGIResource->GetSharedHandleIPC call.  This is actually always a 32 bit
+// pointer, even on x64 games, which is why we return it as UINT.  UINT is
+// always 32 bit on x64 because windows is LLP64 model.
+//
+// https://docs.microsoft.com/en-us/windows/win32/winprog64/interprocess-communication
+//
+// The actual texture handle is passed via IPC through the mappedfile, as the first
+// and only 4 bytes of the file.
+
+UINT RenderAPI_D3D11::GetSharedHandleIPC()
+{
+	LogDebug(L"..Katanga:GetSharedHandleIPC\n");
+
+	// Using late binding here, because the async nature of the launch startup means
+	// we never have a good idea of when it's ready.  But GetSharedHandleIPC will
+	// never be called before the OnLoad of the game plugin.
+	if (pMappedView == nullptr)
+		OpenFileMappedIPC();
+
+	// pMappedView can still be null, if the game has not yet fired up the pipeline,
+	// and thus Present has yet to be called.
+	if (pMappedView == nullptr)
+		return 0;
+
+	return *(PUINT)(pMappedView);
+}
+
 
 // ----------------------------------------------------------------------
 UINT RenderAPI_D3D11::GetGameWidth()

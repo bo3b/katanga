@@ -24,4 +24,8 @@ EXPORTS
    ReleaseSetupMutex
    DestroySetupMutex
 
+   OpenFileMappedIPC
+   CloseFileMappedIPC
+   GetSharedHandleIPC
+
    TriggerEvent

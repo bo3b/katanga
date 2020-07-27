@@ -33,7 +33,7 @@
 
 // The surface that we copy the current stereo game frame into. It is shared.
 // It starts as a Texture so that it is created stereo, and is shared 
-// via GetSharedHandle.
+// via file mapped IPC.
 
 ID3D11Texture2D* gGameTexture = nullptr;
 
@@ -135,7 +135,7 @@ ID3D11Device* CreateSharedTexture(IDXGISwapChain* pSwapChain)
 	D3D11_TEXTURE2D_DESC desc;
 	ID3D11Texture2D* oldGameTexture;
 
-	LogInfo(L"GamePlugin:DX11 CreateSharedTexture called. gGameTexture: %p, gGameSharedHandle: %p\n", gGameTexture, gGameSharedHandle);
+	LogInfo(L"GamePlugin:DX11 CreateSharedTexture called. gGameTexture: %p, gGameSharedHandle: %p, gMappedView: %p\n", gGameTexture, gGameSharedHandle, gMappedView);
 
 	CaptureSetupMutex();
 	{
@@ -206,12 +206,18 @@ ID3D11Device* CreateSharedTexture(IDXGISwapChain* pSwapChain)
 		if (FAILED(hr))	FatalExit(L"Fail to QueryInterface on shared surface", hr);
 
 		hr = pDXGIResource->GetSharedHandle(&gGameSharedHandle);
-		if (FAILED(hr) || gGameSharedHandle == nullptr)	FatalExit(L"Fail to pDXGIResource->GetSharedHandle", hr);
+		if (FAILED(hr) || gGameSharedHandle == NULL)	FatalExit(L"Fail to pDXGIResource->GetSharedHandle", hr);
 
 		pDXGIResource->Release();
 
-		LogInfo(L"  Successfully created new shared texture: %p, new shared handle: %p\n", gGameTexture, gGameSharedHandle);
+		// Move that shared handle into the MappedView to IPC the Handle to Katanga.
+		// The HANDLE is always 32 bit, even for 64 bit processes.
+		// https://docs.microsoft.com/en-us/windows/win32/winprog64/interprocess-communication
 
+		*(PUINT)(gMappedView) = PtrToUint(gGameSharedHandle);
+
+		LogInfo(L"  Successfully created new shared texture: %p, new shared handle: %p, mapped: %p\n", gGameTexture, gGameSharedHandle, gMappedView);
+		
 		// If we already had created one, let the old one go.  We do it after the recreation
 		// here fills in the prior globals, to avoid possible dead structure usage in the
 		// Unity app.
@@ -275,7 +281,7 @@ HRESULT __stdcall Hooked_Present(IDXGISwapChain * This,
 
 	// This only happens for first device creation, because we inject into an already
 	// setup game, and thus first thing we'll see is Present.
-	if (gGameSharedHandle == nullptr)
+	if (gGameSharedHandle == NULL)
 		CreateSharedTexture(This);
 
 	hr = This->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&backBuffer);
@@ -402,7 +408,7 @@ HRESULT __stdcall Hooked_ResizeBuffers(IDXGISwapChain* This,
 		// No good way to properly dispose of this shared handle, we cannot CloseHandle
 		// because it's not a real handle.  Microsoft.  Geez.
 
-		gGameSharedHandle = nullptr;
+		gGameSharedHandle = NULL;
 
 
 		LogInfo(L"  Width: %d, Height: %d, Format: %d\n", Width, Height, NewFormat);

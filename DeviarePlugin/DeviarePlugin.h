@@ -56,6 +56,7 @@ extern bool gDirectMode;
 
 // Interface to InProc side
 void ReleaseSetupMutex();
+void CreateFileMappedIPC();
 void CaptureSetupMutex();
 
 // DX9 - InProc_DX9.cpp
@@ -125,6 +126,9 @@ extern "C" LPVOID lpvtbl_ResizeBuffers(IDXGISwapChain* pSwapChain);
 // in DeviarePlugin as the owner.
 extern CNktHookLib nktInProc;
 extern StereoHandle gNVAPI;
+
+// Used by DX9 still
 extern HANDLE gGameSharedHandle;
 
-extern "C" HANDLE WINAPI GetSharedHandle(int* in);
+extern LPVOID gMappedView;
+extern DWORD gMapSize;

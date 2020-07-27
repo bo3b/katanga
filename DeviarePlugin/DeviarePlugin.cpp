@@ -51,30 +51,20 @@ StereoHandle gNVAPI = nullptr;
 bool gDirectMode = false;
 
 
-// The actual shared Handle to the DX11 or DX9 VR side.  Filled in by an active InProc_*.
-HANDLE gGameSharedHandle = nullptr;
+// The actual shared Handle to the DX9 VR side.  Filled in by an active InProc_*.
+// DX11 uses mapped file. 
+// The gGameSharedHandle is set always a 32 bit value, not a pointer.  Even for
+// x64 games, because Windows maps these.  Unity side can always use x32 value.
+HANDLE gGameSharedHandle = NULL;
+
+HANDLE gMappedFile = NULL;
+LPVOID gMappedView = nullptr;
+DWORD gMapSize = sizeof(UINT);
 
 // The Named Mutex to prevent the VR side from interfering with game side, during
 // the creation or reset of the graphic device.
-HANDLE gSetupMutex = nullptr;
+HANDLE gSetupMutex = NULL;
 
-
-// --------------------------------------------------------------------------------------------------
-// Return the current value of the gGameSurfaceShare.  This is the HANDLE
-// that is necessary to share from either DX9Ex or DX11 here, to DX11 in the VR app.
-//
-// This routine is defined here, so that we have only a single implementation of the
-// routine with a declaration in the DeviarePlugin.h file.  This routine is specific
-// to the DeviarePlugin itself, not the InProc sides.
-
-HANDLE WINAPI GetSharedHandle(int* in)
-{
-#ifdef _DEBUG
-	LogInfo(L"GetSharedHandle::%p\n", gGameSharedHandle);
-#endif
-
-	return gGameSharedHandle;
-}
 
 //-----------------------------------------------------------
 
@@ -126,6 +116,32 @@ void ReleaseSetupMutex()
 		DWORD hr = GetLastError();
 		LogInfo(L"ReleaseSetupMutex: ReleaseMutex failed, err: 0x%x\n",  hr);
 	}
+}
+
+void CreateFileMappedIPC()
+{
+	TCHAR szName[] = TEXT("Local\\KatangaMappedFile");
+
+	gMappedFile = CreateFileMapping(
+		INVALID_HANDLE_VALUE,			// use paging file
+		NULL,							// default security
+		PAGE_READWRITE,					// read/write access
+		0,								// maximum object size (high-order DWORD)
+		gMapSize,						// maximum object size (low-order DWORD)
+		szName);						// name of mapping object
+	if (gMappedFile == NULL)
+		FatalExit(L"OnLoad: could not CreateFileMapping for IPC", GetLastError());
+
+	gMappedView = MapViewOfFile(
+		gMappedFile,					// handle to map file object
+		FILE_MAP_ALL_ACCESS,			// read/write permission
+		0,								// No offset in file
+		0,
+		gMapSize);						// Map full buffer
+	if (gMappedView == NULL)
+		FatalExit(L"OnLoad: could not MapViewOfFile for IPC", GetLastError());
+
+	LogInfo(L"GamePlugin: Mapped file created: %p, val: 0x%x\n", gMappedView, *(UINT*)(gMappedView));
 }
 
 // --------------------------------------------------------------------------------------------------
@@ -196,6 +212,9 @@ HRESULT WINAPI OnLoad()
 	// for Direct Mode by games.  ToDo: DX9 variant?
 	HookNvapiSetDriverMode();
 
+	// Setup the mapped file for IPC of the shared texture
+	CreateFileMappedIPC();
+
 	return S_OK;
 }
 
@@ -203,6 +222,13 @@ HRESULT WINAPI OnLoad()
 VOID WINAPI OnUnload()
 {
 	LogInfo(L"GamePlugin::OnUnLoad called\n");
+
+	LogInfo(L"GamePlugin: Unmap file for %p\n", gMappedFile);
+	if (gMappedFile != NULL)
+	{
+		UnmapViewOfFile(gMappedView);
+		CloseHandle(gMappedFile);
+	}
 
 	LogInfo(L"GamePlugin: ReleaseMutex for %p\n", gSetupMutex);
 	if (gSetupMutex != NULL)
