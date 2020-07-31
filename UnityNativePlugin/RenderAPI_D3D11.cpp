@@ -118,6 +118,10 @@ private:
 	HANDLE hMapFile = NULL;
 	LPVOID pMappedView = nullptr;
 
+	// For the shared surface itself, disposed when recreated.
+	ID3D11Texture2D* pTexture2D = nullptr;
+	ID3D11ShaderResourceView* pSRView = nullptr;
+
 
 	//ID3D11Texture2D* m_SharedSurface;	// Same as DX9Ex surface
 };
@@ -561,16 +565,23 @@ DXGI_FORMAT RenderAPI_D3D11::GetGameFormat()
 // https://msdn.microsoft.com/en-us/library/windows/desktop/ff476531(v=vs.85).aspx
 // https://msdn.microsoft.com/en-us/library/windows/desktop/ee913554(v=vs.85).aspx
 
+int countDown = 10;
+
 ID3D11ShaderResourceView* RenderAPI_D3D11::CreateSharedSurface(HANDLE shared)
 {
-	HRESULT hr;
-	ID3D11Resource* resource;
-	ID3D11Texture2D* texture;
-	ID3D11ShaderResourceView* pSRView;
-
 	Log(L"..Katanga:CreateSharedSurface called. shared:%p\n", shared);
 
 	if (shared == NULL) FatalExit(L"CreateSharedSurface called with NULL handle.\n", GetLastError());
+
+	// When called after a ResizeBuffers, we want to dispose the old.
+	if (pTexture2D != nullptr)
+		pTexture2D->Release();
+	if (pSRView != nullptr)
+		pSRView->Release();
+
+
+	HRESULT hr;
+	ID3D11Resource* resource;
 
 	hr = m_Device->OpenSharedResource(shared, __uuidof(ID3D11Resource), (void**)(&resource));
 	Log(L"....OpenSharedResource on shared: %p, result: %d, resource: %p\n", shared, hr, resource);
@@ -580,14 +591,14 @@ ID3D11ShaderResourceView* RenderAPI_D3D11::CreateSharedSurface(HANDLE shared)
 
 		// Even though the input shared surface is a RenderTarget Surface, this
 		// Query for Texture still works.  Not sure if it is good or bad.
-		hr = resource->QueryInterface(__uuidof(ID3D11Texture2D), (void**)(&texture));
+		hr = resource->QueryInterface(__uuidof(ID3D11Texture2D), (void**)(&pTexture2D));
 		Log(L"....QueryInterface on shared resource %p, result: %d\n", resource, hr);
 		if (FAILED(hr)) FatalExit(L"Failed to QueryInterface of ID3D11Texture2D.", hr);
 
 		// By capturing the Width/Height/Format here, we can let Unity side
 		// know what buffer to build to match.
 		D3D11_TEXTURE2D_DESC tdesc;
-		texture->GetDesc(&tdesc);
+		pTexture2D->GetDesc(&tdesc);
 		gWidth = tdesc.Width;
 		gHeight = tdesc.Height;
 		gFormat = tdesc.Format;
@@ -606,8 +617,8 @@ ID3D11ShaderResourceView* RenderAPI_D3D11::CreateSharedSurface(HANDLE shared)
 	// No need to change description, we want it to be the same as what the game
 	// specifies, so passing NULL to make it identical.
 
-	hr = m_Device->CreateShaderResourceView(texture, NULL, &pSRView);
-	Log(L"....CreateShaderResourceView on texture: %p, result: %d, SRView: %p\n", texture, hr, pSRView); 
+	hr = m_Device->CreateShaderResourceView(pTexture2D, NULL, &pSRView);
+	Log(L"....CreateShaderResourceView on texture: %p, result: %d, SRView: %p\n", pTexture2D, hr, pSRView);
 	if (FAILED(hr))	FatalExit(L"Failed to CreateShaderResourceView.", hr);
 
 	return pSRView;
