@@ -24,7 +24,6 @@ public class LaunchAndPlay : MonoBehaviour
     // shared resource.
     Texture2D _bothEyes = null;
     public static System.Int32 gGameSharedHandle = 0;
-    bool ownMutex = false;
 
     // Filled in once the game is live.  
     public static float gameAspectRatio = 16f/9f;
@@ -43,8 +42,6 @@ public class LaunchAndPlay : MonoBehaviour
 
     // The very first thing that happens for the app.
 
-    [DllImport("UnityNativePlugin64")]
-    private static extern void CreateSetupMutex();
 
     private void Awake()
     {
@@ -62,7 +59,6 @@ public class LaunchAndPlay : MonoBehaviour
         // Create the mutex used to block drawing when the game side is busy rebuilding
         // the graphic environment.
         print("CreateSetupMutex");
-        CreateSetupMutex();
     }
 
     // -----------------------------------------------------------------------------
@@ -146,7 +142,7 @@ public class LaunchAndPlay : MonoBehaviour
 
         if (pollHandle == 0)
         {
-            screenRenderer.material.mainTexture = greyTexture;
+//            screenRenderer.material.mainTexture = greyTexture;
             return;
         }
 
@@ -180,54 +176,54 @@ public class LaunchAndPlay : MonoBehaviour
             // by ControllerActions. 
             // gameWidth is ephemeral, the ControllerActions PlayerPrefs(size-x) is the default.
 
-            Vector3 scale = screenRenderer.transform.localScale;
-            scale.x = -scale.y * (gameAspectRatio);
-            screenRenderer.transform.localScale = scale;
+            //Vector3 scale = screenRenderer.transform.localScale;
+            //scale.x = -scale.y * (gameAspectRatio);
+            //screenRenderer.transform.localScale = scale;
 
-            // Really not sure how this color format works.  The DX9 values are completely different,
-            // and typically the games are ARGB format there, but still look fine here once we
-            // create DX11 texture with RGBA format.
-            // DXGI_FORMAT_R8G8B8A8_UNORM = 28,
-            // DXGI_FORMAT_R8G8B8A8_UNORM_SRGB = 29,    (The Surge, DX11)
-            // DXGI_FORMAT_B8G8R8A8_UNORM = 87          (The Ball, DX9)
-            // DXGI_FORMAT_B8G8R8A8_UNORM_SRGB = 91,
-            // DXGI_FORMAT_R10G10B10A2_UNORM = 24       ME:Andromenda, Alien, CallOfCthulu   Unity RenderTextureFormat, but not TextureFormat
-            //  No SRGB variant of R10G10B10A2.
-            // DXGI_FORMAT_B8G8R8X8_UNORM = 88,         Trine   Unity RGB24
+            //// Really not sure how this color format works.  The DX9 values are completely different,
+            //// and typically the games are ARGB format there, but still look fine here once we
+            //// create DX11 texture with RGBA format.
+            //// DXGI_FORMAT_R8G8B8A8_UNORM = 28,
+            //// DXGI_FORMAT_R8G8B8A8_UNORM_SRGB = 29,    (The Surge, DX11)
+            //// DXGI_FORMAT_B8G8R8A8_UNORM = 87          (The Ball, DX9)
+            //// DXGI_FORMAT_B8G8R8A8_UNORM_SRGB = 91,
+            //// DXGI_FORMAT_R10G10B10A2_UNORM = 24       ME:Andromenda, Alien, CallOfCthulu   Unity RenderTextureFormat, but not TextureFormat
+            ////  No SRGB variant of R10G10B10A2.
+            //// DXGI_FORMAT_B8G8R8X8_UNORM = 88,         Trine   Unity RGB24
 
-            // ToDo: This colorSpace doesn't do anything.
-            //  Tested back to back, setting to false/true has no effect on TV gamma
+            //// ToDo: This colorSpace doesn't do anything.
+            ////  Tested back to back, setting to false/true has no effect on TV gamma
 
-            // After quite a bit of testing, this CreateExternalTexture does not appear to respect the
-            // input parameters for TextureFormat, nor colorSpace.  It appears to use whatever is 
-            // defined in the Shared texture as the creation parameters.  
-            // If we see a format we are not presently handling properly, it's better to know about
-            // it than silently do something wrong, so fire off a FatalExit.
+            //// After quite a bit of testing, this CreateExternalTexture does not appear to respect the
+            //// input parameters for TextureFormat, nor colorSpace.  It appears to use whatever is 
+            //// defined in the Shared texture as the creation parameters.  
+            //// If we see a format we are not presently handling properly, it's better to know about
+            //// it than silently do something wrong, so fire off a FatalExit.
 
-            bool colorSpace = linearColorSpace;
-            if (format == 28 || format == 87 || format == 88)
-                colorSpace = linearColorSpace;
-            else if (format == 29 || format == 91)
-                colorSpace = !linearColorSpace;
-            else if (format == 24)
-                colorSpace = linearColorSpace;
-            else
-                MessageBox(IntPtr.Zero, String.Format("Game uses unknown DXGI_FORMAT: {0}", format), "Unknown format", 0);
+            //bool colorSpace = linearColorSpace;
+            //if (format == 28 || format == 87 || format == 88)
+            //    colorSpace = linearColorSpace;
+            //else if (format == 29 || format == 91)
+            //    colorSpace = !linearColorSpace;
+            //else if (format == 24)
+            //    colorSpace = linearColorSpace;
+            //else
+            //    MessageBox(IntPtr.Zero, String.Format("Game uses unknown DXGI_FORMAT: {0}", format), "Unknown format", 0);
 
-            // This is the Unity Texture2D, double width texture, with right eye on the left half.
-            // It will always be up to date with latest game image, because we pass in 'shared'.
+            //// This is the Unity Texture2D, double width texture, with right eye on the left half.
+            //// It will always be up to date with latest game image, because we pass in 'shared'.
 
-            _bothEyes = Texture2D.CreateExternalTexture(gameWidth, gameHeight, TextureFormat.RGBA32, noMipMaps, colorSpace, shared);
+            //_bothEyes = Texture2D.CreateExternalTexture(gameWidth, gameHeight, TextureFormat.RGBA32, noMipMaps, colorSpace, shared);
 
-            print("..eyes width: " + _bothEyes.width + " height: " + _bothEyes.height + " format: " + _bothEyes.format);
+            //print("..eyes width: " + _bothEyes.width + " height: " + _bothEyes.height + " format: " + _bothEyes.format);
 
 
-            // This is the primary Material for the Quad used for the virtual TV.
-            // Assigning the 2x width _bothEyes texture to it means it always has valid
-            // game bits.  The custom sbsShader.shader for the material takes care of 
-            // showing the correct half for each eye.
+            //// This is the primary Material for the Quad used for the virtual TV.
+            //// Assigning the 2x width _bothEyes texture to it means it always has valid
+            //// game bits.  The custom sbsShader.shader for the material takes care of 
+            //// showing the correct half for each eye.
 
-            screenRenderer.material.mainTexture = _bothEyes;
+            //screenRenderer.material.mainTexture = _bothEyes;
 
 
             // These are test Quads, and will be removed.  One for each eye. Might be deactivated.
@@ -264,26 +260,18 @@ public class LaunchAndPlay : MonoBehaviour
     // WaitForEndOfFrame, which is after scene rendering.  This should block
     // any game side usage during the time this Unity side is drawing.
 
-    [DllImport("UnityNativePlugin64")]
-    private static extern bool GrabSetupMutex();
 
     void Update()
     {
         debugprint("Update");
 
-        ownMutex = GrabSetupMutex();
-        if (!ownMutex)
-            screenRenderer.material.mainTexture = greyTexture;
-
-        debugprint("-> GrabSetupMutex, ownMutex=" + ownMutex);
 
         // Keep checking for a change in resolution by the game. This needs to be
         // done every frame to avoid using textures disposed by Reset.
         // During actual drawing, from yield null to yield WaitForEndOfFrame, we want
         // to lock out the game side from changing the underlying graphics.  
 
-        if (ownMutex)
-            PollForSharedSurface();
+        PollForSharedSurface();
 
         // Doing GC on an ongoing basis is recommended for VR, to avoid weird stalls
         // at random times.
@@ -314,8 +302,6 @@ public class LaunchAndPlay : MonoBehaviour
     // We lock out the game side from Update until WaitForEndOfFrame, because
     // we might be drawing from the shared surface.
 
-    [DllImport("UnityNativePlugin64")]
-    private static extern bool ReleaseSetupMutex();
 
     private IEnumerator EndOfFrame()
     {
@@ -325,10 +311,6 @@ public class LaunchAndPlay : MonoBehaviour
         {
             yield return new WaitForEndOfFrame();
 
-            bool release = ReleaseSetupMutex();
-            debugprint("<- ReleaseSetupMutex, ownMutex=" + release);
-
-            ownMutex = false;
         }
     }
 
@@ -346,9 +328,6 @@ public class LaunchAndPlay : MonoBehaviour
 
         CloseFileMappedIPC();
 
-        ReleaseSetupMutex();
-        print("DestroySetupMutex");
-        DestroySetupMutex();
     }
 
     // -----------------------------------------------------------------------------

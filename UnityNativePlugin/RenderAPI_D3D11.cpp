@@ -414,13 +414,13 @@ bool RenderAPI_D3D11::GrabSetupMutex()
 	LogDebug(L"..>Katanga:GrabSetupMutex\n");
 
 	if (gSetupMutex == NULL)
-		FatalExit(L"Katanga:GrabSetupMutex called, but mutex does not exist.", GetLastError());
+		CreateSetupMutex();
 
 	// See if we can grab the mutex immediately.  Using 0 wait time, because
 	// we don't want to stall the drawing in the VR environment, we'll just
 	// draw grey screen if we are locked out.
 
-	DWORD wait = WaitForSingleObject(gSetupMutex, 0);
+	DWORD wait = WaitForSingleObject(gSetupMutex, 1000);
 	if (wait != WAIT_OBJECT_0)
 	{
 		DWORD hr = GetLastError();
@@ -570,56 +570,53 @@ int countDown = 10;
 ID3D11ShaderResourceView* RenderAPI_D3D11::CreateSharedSurface(HANDLE shared)
 {
 	Log(L"..Katanga:CreateSharedSurface called. shared:%p\n", shared);
-
-	if (shared == NULL) FatalExit(L"CreateSharedSurface called with NULL handle.\n", GetLastError());
-
-	// When called after a ResizeBuffers, we want to dispose the old.
-	if (pTexture2D != nullptr)
-		pTexture2D->Release();
-	if (pSRView != nullptr)
-		pSRView->Release();
-
-
-	HRESULT hr;
-	ID3D11Resource* resource;
-
-	hr = m_Device->OpenSharedResource(shared, __uuidof(ID3D11Resource), (void**)(&resource));
-	Log(L"....OpenSharedResource on shared: %p, result: %d, resource: %p\n", shared, hr, resource);
+	
+	GrabSetupMutex();
 	{
-		if (FAILED(hr)) FatalExit(L"Failed to open shared.", hr);
-		if (resource == nullptr) FatalExit(L"Failed to return shared.\n", hr);
+		if (shared == NULL) FatalExit(L"CreateSharedSurface called with NULL handle.\n", GetLastError());
 
-		// Even though the input shared surface is a RenderTarget Surface, this
-		// Query for Texture still works.  Not sure if it is good or bad.
-		hr = resource->QueryInterface(__uuidof(ID3D11Texture2D), (void**)(&pTexture2D));
-		Log(L"....QueryInterface on shared resource %p, result: %d\n", resource, hr);
-		if (FAILED(hr)) FatalExit(L"Failed to QueryInterface of ID3D11Texture2D.", hr);
+		HRESULT hr;
+		ID3D11Texture2D* resource;
 
-		// By capturing the Width/Height/Format here, we can let Unity side
-		// know what buffer to build to match.
-		D3D11_TEXTURE2D_DESC tdesc;
-		pTexture2D->GetDesc(&tdesc);
-		gWidth = tdesc.Width;
-		gHeight = tdesc.Height;
-		gFormat = tdesc.Format;
+		hr = m_Device->OpenSharedResource(shared, __uuidof(ID3D11Texture2D), (void**)(&resource));
+		Log(L"....OpenSharedResource on shared: %p, result: %d, resource: %p\n", shared, hr, resource);
+		{
+			if (FAILED(hr)) FatalExit(L"Failed to open shared.", hr);
+			if (resource == nullptr) FatalExit(L"Failed to return shared.\n", hr);
 
-		Log(L"....Successful CreateSharedSurface - Width: %d, Height: %d, Format: %d\n",
-			tdesc.Width, tdesc.Height, tdesc.Format);
+			// Even though the input shared surface is a RenderTarget Surface, this
+			// Query for Texture still works.  Not sure if it is good or bad.
+			hr = resource->QueryInterface(__uuidof(ID3D11Texture2D), (void**)(&pTexture2D));
+			Log(L"....QueryInterface on shared resource %p, result: %d\n", resource, hr);
+			if (FAILED(hr)) FatalExit(L"Failed to QueryInterface of ID3D11Texture2D.", hr);
+
+			// By capturing the Width/Height/Format here, we can let Unity side
+			// know what buffer to build to match.
+			D3D11_TEXTURE2D_DESC tdesc;
+			pTexture2D->GetDesc(&tdesc);
+			gWidth = tdesc.Width;
+			gHeight = tdesc.Height;
+			gFormat = tdesc.Format;
+
+			Log(L"....Successful CreateSharedSurface - Width: %d, Height: %d, Format: %d\n",
+				tdesc.Width, tdesc.Height, tdesc.Format);
+		}
+		//resource->Release();
+
+		// This is theoretically the exact same surface in the video card memory,
+		// that the game's DX11 is using as the stereo shared surface. 
+		//
+		// Now we need to create a ShaderResourceView using this, because that
+		// is what Unity requires for its CreateExternalTexture.
+		//
+		// No need to change description, we want it to be the same as what the game
+		// specifies, so passing NULL to make it identical.
+
+		hr = m_Device->CreateShaderResourceView(pTexture2D, NULL, &pSRView);
+		Log(L"....CreateShaderResourceView on texture: %p, result: %d, SRView: %p\n", pTexture2D, hr, pSRView);
+		if (FAILED(hr))	FatalExit(L"Failed to CreateShaderResourceView.", hr);
 	}
-	resource->Release();
-
-	// This is theoretically the exact same surface in the video card memory,
-	// that the game's DX11 is using as the stereo shared surface. 
-	//
-	// Now we need to create a ShaderResourceView using this, because that
-	// is what Unity requires for its CreateExternalTexture.
-	//
-	// No need to change description, we want it to be the same as what the game
-	// specifies, so passing NULL to make it identical.
-
-	hr = m_Device->CreateShaderResourceView(pTexture2D, NULL, &pSRView);
-	Log(L"....CreateShaderResourceView on texture: %p, result: %d, SRView: %p\n", pTexture2D, hr, pSRView);
-	if (FAILED(hr))	FatalExit(L"Failed to CreateShaderResourceView.", hr);
+	ReleaseSetupMutex();
 
 	return pSRView;
 }
