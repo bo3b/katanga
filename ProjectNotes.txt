@@ -836,3 +836,35 @@ Interesting idea:  Run 3D as alternating eyes for performance, but instead of re
  
 This could be the 2nd non-dominant eye being the one interpolated, which would only have errors during
 the fast pan times. And the errors are filled in with fuzz, so it's like a cross between fake 3D and real.
+
+
+8-2-20
+Just spent three days studying the hangs at game launch.  No complete answer, but after commenting out all
+of the actionable code in the game plugin, to where it simply creates the surface and never uses it for
+anything, it's fairly clear this is a Katanga specific hang.  
+
+Tried a motley assortment of sync techniques, including EnterCriticalSection, the SetupMutex from game
+side, not doing any dispose of data structures that were stale, not using the surface at all on the
+Katanga side.  Nothing made a difference at all.  
+
+Tried using the KeyedMutex- but didn't work either.  And I proved it has nothing to do with drawing in 
+any case, by removing the CopySubRegion in the game plugin.  So no sync necessary, because it's never
+in use.  Also tried using the debug layer by setting R9=0x03 at CreateDevice in Unity. This solved the 
+problem- but only by making it no longer appear.  No debug output ever showed.
+
+Had a very solid hang example/test case in TheSurge, but it just recently stopped hanging at all anymore.
+It's fairly obvious this is a race condition of some form, so somehow the race is not being hit now. And...
+just figured it out.  It's because I set the APP_COMPAT_SHIM=1 for Katanga profile with NVidia inspector.
+So that by itself is very strong evidence that the shim fixes it.  It looked fairly clear that this was
+a driver bug, leading to a hang in Katanga, waiting for an NTObject that never arrives.  Happened exactly
+inside the OpenSharedResource call, with no intervening steps.  Shouldn't happen, there is nothing multi-
+threaded in Katanga, it's a very simple app.  
+
+Tried doing a Context->Flush, but that did not solve the problem either.  Somehow, some other piece of the
+pipeline is busy or using something related to the shared surface, and hanging us up.  No idea how to clear
+that state to avoid this sort of thing.
+
+Answer is to use the APP_COMPAT_SHIM=1.  I'm going to remove all the other sync junk because all that did
+was to change the race condition, not solve it.  Would hang less, but still hang in cases.  We will set an
+Nvidia profile for Katanga with this flag set.
+
