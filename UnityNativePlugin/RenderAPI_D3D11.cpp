@@ -565,8 +565,6 @@ DXGI_FORMAT RenderAPI_D3D11::GetGameFormat()
 // https://msdn.microsoft.com/en-us/library/windows/desktop/ff476531(v=vs.85).aspx
 // https://msdn.microsoft.com/en-us/library/windows/desktop/ee913554(v=vs.85).aspx
 
-int countDown = 10;
-
 ID3D11ShaderResourceView* RenderAPI_D3D11::CreateSharedSurface(HANDLE shared)
 {
 	Log(L"..Katanga:CreateSharedSurface called. shared:%p\n", shared);
@@ -581,32 +579,24 @@ ID3D11ShaderResourceView* RenderAPI_D3D11::CreateSharedSurface(HANDLE shared)
 
 
 	HRESULT hr;
-	ID3D11Resource* resource;
 
-	hr = m_Device->OpenSharedResource(shared, __uuidof(ID3D11Resource), (void**)(&resource));
-	Log(L"....OpenSharedResource on shared: %p, result: %d, resource: %p\n", shared, hr, resource);
-	{
-		if (FAILED(hr)) FatalExit(L"Failed to open shared.", hr);
-		if (resource == nullptr) FatalExit(L"Failed to return shared.\n", hr);
+	// Even though the input shared surface is a RenderTarget Surface, this
+	// Query for Texture2D still works.  Not sure if it is good or bad.
+	hr = m_Device->OpenSharedResource(shared, __uuidof(ID3D11Texture2D), (void**)(&pTexture2D));
+	Log(L"....OpenSharedResource on shared: %p, result: %d, resource: %p\n", shared, hr, pTexture2D);
 
-		// Even though the input shared surface is a RenderTarget Surface, this
-		// Query for Texture still works.  Not sure if it is good or bad.
-		hr = resource->QueryInterface(__uuidof(ID3D11Texture2D), (void**)(&pTexture2D));
-		Log(L"....QueryInterface on shared resource %p, result: %d\n", resource, hr);
-		if (FAILED(hr)) FatalExit(L"Failed to QueryInterface of ID3D11Texture2D.", hr);
+	if (FAILED(hr) || (pTexture2D == nullptr)) FatalExit(L"Failed to open shared surface.", hr);
 
-		// By capturing the Width/Height/Format here, we can let Unity side
-		// know what buffer to build to match.
-		D3D11_TEXTURE2D_DESC tdesc;
-		pTexture2D->GetDesc(&tdesc);
-		gWidth = tdesc.Width;
-		gHeight = tdesc.Height;
-		gFormat = tdesc.Format;
+	// By capturing the Width/Height/Format here, we can let Unity side
+	// know what buffer to build to match.
+	D3D11_TEXTURE2D_DESC tdesc;
+	pTexture2D->GetDesc(&tdesc);
+	gWidth = tdesc.Width;
+	gHeight = tdesc.Height;
+	gFormat = tdesc.Format;
 
-		Log(L"....Successful CreateSharedSurface - Width: %d, Height: %d, Format: %d\n",
-			tdesc.Width, tdesc.Height, tdesc.Format);
-	}
-	resource->Release();
+	Log(L"....Successful GetDesc on surface - Width: %d, Height: %d, Format: %d\n",
+		tdesc.Width, tdesc.Height, tdesc.Format);
 
 	// This is theoretically the exact same surface in the video card memory,
 	// that the game's DX11 is using as the stereo shared surface. 
