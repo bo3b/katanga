@@ -571,14 +571,23 @@ ID3D11ShaderResourceView* RenderAPI_D3D11::CreateSharedSurface(HANDLE shared)
 {
 	Log(L"..Katanga:CreateSharedSurface called. shared:%p\n", shared);
 	
-	GrabSetupMutex();
+	//GrabSetupMutex();
 	{
 		if (shared == NULL) FatalExit(L"CreateSharedSurface called with NULL handle.\n", GetLastError());
 
-		HRESULT hr;
-		ID3D11Texture2D* resource;
 
-		hr = m_Device->OpenSharedResource(shared, __uuidof(ID3D11Texture2D), (void**)(&resource));
+		ID3D11DeviceContext* context;
+		m_Device->GetImmediateContext(&context);
+		context->ClearState();
+		context->Flush();
+		context->Release();
+
+		Log(L"Flush Immediate Context\n");
+
+		HRESULT hr;
+		ID3D11Resource* resource;
+
+		hr = m_Device->OpenSharedResource(shared, __uuidof(ID3D11Resource), (void**)(&resource));
 		Log(L"....OpenSharedResource on shared: %p, result: %d, resource: %p\n", shared, hr, resource);
 		{
 			if (FAILED(hr)) FatalExit(L"Failed to open shared.", hr);
@@ -616,7 +625,7 @@ ID3D11ShaderResourceView* RenderAPI_D3D11::CreateSharedSurface(HANDLE shared)
 		Log(L"....CreateShaderResourceView on texture: %p, result: %d, SRView: %p\n", pTexture2D, hr, pSRView);
 		if (FAILED(hr))	FatalExit(L"Failed to CreateShaderResourceView.", hr);
 	}
-	ReleaseSetupMutex();
+	//ReleaseSetupMutex();
 
 	return pSRView;
 }
