@@ -416,11 +416,10 @@ bool RenderAPI_D3D11::GrabSetupMutex()
 	if (gSetupMutex == NULL)
 		FatalExit(L"Katanga:GrabSetupMutex called, but mutex does not exist.", GetLastError());
 
-	// See if we can grab the mutex immediately.  Using 0 wait time, because
-	// we don't want to stall the drawing in the VR environment, we'll just
-	// draw grey screen if we are locked out.
+	// See if we can grab the mutex immediately.  Using 1000 wait time, if we ever
+	// hit that, we should fail out.  Goal is to sync with the game side.
 
-	DWORD wait = WaitForSingleObject(gSetupMutex, 0);
+	DWORD wait = WaitForSingleObject(gSetupMutex, 1000);
 	if (wait != WAIT_OBJECT_0)
 	{
 		DWORD hr = GetLastError();
