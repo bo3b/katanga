@@ -55,19 +55,19 @@ public class ControllerActions : MonoBehaviour
 
     private static float GetSizeX()
     {
-        return PlayerPrefs.GetFloat("size-x", 5.2f);
+        return PlayerPrefs.GetFloat("size-x", 3.556f);
     }
     private static float GetSizeY()
     {
-        return PlayerPrefs.GetFloat("size-y", -2.925f); // 16:9 ratio starting default
+        return PlayerPrefs.GetFloat("size-y", -2.0f);   // 16:9 ratio starting default
     }
     private static float GetScreenY()
     {
-        return PlayerPrefs.GetFloat("screen-y", 1.5f);
+        return PlayerPrefs.GetFloat("screen-y", 1.0f);
     }
     private static float GetScreenZ()
     {
-        return PlayerPrefs.GetFloat("screen-z", 3.0f);
+        return PlayerPrefs.GetFloat("screen-z", 2.5f);
     }
     private static float GetCurve()                     // divide by 10 for percentage
     {                                                   // bad original saved values in the field.
