@@ -563,8 +563,8 @@ HRESULT __stdcall Hooked_CreateCubeTexture(IDirect3DDevice9* This,
 	/* [in] */          HANDLE                *pSharedHandle)
 {
 #ifdef _DEBUG
-		LogInfo(L"GamePlugin::Hooked_CreateTexture - Levels: %d, Usage: %x, Format: %d, Pool: %d\n",
-			Levels, Usage, Format, Pool);
+	LogInfo(L"GamePlugin::Hooked_CreateTexture - Levels: %d, Usage: %x, Format: %d, Pool: %d\n",
+		Levels, Usage, Format, Pool);
 #endif
 
 	// Force Managed_Pool to always be default, the only possibility on DX9Ex.
@@ -582,6 +582,119 @@ HRESULT __stdcall Hooked_CreateCubeTexture(IDirect3DDevice9* This,
 		ppCubeTexture, pSharedHandle);
 	if (FAILED(hr))
 		LogInfo(L"Failed to call pOrigCreateCubeTexture\n");
+
+	return hr;
+}
+
+//-----------------------------------------------------------
+// Interface to implement the hook for IDirect3DDevice9->CreateVolumeTexture
+//
+// We know this one is necessary for sure in Left4Dead2.  Found via the DX9
+// debug layer on Windows 7.  Missed it before, leading to bad graphics.
+
+// This declaration serves a dual purpose of defining the interface routine as required by
+// DX9, and also is the storage for the original call, returned by nktInProc.Hook
+
+HRESULT(__stdcall *pOrigCreateVolumeTexture)(IDirect3DDevice9* This,
+	UINT                    Width,
+	UINT                    Height,
+	UINT                    Depth,
+	UINT                    Levels,
+	DWORD                   Usage,
+	D3DFORMAT               Format,
+	D3DPOOL                 Pool,
+	IDirect3DVolumeTexture9 **ppVolumeTexture,
+	HANDLE                  *pSharedHandle
+	) = nullptr;
+
+// We need to implement a hook on CreateCubeTexture, because the game
+// will create this after we return the IDirect3DDevice9Ex Device,
+// and the debug layer crashes with:
+// Direct3D9: (ERROR) : D3DPOOL_MANAGED is not valid with IDirect3DDevice9Ex
+// Then:
+// Direct3D9: (ERROR) :Lock is not supported for textures allocated with POOL_DEFAULT unless they are marked D3DUSAGE_DYNAMIC.
+
+HRESULT __stdcall Hooked_CreateVolumeTexture(IDirect3DDevice9* This,
+	UINT                    Width,
+	UINT                    Height,
+	UINT                    Depth,
+	UINT                    Levels,
+	DWORD                   Usage,
+	D3DFORMAT               Format,
+	D3DPOOL                 Pool,
+	IDirect3DVolumeTexture9 **ppVolumeTexture,
+	HANDLE                  *pSharedHandle)
+{
+#ifdef _DEBUG
+	LogInfo(L"GamePlugin::Hooked_CreateVolumeTexture - Levels: %d, Usage: %x, Format: %d, Pool: %d\n",
+		Levels, Usage, Format, Pool);
+#endif
+
+	// Force Managed_Pool to always be default, the only possibility on DX9Ex.
+	// D3DPOOL_SYSTEMMEM is still valid however, and should not be tweaked.
+	if (Pool == D3DPOOL_MANAGED)
+		Pool = D3DPOOL_DEFAULT;
+
+	// Any texture not used as RenderTarget or as a DepthStencil needs to be
+	// made dynamic, otherwise we get a POOL_DEFAULT error.
+	int renderOrStencil = Usage & (D3DUSAGE_RENDERTARGET | D3DUSAGE_DEPTHSTENCIL);
+	if (!renderOrStencil)
+		Usage |= D3DUSAGE_DYNAMIC;
+
+	HRESULT hr = pOrigCreateVolumeTexture(This, Width, Height, Depth, Levels, Usage, Format, Pool,
+		ppVolumeTexture, pSharedHandle);
+	if (FAILED(hr))
+		LogInfo(L"Failed call to pOrigCreateVolumeTexture\n");
+
+	return hr;
+}
+
+//-----------------------------------------------------------
+// Interface to implement the hook for IDirect3DDevice9->CreateOffscreenPlainSurface
+//
+// Not known to be necessary, but we know for sure that D3DPOOL must be Dynamic in
+// DX9Ex, so let's make that happen here too. Could be responsible for game glitches
+// that we have not tested under Debug Layer.
+
+// This declaration serves a dual purpose of defining the interface routine as required by
+// DX9, and also is the storage for the original call, returned by nktInProc.Hook
+
+HRESULT(__stdcall *pOrigCreateOffscreenPlainSurface)(IDirect3DDevice9* This,
+	UINT              Width,
+	UINT              Height,
+	D3DFORMAT         Format,
+	D3DPOOL           Pool,
+	IDirect3DSurface9 **ppSurface,
+	HANDLE            *pSharedHandle
+	) = nullptr;
+
+// We need to implement a hook on CreateOffscreenPlainSurface, because the game
+// will create this after we return the IDirect3DDevice9Ex Device,
+// and the debug layer crashes with:
+// Direct3D9: (ERROR) : D3DPOOL_MANAGED is not valid with IDirect3DDevice9Ex
+
+HRESULT __stdcall Hooked_CreateOffscreenPlainSurface(IDirect3DDevice9* This,
+	UINT              Width,
+	UINT              Height,
+	D3DFORMAT         Format,
+	D3DPOOL           Pool,
+	IDirect3DSurface9 **ppSurface,
+	HANDLE            *pSharedHandle)
+{
+#ifdef _DEBUG
+	LogInfo(L"GamePlugin::Hooked_CreateOffscreenPlainSurface - Width: %d, Height: %x, Format: %d, Pool: %d\n",
+		Width, Height, Format, Pool);
+#endif
+
+	// Force Managed_Pool to always be default, the only possibility on DX9Ex.
+	// D3DPOOL_SYSTEMMEM is still valid however, and should not be tweaked.
+	if (Pool == D3DPOOL_MANAGED)
+		Pool = D3DPOOL_DEFAULT;
+
+	HRESULT hr = pOrigCreateOffscreenPlainSurface(This, Width, Height, Format, Pool,
+		ppSurface, pSharedHandle);
+	if (FAILED(hr))
+		LogInfo(L"Failed to call pOrigCreateOffscreenPlainSurface\n");
 
 	return hr;
 }
@@ -750,8 +863,8 @@ HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 		// Direct3D9: (WARN) : Device that was created without D3DCREATE_MULTITHREADED is being used by a thread other than the creation thread.
 		// Also- this warning happens in TheBall, when run with only the debug layer. Not our fault.
 		// But, we are doing multithreaded StretchRect now, so let's add this.  Otherwise we get a
-		// a crash.  Not certain this is best, said to slow things down.
-		//BehaviorFlags |= D3DCREATE_MULTITHREADED;
+		// a crash.  Not certain this is best, said to slow things down.  But removes warnings in debug layer.
+		BehaviorFlags |= D3DCREATE_MULTITHREADED;
 
 		// Run original call game is expecting.
 		// This will return a IDirect3DDevice9Ex variant regardless, but using the original
@@ -793,6 +906,16 @@ HRESULT __stdcall Hooked_CreateDevice(IDirect3D9* This,
 				lpvtbl_CreateCubeTexture(pDevice9), Hooked_CreateCubeTexture, 0);
 			if (FAILED(dwOsErr))
 				LogInfo(L"Failed to hook IDirect3DDevice9::CreateCubeTexture\n");
+
+			dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigCreateVolumeTexture,
+				lpvtbl_CreateVolumeTexture(pDevice9), Hooked_CreateVolumeTexture, 0);
+			if (FAILED(dwOsErr))
+				LogInfo(L"Failed to hook IDirect3DDevice9::CreateVolumeTexture\n");
+
+			dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigCreateOffscreenPlainSurface,
+				lpvtbl_CreateOffscreenPlainSurface(pDevice9), Hooked_CreateOffscreenPlainSurface, 0);
+			if (FAILED(dwOsErr))
+				LogInfo(L"Failed to hook IDirect3DDevice9::CreateOffscreenPlainSurface\n");
 
 			dwOsErr = nktInProc.Hook(&hook_id, (void**)&pOrigCreateVertexBuffer,
 				lpvtbl_CreateVertexBuffer(pDevice9), Hooked_CreateVertexBuffer, 0);

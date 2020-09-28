@@ -101,6 +101,8 @@ Status::Enum FindAndHookDX11Present();
 extern "C" LPVOID lpvtbl_CreateDevice(IDirect3D9* pDX9);
 extern "C" LPVOID lpvtbl_CreateTexture(IDirect3DDevice9* pDX9Device);
 extern "C" LPVOID lpvtbl_CreateCubeTexture(IDirect3DDevice9* pDX9Device);
+extern "C" LPVOID lpvtbl_CreateVolumeTexture(IDirect3DDevice9* pDX9Device);
+extern "C" LPVOID lpvtbl_CreateOffscreenPlainSurface(IDirect3DDevice9* pDX9Device);
 extern "C" LPVOID lpvtbl_CreateVertexBuffer(IDirect3DDevice9* pDX9Device);
 extern "C" LPVOID lpvtbl_CreateIndexBuffer(IDirect3DDevice9* pDX9Device);
 extern "C" LPVOID lpvtbl_DrawIndexedPrimitiveUP(IDirect3DDevice9* pDX9Device);

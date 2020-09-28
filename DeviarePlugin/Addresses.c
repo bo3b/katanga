@@ -88,6 +88,22 @@ LPVOID lpvtbl_CreateCubeTexture(IDirect3DDevice9* pDX9Device)
 	return pDX9Device->lpVtbl->CreateCubeTexture;
 }
 
+LPVOID lpvtbl_CreateVolumeTexture(IDirect3DDevice9* pDX9Device)
+{
+	if (!pDX9Device)
+		return NULL;
+
+	return pDX9Device->lpVtbl->CreateVolumeTexture;
+}
+
+LPVOID lpvtbl_CreateOffscreenPlainSurface(IDirect3DDevice9* pDX9Device)
+{
+	if (!pDX9Device)
+		return NULL;
+
+	return pDX9Device->lpVtbl->CreateOffscreenPlainSurface;
+}
+
 LPVOID lpvtbl_CreateVertexBuffer(IDirect3DDevice9* pDX9Device)
 {
 	if (!pDX9Device)
