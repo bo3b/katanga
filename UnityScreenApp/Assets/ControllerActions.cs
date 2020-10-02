@@ -267,11 +267,20 @@ public class ControllerActions : MonoBehaviour
     {
         while (true)
         {
-            stereoScreen.transform.Translate(new Vector3(0, 0, delta));
+            Vector3 translate = new Vector3(0, 0, delta);
 
-            PlayerPrefs.SetFloat("screen-z", stereoScreen.transform.localPosition.z);
+            Vector3 localPosition = stereoScreen.transform.localPosition;
+            localPosition += translate;
 
-            print("Screen zoom: " + stereoScreen.transform.localPosition.z);
+            // Cap the screen moving at a maximum to avoid flyaway problems
+            if (localPosition.z > 0.5 && localPosition.z < 8.0)
+            {
+                stereoScreen.transform.localPosition = localPosition;
+
+                PlayerPrefs.SetFloat("screen-z", stereoScreen.transform.localPosition.z);
+
+                print("Screen zoom: " + stereoScreen.transform.localPosition.z);
+            }
 
             yield return new WaitForSeconds(wait);
         }
@@ -331,23 +340,31 @@ public class ControllerActions : MonoBehaviour
     // However, when moving, we might be moving a 4:3 or 25:9 screen, and we want them to be
     // able to see that live, like normal, so the actual move operation will be based off of
     // whatever the current game is running at.
+    //
+    // But, the screen must maintain the aspect ratio of 16:9, so for each 1m in X, we'll
+    // change 9/16m in Y.  The unintuitive negative for Y is because Unity uses the OpenGL
+    // layout, and Y is inverted.
 
     IEnumerator SizingScreen(float delta)
     {
         while (true)
         {
-            // But, the screen must maintain the aspect ratio of 16:9, so for each 1m in X, we'll
-            // change 9/16m in Y.  The unintuitive negative for Y is because Unity uses the OpenGL
-            // layout, and Y is inverted.
-            float dX = delta;
-            float dY = -(delta * 9f / 16f);
-            PlayerPrefs.SetFloat("size-x", stereoScreen.transform.localScale.x);
-            PlayerPrefs.SetFloat("size-y", stereoScreen.transform.localScale.y);
+            float dY = delta;
+            float dX = dY * LaunchAndPlay.gameAspectRatio;
 
-            print("Screen size x,y: " + stereoScreen.transform.localScale.x + "," + stereoScreen.transform.localScale.y);
+            Vector3 scale = stereoScreen.transform.localScale;
+            scale += new Vector3(dX, -dY);
 
-            dX = -dY * LaunchAndPlay.gameAspectRatio;
-            stereoScreen.transform.localScale += new Vector3(dX, dY);
+            // Cap the screen scaling at a maximum to avoid flyaway problems
+            if (scale.x > 1.0 && scale.x < 10.0)
+            {
+                stereoScreen.transform.localScale = scale;
+
+                PlayerPrefs.SetFloat("size-x", stereoScreen.transform.localScale.x);
+                PlayerPrefs.SetFloat("size-y", stereoScreen.transform.localScale.y);
+
+                print("Screen size x,y: " + stereoScreen.transform.localScale.x + "," + stereoScreen.transform.localScale.y);
+            }
 
             yield return new WaitForSeconds(wait);
         }
@@ -563,11 +580,18 @@ public class ControllerActions : MonoBehaviour
     {
         while (true)
         {
-            stereoScreen.transform.Translate(new Vector3(0, delta));
+            Vector3 location = stereoScreen.transform.localPosition;
+            location.y += delta;
 
-            PlayerPrefs.SetFloat("screen-y", stereoScreen.transform.localPosition.y);
+            // Cap the screen translation at a maximum of 3.5 to avoid flyaway problems
+            if (location.y > -3.5 && location.y < 3.5)
+            {
+                stereoScreen.transform.localPosition = location;
 
-            print("Screen height: " + stereoScreen.transform.localPosition.y);
+                PlayerPrefs.SetFloat("screen-y", stereoScreen.transform.localPosition.y);
+
+                print("Screen height: " + stereoScreen.transform.localPosition.y);
+            }
 
             yield return new WaitForSeconds(wait);
         }
