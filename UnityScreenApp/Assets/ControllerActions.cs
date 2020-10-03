@@ -851,15 +851,21 @@ public class ControllerActions : MonoBehaviour
         }
     }
 
+    // Rather than hide this, and thus make it hard to find again, let's just rotate
+    // it all the way behind the user.  This rotates a container surrounding the billboard.
+
     private void UpdateBillboard()
     {
         int state = GetKeyHints();
+        Vector3 angles = billboard.transform.eulerAngles;
 
         if (state == 1)
-            billboard.SetActive(true);
+            angles.y = -180;    // On the left
         else
-            billboard.SetActive(false);
+            angles.y = 90;      // directly behind
 
+        billboard.transform.eulerAngles = angles;
+        
         print("Hint state: " + state);
     }
 
