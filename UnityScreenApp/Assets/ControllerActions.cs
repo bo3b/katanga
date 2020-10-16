@@ -860,9 +860,9 @@ public class ControllerActions : MonoBehaviour
         Vector3 angles = billboard.transform.eulerAngles;
 
         if (state == 1)
-            angles.y = -180;    // On the left
+            angles.y = -10;     // On the left
         else
-            angles.y = 90;      // directly behind
+            angles.y = -90;     // directly behind
 
         billboard.transform.eulerAngles = angles;
         
