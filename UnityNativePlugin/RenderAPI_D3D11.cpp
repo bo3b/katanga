@@ -393,9 +393,6 @@ void RenderAPI_D3D11::CreateSetupMutex()
 {
 	Log(L"\n..Katanga:CreateSetupMutex--> ");
 
-	if (gSetupMutex != NULL)
-		FatalExit(L"Katanga:CreateSetupMutex called, but already created.", GetLastError());
-
 	gSetupMutex = CreateMutex(NULL, false, L"KatangaSetupMutex");
 	if (gSetupMutex == NULL)
 	{

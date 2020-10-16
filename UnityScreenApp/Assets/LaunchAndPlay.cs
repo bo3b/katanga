@@ -347,6 +347,7 @@ public class LaunchAndPlay : MonoBehaviour
         CloseFileMappedIPC();
 
         ReleaseSetupMutex();
+
         print("DestroySetupMutex");
         DestroySetupMutex();
     }
@@ -438,8 +439,10 @@ public class LaunchAndPlay : MonoBehaviour
 
     static void debugprint(object message)
     {
+#if !UNITY_EDITOR
         if (Debug.isDebugBuild)
             print(message);
+#endif
     }
 
     // -----------------------------------------------------------------------------
