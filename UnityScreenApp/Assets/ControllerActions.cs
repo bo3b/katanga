@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Threading;
 using UnityEngine;
 using Valve.VR;
 using Valve.VR.InteractionSystem;
@@ -893,6 +894,9 @@ public class ControllerActions : MonoBehaviour
 
             // Reset the environment like at launch.
             Start();
+
+            // Small delay to avoid hammering this routine for multiple frames.
+            Thread.Sleep(100);
         }
     }
 
