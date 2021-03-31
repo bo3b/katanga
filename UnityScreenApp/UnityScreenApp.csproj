@@ -270,6 +270,23 @@
     <Compile Include="Assets\LowLevelKeyboardListener.cs" />
     <Compile Include="Assets\PRISM.Sharpen\PrismSharpen.cs" />
     <Compile Include="Assets\SlideShow.cs" />
+    <Compile Include="Assets\uDesktopDuplication\Examples\Scripts\BufferExample.cs" />
+    <Compile Include="Assets\uDesktopDuplication\Examples\Scripts\DisplacementMapping.cs" />
+    <Compile Include="Assets\uDesktopDuplication\Examples\Scripts\GazePointAnalyzer.cs" />
+    <Compile Include="Assets\uDesktopDuplication\Examples\Scripts\GetPixelsExample.cs" />
+    <Compile Include="Assets\uDesktopDuplication\Examples\Scripts\Loupe.cs" />
+    <Compile Include="Assets\uDesktopDuplication\Examples\Scripts\MultipleMonitorAnalyzer.cs" />
+    <Compile Include="Assets\uDesktopDuplication\Examples\Scripts\MultipleMonitorCreator.cs" />
+    <Compile Include="Assets\uDesktopDuplication\Examples\Scripts\MultipleMonitorLayouter.cs" />
+    <Compile Include="Assets\uDesktopDuplication\Examples\Scripts\MultipleMonitorRoundLayouter.cs" />
+    <Compile Include="Assets\uDesktopDuplication\Examples\Scripts\RaycastExample.cs" />
+    <Compile Include="Assets\uDesktopDuplication\Examples\Scripts\ToggleMonitors.cs" />
+    <Compile Include="Assets\uDesktopDuplication\Examples\Scripts\UddSceneManager.cs" />
+    <Compile Include="Assets\uDesktopDuplication\Scripts\Lib.cs" />
+    <Compile Include="Assets\uDesktopDuplication\Scripts\Manager.cs" />
+    <Compile Include="Assets\uDesktopDuplication\Scripts\Monitor.cs" />
+    <Compile Include="Assets\uDesktopDuplication\Scripts\Texture.cs" />
+    <Compile Include="Assets\uDesktopDuplication\Scripts\Utility.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Assets\PRISM.Sharpen\Shaders\PrismSharpen.cginc" />
@@ -285,6 +302,13 @@
     <None Include="Assets\SteamVR\link.xml" />
     <None Include="Assets\SteamVR\readme.txt" />
     <None Include="Assets\sbsShader.shader" />
+    <None Include="Assets\uDesktopDuplication\Shaders\uDD_Common.cginc" />
+    <None Include="Assets\uDesktopDuplication\Shaders\uDD_Params.cginc" />
+    <None Include="Assets\uDesktopDuplication\Shaders\uDD_Standard.shader" />
+    <None Include="Assets\uDesktopDuplication\Shaders\uDD_Unlit.shader" />
+    <None Include="Assets\uDesktopDuplication\Shaders\uDD_Unlit_BlackMask.shader" />
+    <None Include="Assets\uDesktopDuplication\Shaders\uDD_Unlit_Displacement.shader" />
+    <None Include="Assets\uDesktopDuplication\Shaders\uDD_Unlit_Transparent.shader" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Target Name="GenerateTargetFrameworkMonikerAttribute" />

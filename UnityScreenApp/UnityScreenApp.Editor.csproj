@@ -317,6 +317,8 @@
   <ItemGroup>
     <Compile Include="Assets\Editor\CreatePlane.cs" />
     <Compile Include="Assets\Editor\ReleaseBuild.cs" />
+    <Compile Include="Assets\uDesktopDuplication\Editor\TextureEditor.cs" />
+    <Compile Include="Assets\uDesktopDuplication\Editor\Utils.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Assets\PRISM.Sharpen\Shaders\PrismSharpen.cginc" />
@@ -332,6 +334,13 @@
     <None Include="Assets\SteamVR\link.xml" />
     <None Include="Assets\SteamVR\readme.txt" />
     <None Include="Assets\sbsShader.shader" />
+    <None Include="Assets\uDesktopDuplication\Shaders\uDD_Common.cginc" />
+    <None Include="Assets\uDesktopDuplication\Shaders\uDD_Params.cginc" />
+    <None Include="Assets\uDesktopDuplication\Shaders\uDD_Standard.shader" />
+    <None Include="Assets\uDesktopDuplication\Shaders\uDD_Unlit.shader" />
+    <None Include="Assets\uDesktopDuplication\Shaders\uDD_Unlit_BlackMask.shader" />
+    <None Include="Assets\uDesktopDuplication\Shaders\uDD_Unlit_Displacement.shader" />
+    <None Include="Assets\uDesktopDuplication\Shaders\uDD_Unlit_Transparent.shader" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Target Name="GenerateTargetFrameworkMonikerAttribute" />
