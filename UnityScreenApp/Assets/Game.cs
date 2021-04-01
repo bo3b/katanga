@@ -39,6 +39,12 @@ public class Game : MonoBehaviour
     // Starting working directory for Unity app.
     string katanga_directory;
 
+    // Only set if we find --slideshow-mode on the command line.
+    bool slideshowMode = false;
+
+    // Only set if we have no input params, to show desktop duplication.
+    bool desktopMode = false;
+
     // Absolute file path to the executable of the game. We use this path to start the game.
     string gamePath;
 
@@ -115,12 +121,19 @@ public class Game : MonoBehaviour
     // Full path to Steam.exe     --steam-path:
     // Game SteamAppID            --steam-appid:
     // Epic Game Store AppID      --epic-appid:
+    //
+    // Show slide show            --slideshow-mode
 
-    public bool ParseGameArgs(string[] args)
+    public void ParseGameArgs(string[] args)
     {
         for (int i = 1; i < args.Length; i++)
         {
-            if (args[i] == "--game-path")
+            if (args[i] == "--slideshow-mode")
+            {
+                slideshowMode = true;
+                return;
+            }
+            else if (args[i] == "--game-path")
             {
                 i++;
                 gamePath = args[i];
@@ -239,6 +252,10 @@ public class Game : MonoBehaviour
         // If they didn't pass a --game-path argument, then bring up the GetOpenFileName
         // dialog to let them choose. More for testing, not a usual path.  In the C++ SelectGameDialog
         // it will check if Ctrl key is held down and return null if not.
+        //
+        // If we have no params input, and they don't hold down Ctrl for the selector, that's going
+        // to be the no-params launch, and we want to let it remain in uDesktopDuplication mode.
+
         if (String.IsNullOrEmpty(gamePath) && String.IsNullOrEmpty(waitForExe))
         {
             // Ask user to select the game to run in virtual 3D.  
@@ -250,15 +267,16 @@ public class Game : MonoBehaviour
             SelectGameDialog(sb, sb.Capacity);
 
             if (sb.Length == 0)
-                return true;   // Demo launch
+            {
+                desktopMode = true;
+                return;             // desktop duplication launch if they cancel selecting.
+            }
 
             gamePath = sb.ToString();
             displayName = gamePath.Substring(gamePath.LastIndexOf('\\') + 1);
             launchType = LaunchType.DX11Exe;
             print("Manual launch of: " + gamePath);
         }
-
-        return false;    // Normal VR launch.
     }
 
     // -----------------------------------------------------------------------------
@@ -268,6 +286,15 @@ public class Game : MonoBehaviour
         return displayName;
     }
 
+    public bool SlideShowMode()
+    {
+        return slideshowMode;
+    }
+
+    public bool DesktopMode()
+    {
+        return desktopMode;
+    }
 
     // -----------------------------------------------------------------------------
 

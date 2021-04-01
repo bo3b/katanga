@@ -67,25 +67,51 @@ public class LaunchAndPlay : MonoBehaviour
 
     // -----------------------------------------------------------------------------
 
+    // Three launch modes:
+    // 1) No params on input, show Desktop Duplicator. (Texture.cs on StereoScreen)
+    // 2) Single param of --slideshow-mode show slides mode. (SlideShow.cs subclass of Game, on Player)
+    // 3) Multiple params specify game to connect normally. (Game.cs on Player)
+    //
+    // The uDesktopDuplication is attached to the Stereoscreen object, and will
+    // automatically run at launch.  We will check here first, and if we have
+    // a no-params launch, we'll let that run as the way to see the desktop in VR.
+    // If we have a --slideshow-mode or normal VR launch, we'll disable the uDesktopDuplication
+    // so that it does not interfere or waste any GPU cycles.
+
     void Start()
     {
         print("Start: Command line arguments: " + System.Environment.CommandLine);
-
-        game = GetComponent<Game>();
-
-        // If empty arg list (only single arg of unity.exe), we want to run slideshow demo.  
         string[] args = System.Environment.GetCommandLineArgs();
-        demoMode = game.ParseGameArgs(args);
 
-        if (demoMode)
+        // Store the current Texture2D on the Quad as the original grey. We use this
+        // as the default when images stop arriving, or we lose the original.
+        greyTexture = screenRenderer.material.mainTexture;
+
+        // Default assumption is normal VR game connection.
+        game = GetComponent<Game>();
+        game.ParseGameArgs(args);
+
+
+        // If we wound up with no input params, then this is the DesktopDuplicator mode,
+        // which is already set to run on the StereoScreen object via Texture.cs.
+        // The script is disabled by default to avoid interfering, so we can activate
+        // it here.
+        if (game.DesktopMode())
+        {
+            print("** Running as Desktop Duplication **");
+            uDesktopDuplication.Texture script = screenRenderer.GetComponent<uDesktopDuplication.Texture>();
+            script.enabled = true;      // Texture.cs is live
+            enabled = false;            // LaunchAndPlay.cs is off
+            return;
+        }
+
+        // If we are setup for Demo/SlideShow mode, we can replace the game object and
+        // use the SlideShow subclass to just show screenshots.
+        if (game.SlideShowMode())
         {
             game = GetComponent<SlideShow>();
             print("** Running as Demo Slideshow **");
         }
-      
-        // Store the current Texture2D on the Quad as the original grey. We use this
-        // as the default when images stop arriving, or we lose the original.
-        greyTexture = screenRenderer.material.mainTexture;
 
         // With the game properly selected, add name to the big screen as info on launch.
         infoText.text = "Launching...\n\n" + game.DisplayName();
