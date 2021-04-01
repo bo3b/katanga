@@ -9046,6 +9046,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fed100669b400f84a9a4e840472f0eab, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  shader2D: {fileID: 4800000, guid: 5c136363038ff50438135b2ff1c05e1f, type: 3}
   screenRenderer: {fileID: 265114122}
   infoText: {fileID: 2070569918}
 --- !u!114 &1751585948
