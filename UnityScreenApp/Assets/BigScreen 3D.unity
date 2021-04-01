@@ -3743,6 +3743,7 @@ GameObject:
   - component: {fileID: 265114121}
   - component: {fileID: 265114122}
   - component: {fileID: 265114120}
+  - component: {fileID: 265114123}
   m_Layer: 0
   m_Name: StereoScreen
   m_TagString: Untagged
@@ -3861,6 +3862,22 @@ MeshRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
+--- !u!114 &265114123
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  m_GameObject: {fileID: 265114118}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bb54a34570e4747429b1c5b66c69d356, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  invertX_: 0
+  invertY_: 0
+  useClip_: 0
+  clipPos: {x: 0, y: 0}
+  clipScale: {x: 0.2, y: 0.2}
 --- !u!1 &359638643
 GameObject:
   m_ObjectHideFlags: 0

@@ -127,7 +127,8 @@ public class Texture : MonoBehaviour
     {
         get 
         {
-            return material.GetInt("_Bend") != 0;
+//            return material.GetInt("_Bend") != 0;
+            return false;
         }
         set 
         {
@@ -150,7 +151,8 @@ public class Texture : MonoBehaviour
     {
         get 
         {
-            return (MeshForwardDirection)material.GetInt("_Forward");
+//            return (MeshForwardDirection)material.GetInt("_Forward");
+            return MeshForwardDirection.Z;
         }
         set 
         {
@@ -179,7 +181,8 @@ public class Texture : MonoBehaviour
     {
         get 
         {
-            return (Culling)material.GetInt("_Cull");
+//            return (Culling)material.GetInt("_Cull");
+            return Culling.Off;
         }
         set 
         {
@@ -189,20 +192,26 @@ public class Texture : MonoBehaviour
 
     public float radius
     {
-        get { return material.GetFloat("_Radius"); }
-        set { material.SetFloat("_Radius", value); }
+        //get { return material.GetFloat("_Radius"); }
+        //set { material.SetFloat("_Radius", value); }
+        get { return 0; }
+        set { }
     }
 
     public float width
     {
-        get { return material.GetFloat("_Width"); }
-        set { material.SetFloat("_Width", value); }
+        //get { return material.GetFloat("_Width"); }
+        //set { material.SetFloat("_Width", value); }
+        get { return 0; }
+        set { }
     }
 
     public float thickness
     {
-        get { return material.GetFloat("_Thickness"); }
-        set { material.SetFloat("_Thickness", value); }
+        //get { return material.GetFloat("_Thickness"); }
+        //set { material.SetFloat("_Thickness", value); }
+        get { return 0; }
+        set { }
     }
 
     Material material_;
