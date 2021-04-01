@@ -13,11 +13,13 @@ public class LaunchAndPlay : MonoBehaviour
     // For multipoint logging, including native C++ plugins/
     private static FileStream m_FileStream;
 
-    public static bool demoMode = false;
-
     // Game object that handles launching and communicating with the running game.
     // If launched with no arguments, will be SlideShow.
     Game game;
+
+    // Reference to the 2D shader for DesktopDuplication use.  Connected in Unity
+    // Inspector.  Needs to have a reference, otherwise builds are missing this shader.
+    public Shader shader2D;
 
     // Primary Texture received from game as shared ID3D11ShaderResourceView
     // It automatically updates as the injected DLL copies the bits into the
@@ -100,8 +102,9 @@ public class LaunchAndPlay : MonoBehaviour
         {
             print("** Running as Desktop Duplication **");
             uDesktopDuplication.Texture script = screenRenderer.GetComponent<uDesktopDuplication.Texture>();
-            script.enabled = true;      // Texture.cs is live
-            enabled = false;            // LaunchAndPlay.cs is off
+            screenRenderer.material.shader = shader2D;  // Switch shader to 2D version.
+            script.enabled = true;                      // Texture.cs is live
+            enabled = false;                            // LaunchAndPlay.cs is off
             return;
         }
 
