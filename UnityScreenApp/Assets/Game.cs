@@ -40,7 +40,7 @@ public class Game : MonoBehaviour
     string katanga_directory;
 
     // Only set if we find --slideshow-mode on the command line.
-    bool slideshowMode = false;
+    public static bool slideshowMode = false;
 
     // Only set if we have no input params, to show desktop duplication.
     bool desktopMode = false;

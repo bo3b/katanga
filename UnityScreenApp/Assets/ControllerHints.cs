@@ -157,11 +157,11 @@ namespace Valve.VR.InteractionSystem.Sample
 
                     // If we are demo/slideshow mode, we want to add the help for pause/skip.
                     case "PauseAction":
-                        if (LaunchAndPlay.demoMode)
+                        if (Game.slideshowMode)
                             ControllerButtonHints.ShowTextHint(rightHand, action, "Pause Slideshow");
                         break;
                     case "SkipAction":
-                        if (LaunchAndPlay.demoMode)
+                        if (Game.slideshowMode)
                             ControllerButtonHints.ShowTextHint(leftHand, action, "Next Slide");
                         break;
 

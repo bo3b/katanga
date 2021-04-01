@@ -85,7 +85,7 @@ public class ControllerActions : MonoBehaviour
     private static int GetFloor()
     {
         // In DemoMode, Snow Less, normal game mode, Snow Off (for performance)
-        int defaultEnvironment = LaunchAndPlay.demoMode ? 1 : 2;
+        int defaultEnvironment = Game.slideshowMode ? 1 : 2;
 
         // Returns default or retrieves user setting if they change it.
         return PlayerPrefs.GetInt("floor", defaultEnvironment);
