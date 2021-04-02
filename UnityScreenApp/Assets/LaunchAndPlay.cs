@@ -319,8 +319,15 @@ public class LaunchAndPlay : MonoBehaviour
         if (Time.frameCount % 30 == 0)
             System.GC.Collect();
 
+        // On game exit, we want to switch to DesktopDuplication view, rather than exit.
         if (game.Exited())
-            Quit();
+        {
+            debugprint("Showing desktop view.");
+            uDesktopDuplication.Texture script = screenRenderer.GetComponent<uDesktopDuplication.Texture>();
+            screenRenderer.material.shader = shader2D;  // Switch shader to 2D version.
+            script.enabled = true;                      // Texture.cs is live
+            enabled = false;                            // LaunchAndPlay.cs is off
+        }
     }
 
 
