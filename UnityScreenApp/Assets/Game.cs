@@ -122,15 +122,17 @@ public class Game : MonoBehaviour
     // Game SteamAppID            --steam-appid:
     // Epic Game Store AppID      --epic-appid:
     //
-    // Show slide show            --slideshow-mode
+    // Show desktop in 2D         --show-desktop
+    //
+    // Empty param list means show slideshow.
 
     public void ParseGameArgs(string[] args)
     {
         for (int i = 1; i < args.Length; i++)
         {
-            if (args[i] == "--slideshow-mode")
+            if (args[i] == "--show-desktop")
             {
-                slideshowMode = true;
+                desktopMode = true;
                 return;
             }
             else if (args[i] == "--game-path")
@@ -266,10 +268,12 @@ public class Game : MonoBehaviour
             StringBuilder sb = new StringBuilder("", MAX_PATH);
             SelectGameDialog(sb, sb.Capacity);
 
+            // slide show mode if they cancel selecting, or empty params. So a double-click
+            // on Katanga is by default showing slide show.
             if (sb.Length == 0)
             {
-                desktopMode = true;
-                return;             // desktop duplication launch if they cancel selecting.
+                slideshowMode = true;
+                return;           
             }
 
             gamePath = sb.ToString();
