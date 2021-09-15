@@ -4,7 +4,6 @@ using System.IO;
 using System.Runtime.InteropServices;
 using UnityEngine;
 using UnityEngine.UI;
-using Valve.VR;
 
 // This is a subclass of the Game object.  Game object is setup to inject into and run
 // a given game specified by the input arguments.  
@@ -13,10 +12,10 @@ using Valve.VR;
 // big screen.  Same basic principle, run a game, except that there the 'game' is just
 // the slideshow.
 
-public class SlideShow : Game
+public class SlideShow : MonoBehaviour
 {
-    public SteamVR_Action_Boolean pauseAction;
-    public SteamVR_Action_Boolean skipAction;
+    //public SteamVR_Action_Boolean pauseAction;
+    //public SteamVR_Action_Boolean skipAction;
 
     public Renderer screen;
     public Text infoText;
@@ -33,16 +32,16 @@ public class SlideShow : Game
 
     private void OnEnable()
     {
-        pauseAction.AddOnChangeListener(OnPauseAction, SteamVR_Input_Sources.RightHand);
-        skipAction.AddOnChangeListener(OnSkipAction, SteamVR_Input_Sources.LeftHand);
+        //pauseAction.AddOnChangeListener(OnPauseAction, SteamVR_Input_Sources.RightHand);
+        //skipAction.AddOnChangeListener(OnSkipAction, SteamVR_Input_Sources.LeftHand);
     }
 
     private void OnDisable()
     {
-        if (pauseAction != null)
-            pauseAction.RemoveOnChangeListener(OnPauseAction, SteamVR_Input_Sources.RightHand);
-        if (skipAction != null)
-            skipAction.RemoveOnChangeListener(OnSkipAction, SteamVR_Input_Sources.LeftHand);
+        //if (pauseAction != null)
+        //    pauseAction.RemoveOnChangeListener(OnPauseAction, SteamVR_Input_Sources.RightHand);
+        //if (skipAction != null)
+        //    skipAction.RemoveOnChangeListener(OnSkipAction, SteamVR_Input_Sources.LeftHand);
     }
 
     private void Update()
@@ -56,7 +55,7 @@ public class SlideShow : Game
     // We will use the IENumerator as the asynchronous loop for showing the next slides
     // in the slideshow.  This loop will never exit until quit, but it can be paused.
 
-    public override IEnumerator Launch()
+    public IEnumerator Launch()
     {
         // Folder storing all the photos to be shown will be a subfolder of the katanga
         // unity app. Any jps image in that folder will be part of the slide show.
@@ -97,38 +96,22 @@ public class SlideShow : Game
         }
     }
 
-    public override string DisplayName()
-    {
-        return "SlideShow";
-    }
-
-    // Bit of a hack here for SlideShow only.  In the main loop for the game, we check
-    // for nonzero result from this routine, and then whether it changed from the last
-    // version saved.  We don't want to sprinkle #ifdef all through the code for Demo
-    // version, so this hack bypasses the check in PollForSharedSurface so that it 
-    // does nothing.
-
-    public override int GetSharedHandle()
-    {
-        LaunchAndPlay.gGameSharedHandle = -1;
-        return -1;
-    }
 
 
     // -----------------------------------------------------------------------------
 
     // -- For VR controller actions
 
-    private void OnPauseAction(SteamVR_Action_Boolean fromAction, SteamVR_Input_Sources fromSource, bool active)
-    {
-        playing = !active;
-    }
+    //private void OnPauseAction(SteamVR_Action_Boolean fromAction, SteamVR_Input_Sources fromSource, bool active)
+    //{
+    //    playing = !active;
+    //}
 
-    private void OnSkipAction(SteamVR_Action_Boolean fromAction, SteamVR_Input_Sources fromSource, bool active)
-    {
-        if (active)
-            skip = true;
-    }
+    //private void OnSkipAction(SteamVR_Action_Boolean fromAction, SteamVR_Input_Sources fromSource, bool active)
+    //{
+    //    if (active)
+    //        skip = true;
+    //}
 
     // -- For keyboard or xbox controllers
 
