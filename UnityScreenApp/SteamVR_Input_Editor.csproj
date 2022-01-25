@@ -328,6 +328,7 @@
     <None Include="Assets\SteamVR\Resources\SteamVR_SphericalProjection.shader" />
     <None Include="Assets\SteamVR\link.xml" />
     <None Include="Assets\SteamVR\readme.txt" />
+    <None Include="Assets\VR_CAS_Color.shader" />
     <None Include="Assets\sbsShader.shader" />
     <None Include="Assets\shader2D.shader" />
     <None Include="Assets\uDesktopDuplication\Shaders\uDD_Common.cginc" />

@@ -13,14 +13,12 @@
     <TargetFrameworkIdentifier>.NETFramework</TargetFrameworkIdentifier>
     <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
     <TargetFrameworkProfile>Unity Subset v3.5</TargetFrameworkProfile>
-    <CompilerResponseFile>
-    </CompilerResponseFile>
+    <CompilerResponseFile></CompilerResponseFile>
     <UnityProjectGenerator>VSTU</UnityProjectGenerator>
     <UnityProjectType>Game:1</UnityProjectType>
     <UnityBuildTarget>StandaloneWindows64:19</UnityBuildTarget>
     <UnityVersion>2017.4.26f1</UnityVersion>
-    <RootNamespace>
-    </RootNamespace>
+    <RootNamespace></RootNamespace>
     <LangVersion>4</LangVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
@@ -289,11 +287,11 @@
     <Compile Include="Assets\uDesktopDuplication\Scripts\Monitor.cs" />
     <Compile Include="Assets\uDesktopDuplication\Scripts\Texture.cs" />
     <Compile Include="Assets\uDesktopDuplication\Scripts\Utility.cs" />
+    <Compile Include="Assets\VR_CAS.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Assets\PRISM.Sharpen\Shaders\PrismSharpen.cginc" />
     <None Include="Assets\PRISM.Sharpen\Shaders\PrismSharpen.shader" />
-    <None Include="Assets\shader2D.shader" />
     <None Include="Assets\SteamVR\InteractionSystem\Core\Shaders\SeeThru.shader" />
     <None Include="Assets\SteamVR\InteractionSystem\Core\Shaders\Silhouette.shader" />
     <None Include="Assets\SteamVR\InteractionSystem\Hints\Shaders\ControllerButtonHints.shader" />
@@ -304,7 +302,9 @@
     <None Include="Assets\SteamVR\Resources\SteamVR_SphericalProjection.shader" />
     <None Include="Assets\SteamVR\link.xml" />
     <None Include="Assets\SteamVR\readme.txt" />
+    <None Include="Assets\VR_CAS_Color.shader" />
     <None Include="Assets\sbsShader.shader" />
+    <None Include="Assets\shader2D.shader" />
     <None Include="Assets\uDesktopDuplication\Shaders\uDD_Common.cginc" />
     <None Include="Assets\uDesktopDuplication\Shaders\uDD_Params.cginc" />
     <None Include="Assets\uDesktopDuplication\Shaders\uDD_Standard.shader" />
