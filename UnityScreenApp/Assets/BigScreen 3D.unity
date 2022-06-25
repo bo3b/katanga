@@ -3743,6 +3743,7 @@ GameObject:
   - component: {fileID: 265114121}
   - component: {fileID: 265114122}
   - component: {fileID: 265114120}
+  - component: {fileID: 265114124}
   - component: {fileID: 265114123}
   m_Layer: 0
   m_Name: StereoScreen
@@ -3878,6 +3879,23 @@ MonoBehaviour:
   useClip_: 0
   clipPos: {x: 0, y: 0}
   clipScale: {x: 0.2, y: 0.2}
+--- !u!114 &265114124
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  m_GameObject: {fileID: 265114118}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dfc0c6028fae37144a6efbd2de708409, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_Material: {fileID: 2100000, guid: a7dc2e74fc902654fb81647a1ede6934, type: 2}
+  m_Shader: {fileID: 4800000, guid: a884b698409ebfd41af0f6df151ca78c, type: 3}
+  sharpenAmount: 0.65
+  maximumSharpness: 0.25
+  sharpenRadius: 1
+  sharpenType: 0
 --- !u!1 &359638643
 GameObject:
   m_ObjectHideFlags: 0
@@ -8288,13 +8306,12 @@ MonoBehaviour:
   m_PrefabParentObject: {fileID: 0}
   m_PrefabInternal: {fileID: 0}
   m_GameObject: {fileID: 1030738324}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: dfc0c6028fae37144a6efbd2de708409, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_Camera: {fileID: 614232028}
-  m_Material: {fileID: 0}
+  m_Material: {fileID: 2100000, guid: a7dc2e74fc902654fb81647a1ede6934, type: 2}
   m_Shader: {fileID: 4800000, guid: a884b698409ebfd41af0f6df151ca78c, type: 3}
   sharpenAmount: 1
   maximumSharpness: 0.25

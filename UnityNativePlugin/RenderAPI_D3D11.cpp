@@ -578,10 +578,17 @@ ID3D11ShaderResourceView* RenderAPI_D3D11::CreateSharedSurface(HANDLE shared)
 
 	// Even though the input shared surface is a RenderTarget Surface, this
 	// Query for Texture2D still works.  Not sure if it is good or bad.
-	hr = m_Device->OpenSharedResource(shared, __uuidof(ID3D11Texture2D), (void**)(&pTexture2D));
-	Log(L"....OpenSharedResource on shared: %p, result: %d, resource: %p\n", shared, hr, pTexture2D);
+	ID3D11Device1* pDevice1 = nullptr;
+	hr = m_Device->QueryInterface(__uuidof(ID3D11Device1), (void**)&pDevice1);
+	{
+		if (FAILED(hr) || (pDevice1 == nullptr)) FatalExit(L"Failed to upcast ID3D11Device->ID3D11Device1.", hr);
 
-	if (FAILED(hr) || (pTexture2D == nullptr)) FatalExit(L"Failed to open shared surface.", hr);
+		hr = pDevice1->OpenSharedResource1(shared, __uuidof(ID3D11Texture2D), (void**)(&pTexture2D));
+		Log(L"....OpenSharedResource on shared: %p, result: %d, resource: %p\n", shared, hr, pTexture2D);
+
+		if (FAILED(hr) || (pTexture2D == nullptr)) FatalExit(L"Failed to open shared surface.", hr);
+	}
+	pDevice1->Release();
 
 	// By capturing the Width/Height/Format here, we can let Unity side
 	// know what buffer to build to match.
