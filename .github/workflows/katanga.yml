@@ -12,11 +12,6 @@ env:
   # Path to the solution file relative to the root of the project.
   SOLUTION_FILE_PATH: .
 
-  # Configuration type to build.
-  # You can convert this to a build matrix if you need coverage of multiple configuration types.
-  # https://docs.github.com/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
-  BUILD_CONFIGURATION: VR
-
 permissions:
   contents: read
 
@@ -41,13 +36,14 @@ jobs:
       working-directory: ${{env.GITHUB_WORKSPACE}}
       # Add additional options to the MSBuild command line here (like platform or verbosity level).
       # See https://docs.microsoft.com/visualstudio/msbuild/msbuild-command-line-reference
-      run: msbuild /m /p:Configuration=${{env.BUILD_CONFIGURATION}} ${{env.SOLUTION_FILE_PATH}} /p:platform=x64 /v:minimal /target:rebuild
-       msbuild /m /p:Configuration=${{env.BUILD_CONFIGURATION}} ${{env.SOLUTION_FILE_PATH}} /p:platform=Win32 /v:minimal /target:rebuild
+      run: 
+        msbuild /m /p:Configuration=VR ${{env.SOLUTION_FILE_PATH}} /p:platform=x64 /v:minimal /target:rebuild
+        msbuild /m /p:Configuration=VR ${{env.SOLUTION_FILE_PATH}} /p:platform=Win32 /v:minimal /target:rebuild
 
     - name: Upload a Build Artifact
       uses: actions/upload-artifact@v3.1.1
       with:
         # Artifact name
-        name: GamePlugin64.dll
+        name: GamePlugin64.dll, UnityNativePlugin64.dll
         # A file, directory or wildcard pattern that describes what to upload
         path: ./**/Plugins/
