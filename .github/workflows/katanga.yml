@@ -1,43 +1,75 @@
-name: Katanga
+name: Katanga build
 
 on:
-  # Manual dispatch
+  # Only Manual dispatch
   workflow_dispatch:
-  push:
-    branches: [ "master" ]
-  pull_request:
-    branches: [ "master" ]
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   build:
-    #  includes VS2019 Enterprise
-    runs-on: windows-2019
+    #  includes VS2022 Enterprise
+    runs-on: windows-2022
 
+#    permissions:
+#      contents: write
+#      actions: read
+      
     steps:
-    - uses: actions/checkout@v3
+    - name: Checkout master
+    - uses: actions/checkout@v4
+
+    - name: Install Unity 2018.4.36f1
+      uses: game-ci/unity-install@v2
+      with:
+        version: 2018.4.36f1
+        modules: windows-il2cpp
+        
+    - name: Activate Unity license
+      uses: game-ci/unity-activate@v2
+      with:
+        unityVersion: 2018.4.36f1
+      env:
+        UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+        UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+
+    - name: Build Unity app for Windows
+      uses: game-ci/unity-builder@v2
+      with:
+        targetPlatform: StandaloneWindows64
+        unityVersion: 2018.4.36f1
+        buildName: katanga
+        buildPath: build
+          
+    - name: Show all Visual Studio installs
+      shell: cmd
+      run: |
+        "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" -all
+        echo(
+        echo === Installed VS ===
+        dir "C:\Program Files (x86)\Microsoft Visual Studio"
+        dir "C:\Program Files\Microsoft Visual Studio"
+        echo(
+        echo === Installed toolsets ===
+        dir "C:\Program Files (x86)\Microsoft Visual Studio\2022\Enterprise\VC\Tools\MSVC"
+        dir "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Tools\MSVC"
 
     - name: Add MSBuild to PATH
-      uses: microsoft/setup-msbuild@v1.0.2
-
-# Not using Nuget here
-#     - name: Restore NuGet packages
-#       working-directory: ${{env.GITHUB_WORKSPACE}}
-#       run: nuget restore ${{env.SOLUTION_FILE_PATH}}
+      uses: microsoft/setup-msbuild@v2
 
     # Build both Win32/x64 targets as binary injected into games must match game bitness.
-    - name: Build
+    - name: Build x32/x64
       working-directory: ${{env.GITHUB_WORKSPACE}}
       # Add additional options to the MSBuild command line here (like platform or verbosity level).
       # See https://docs.microsoft.com/visualstudio/msbuild/msbuild-command-line-reference
       run: |
-        msbuild /m /p:Configuration=VR katanga.sln /p:platform=x64 /v:minimal /target:rebuild
-        msbuild /m /p:Configuration=VR katanga.sln /p:platform=Win32 /v:minimal /target:rebuild
+        msbuild /m /p:Configuration=VR katanga.sln /p:platform=x64 /v:minimal /target:rebuild /p:PlatformToolset=v142
+        msbuild /m /p:Configuration=VR katanga.sln /p:platform=Win32 /v:minimal /target:rebuild /p:PlatformToolset=v142
 
-    - name: Upload a Build Artifact
-      uses: actions/upload-artifact@v3.1.1
+    - name: Upload plugin Artifacts
+      uses: actions/upload-artifact@v4
       with:
         # Artifact name
 #         name: *.dll
@@ -45,3 +77,30 @@ jobs:
 #           UnityNativePlugin64.dll
         # A file, directory or wildcard pattern that describes what to upload
         path: .\UnityScreenApp\Assets\Plugins\*.dll
+
+    - name: Get tag name
+      shell: bash
+      run: |
+        TAG_NUM="${GITHUB_REF##*/}"
+        echo "TAG_NUM=$TAG_NUM" >> $GITHUB_ENV
+        echo "Using Tag: $TAG_NUM"
+
+    - name: Compress release to .7z
+      shell: bash
+      run: |
+        cd "SR-lib"
+        7z a -t7z "SR-lib_v${TAG_NUM}.7z" "./*"
+    
+    - name: List contents of .7z file for log info
+      shell: bash
+      run: |
+        7z l "SR-lib/SR-lib_v${TAG_NUM}.7z"
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ env.TAG_NUM }}
+        name: Release build for v${{ env.TAG_NUM }} (x32, x64)
+        files: "SR-lib/SR-lib_v${{ env.TAG_NUM }}.7z"
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
