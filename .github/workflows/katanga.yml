@@ -51,14 +51,14 @@ jobs:
 
       - name: Build Unity app for Windows
         uses: game-ci/unity-builder@v4.5.0
-#        env:
-#          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
-#          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        env:
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
         with:
           targetPlatform: StandaloneWindows64
           unityVersion: 2018.4.36f1
           buildName: katanga
-          buildPath: katanga_build
+          buildsPath: katanga_build
           
       - name: Add MSBuild to PATH
         uses: microsoft/setup-msbuild@v2
