@@ -19,7 +19,7 @@ jobs:
       
     steps:
       - name: Checkout master
-      - uses: actions/checkout@v4
+        uses: actions/checkout@v4
 
       - name: Install Unity 2018.4.36f1
         uses: game-ci/unity-install@v2
