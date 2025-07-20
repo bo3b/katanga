@@ -39,20 +39,21 @@ jobs:
 #        with:
 #          version: 2018.4.36f1
 #          modules: windows-il2cpp
-        
-      - name: Activate Unity license
-        uses: game-ci/unity-activate@v2
-        with:
-          unityVersion: 2018.4.36f1
-        env:
-          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
-          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+
+# apparently upsupported on windows?
+#      - name: Activate Unity license
+#        uses: game-ci/unity-activate@v2
+#        with:
+#          unityVersion: 2018.4.36f1
+#        env:
+#          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+#          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
 
       - name: Build Unity app for Windows
         uses: game-ci/unity-builder@v4.5.0
-        env:
-          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
-          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+#        env:
+#          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+#          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
         with:
           targetPlatform: StandaloneWindows64
           unityVersion: 2018.4.36f1
