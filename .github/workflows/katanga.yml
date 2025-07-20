@@ -34,11 +34,11 @@ jobs:
           dir "C:\Program Files (x86)\Microsoft Visual Studio\2022\Enterprise\VC\Tools\MSVC"
           dir "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Tools\MSVC"
 
-      - name: Install Unity 2018.4.36f1
-        uses: game-ci/unity-install@v3
-        with:
-          version: 2018.4.36f1
-          modules: windows-il2cpp
+#      - name: Install Unity 2018.4.36f1
+#        uses: game-ci/unity-install@v3
+#        with:
+#          version: 2018.4.36f1
+#          modules: windows-il2cpp
         
       - name: Activate Unity license
         uses: game-ci/unity-activate@v2
@@ -50,11 +50,14 @@ jobs:
 
       - name: Build Unity app for Windows
         uses: game-ci/unity-builder@v4.5.0
+        env:
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
         with:
           targetPlatform: StandaloneWindows64
           unityVersion: 2018.4.36f1
           buildName: katanga
-          buildPath: build
+          buildPath: katanga_build
           
       - name: Add MSBuild to PATH
         uses: microsoft/setup-msbuild@v2
@@ -88,19 +91,19 @@ jobs:
       - name: Compress release to .7z
         shell: bash
         run: |
-          cd "SR-lib"
-          7z a -t7z "SR-lib_v${TAG_NUM}.7z" "./*"
+          cd "katanga_build"
+          7z a -t7z "katanga_v${TAG_NUM}.7z" "./*"
       
       - name: List contents of .7z file for log info
         shell: bash
         run: |
-          7z l "SR-lib/SR-lib_v${TAG_NUM}.7z"
+          7z l "katanga_build/katanga_v${TAG_NUM}.7z"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.TAG_NUM }}
           name: Release build for v${{ env.TAG_NUM }} (x32, x64)
-          files: "SR-lib/SR-lib_v${{ env.TAG_NUM }}.7z"
+          files: "katanga_build/katanga_v${{ env.TAG_NUM }}.7z"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
