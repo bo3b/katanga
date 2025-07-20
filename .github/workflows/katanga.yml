@@ -21,28 +21,6 @@ jobs:
       - name: Checkout master
         uses: actions/checkout@v4
 
-      - name: Install Unity 2018.4.36f1
-        uses: game-ci/unity-install@v2
-        with:
-          version: 2018.4.36f1
-          modules: windows-il2cpp
-        
-      - name: Activate Unity license
-        uses: game-ci/unity-activate@v2
-        with:
-          unityVersion: 2018.4.36f1
-        env:
-          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
-          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
-
-      - name: Build Unity app for Windows
-        uses: game-ci/unity-builder@v2
-        with:
-          targetPlatform: StandaloneWindows64
-          unityVersion: 2018.4.36f1
-          buildName: katanga
-          buildPath: build
-          
       - name: Show all Visual Studio installs and toolsets
         shell: cmd
         run: |
@@ -56,6 +34,28 @@ jobs:
           dir "C:\Program Files (x86)\Microsoft Visual Studio\2022\Enterprise\VC\Tools\MSVC"
           dir "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Tools\MSVC"
 
+      - name: Install Unity 2018.4.36f1
+        uses: game-ci/unity-install@v3
+        with:
+          version: 2018.4.36f1
+          modules: windows-il2cpp
+        
+      - name: Activate Unity license
+        uses: game-ci/unity-activate@v2
+        with:
+          unityVersion: 2018.4.36f1
+        env:
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+
+      - name: Build Unity app for Windows
+        uses: game-ci/unity-builder@v4.5.0
+        with:
+          targetPlatform: StandaloneWindows64
+          unityVersion: 2018.4.36f1
+          buildName: katanga
+          buildPath: build
+          
       - name: Add MSBuild to PATH
         uses: microsoft/setup-msbuild@v2
 
