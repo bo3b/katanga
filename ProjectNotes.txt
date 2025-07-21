@@ -868,3 +868,27 @@ Answer is to use the APP_COMPAT_SHIM=1.  I'm going to remove all the other sync 
 was to change the race condition, not solve it.  Would hang less, but still hang in cases.  We will set an
 Nvidia profile for Katanga with this flag set.
 
+7-2-25
+A few notes for current state, after spending three hours looking into building. Short answer is that this
+is completely broken now, and it's not a slam dunk to get it building again. Too much development software
+has changed since then. The 2017 version of Unity is no longer downloadedable, the VS2017 is no longer 
+available on Github runners without heroic installs. The v141 toolset is also MIA without forced downloads.
+
+So setting up for Github actions is non-trivial, and is a waste of time unless someone wants to add features
+or improve the app. The original version was built from a Jenkins server on AWS, which is still possible, but
+is also a waste of time unless the app is to be revised, which seems unlikely considering it still works fine.
+
+Another side note- people complained about Katanga performance, but did not notice or apparently care that the
+image quality is quite a lot better in Katanga because of sub-pixel sampling as recommended by Oculus. None of
+the other apps do that, which makes them grainy and shimmery, but apparently no one cares. 
+
+The real answer here is to not use an external app to drive the VR state. No way to know in advance, but the
+GPU scheduling is completely shite on Windows, and an app that is not in the foreground gets last dibs on any
+GPU cycles. Even if the foreground app is just wasting cycles, it will still deliberately starve background
+apps- which translates into VR world jitter and frame drops. There is an API to change the priority- but only
+corporations with big bucks are allowed to use it. Thanks NVidia, go fuck yourself.
+
+The real answer here is to do what helifax did with Vulkan3D, and embed a VR output directly in the game 
+process. Thus it does not have a window to conflict, and will also be foreground so that the GPU cycles can
+be spent on keeping VR performant. This is a *lot* more work, Unity exists for a reason. But for performance, 
+building the VR world directly and manually is the way to go.
