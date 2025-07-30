@@ -892,3 +892,21 @@ The real answer here is to do what helifax did with Vulkan3D, and embed a VR out
 process. Thus it does not have a window to conflict, and will also be foreground so that the GPU cycles can
 be spent on keeping VR performant. This is a *lot* more work, Unity exists for a reason. But for performance, 
 building the VR world directly and manually is the way to go.
+
+7-30-25
+A problematic game was Mirrors Edge, but only when used from EA launcher. It will do a double launch, and 
+the second launch unhooks our handler and misses connecting to the game. The problem here is that MS surface 
+sharing APIs are kind of crap, and the only share from DX9 is via DX9Ex. That means forcing a DX9 game to create 
+DX9Ex objects, and that requires capturing their CreateDevice call before it can run. That then means that we must 
+have first instruction hooking of the game, because otherwise the call will be missed.  In this EA launcher case, 
+it has some auth it runs, then relaunches with some handoff. 
+
+If this were a d3d9.dll wrapper, that would probably work because even on second launch, our code would get called. 
+katanga uses Deviare in-proc hooking, which means it's process dependent. Could possibly hook d3d9 calls system wide.
+However, this also shows the limits of DX9Ex conversion, as other games break when we do this. So it feels like 
+the real answer is to avoid this forced conversion to surface sharing, and use something else to get the surfaces. 
+Most likely answer is to use a video pipeline through system memory, but maybe through GPU compute.
+
+It's also worth remembering that we don't really want an external app either. Because NVidia has shit for process
+scheduling, anything in the background gets starved of GPU cycles, which is bad for VR. The VR presentation must 
+come from the frontmost app to be performant under load.
